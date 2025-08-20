@@ -8,9 +8,7 @@ export const mapUserTypeToRole = (userType: string): UserRole => {
     'INSTITUTE_ADMIN': 'InstituteAdmin',
     'ATTEDANCE_MARKER': 'AttendanceMarker',
     'ATTENDANCE_MARKER': 'AttendanceMarker',
-    'PARENT': 'Parent',
-    'ORGANIZATIONMANAGER': 'OrganizationManager',
-    'ORGANIZATION_MANAGER': 'OrganizationManager'
+    'PARENT': 'Parent'
   };
   return typeMapping[userType.toUpperCase()] || 'Student';
 };
