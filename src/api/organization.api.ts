@@ -64,16 +64,18 @@ export interface OrganizationLoginCredentials {
   password: string;
 }
 
-// Updated login response interface to match new API
+// Updated login response interface to match new API variations
 export interface OrganizationLoginResponse {
-  access_token: string;
+  accessToken?: string; // new API
+  refreshToken?: string; // new API
+  access_token?: string; // legacy shape
   user: {
     id: string;
     email: string;
     name: string;
-    isFirstLogin: boolean;
+    isFirstLogin?: boolean;
   };
-  permissions: {
+  permissions?: {
     organizations: string[];
     isGlobalAdmin: boolean;
   };
@@ -371,8 +373,8 @@ class OrganizationSpecificApiClient {
       'ngrok-skip-browser-warning': 'true'
     };
 
-    const token = localStorage.getItem('org_access_token');
-    if (token) {
+    const token = localStorage.getItem('org_access_token') || '';
+    if (token && token !== 'undefined' && token !== 'null') {
       headers['Authorization'] = `Bearer ${token}`;
     }
 

@@ -78,10 +78,7 @@ const Organizations = () => {
     
     setIsLoadingEnrolled(true);
     try {
-      const response = await organizationSpecificApi.getEnrolledOrganizations({
-        page: 1,
-        limit: 12
-      });
+      const response = await organizationSpecificApi.getEnrolledOrganizations();
       setEnrolledOrganizations(response.data);
     } catch (error) {
       console.error('Error fetching enrolled organizations:', error);

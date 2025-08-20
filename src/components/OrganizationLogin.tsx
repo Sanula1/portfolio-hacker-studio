@@ -85,8 +85,11 @@ const OrganizationLogin = ({ onLogin, onBack }: OrganizationLoginProps) => {
     try {
       const loginResponse = await organizationApi.loginToOrganization({ email, password });
       
-      // Store organization access token
-      localStorage.setItem('org_access_token', loginResponse.access_token);
+      // Store organization access token (supports both accessToken and access_token)
+      const orgToken = (loginResponse as any).accessToken || (loginResponse as any).access_token;
+      if (orgToken) {
+        localStorage.setItem('org_access_token', orgToken);
+      }
       
       if (onLogin) {
         onLogin(loginResponse);
