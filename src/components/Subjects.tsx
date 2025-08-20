@@ -478,7 +478,6 @@ const Subjects = () => {
             <DialogTitle>Assign Subjects to Class</DialogTitle>
           </DialogHeader>
           <AssignSubjectToClassForm
-            subjects={subjectsData}
             onSuccess={() => {
               setIsAssignDialogOpen(false);
               toast({

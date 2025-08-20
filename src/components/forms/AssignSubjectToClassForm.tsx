@@ -13,17 +13,20 @@ import { useToast } from '@/hooks/use-toast';
 import { getBaseUrl } from '@/contexts/utils/auth.api';
 
 interface AssignSubjectToClassFormProps {
-  subjects: Array<{
-    id: string;
-    name: string;
-    code: string;
-    description: string;
-    category: string;
-    creditHours: number;
-    isActive: boolean;
-  }>;
   onSuccess: () => void;
   onCancel: () => void;
+}
+
+interface Subject {
+  id: string;
+  name: string;
+  code: string;
+  description: string;
+  category: string;
+  creditHours: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface ClassOption {
@@ -42,7 +45,6 @@ interface AssignResponse {
 }
 
 const AssignSubjectToClassForm: React.FC<AssignSubjectToClassFormProps> = ({
-  subjects,
   onSuccess,
   onCancel
 }) => {
@@ -54,7 +56,10 @@ const AssignSubjectToClassForm: React.FC<AssignSubjectToClassFormProps> = ({
   const [defaultTeacherId, setDefaultTeacherId] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [classesLoading, setClassesLoading] = useState(false);
+  const [subjectsLoading, setSubjectsLoading] = useState(false);
   const [classes, setClasses] = useState<ClassOption[]>([]);
+  const [subjects, setSubjects] = useState<Subject[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [showClassSelector, setShowClassSelector] = useState(true);
   const [assignResult, setAssignResult] = useState<AssignResponse | null>(null);
 
@@ -78,6 +83,36 @@ const AssignSubjectToClassForm: React.FC<AssignSubjectToClassFormProps> = ({
     }
 
     return headers;
+  };
+
+  const handleLoadSubjects = async () => {
+    setSubjectsLoading(true);
+    try {
+      const baseUrl = getBaseUrl();
+      const headers = getApiHeaders();
+      
+      const url = `${baseUrl}/subjects`;
+      const response = await fetch(url, {
+        method: 'GET',
+        headers
+      });
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch subjects: ${response.status}`);
+      }
+      
+      const result: Subject[] = await response.json();
+      setSubjects(result.filter(subject => subject.isActive));
+    } catch (error) {
+      console.error('Error loading subjects:', error);
+      toast({
+        title: "Load Failed",
+        description: "Failed to load subjects data.",
+        variant: "destructive"
+      });
+    } finally {
+      setSubjectsLoading(false);
+    }
   };
 
   const handleLoadClasses = async () => {
@@ -212,6 +247,13 @@ const AssignSubjectToClassForm: React.FC<AssignSubjectToClassFormProps> = ({
     }
   };
 
+  // Filter subjects based on search query
+  const filteredSubjects = subjects.filter(subject =>
+    subject.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    subject.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    subject.code.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   const selectedClass = classes.find(cls => cls.id === selectedClassId);
 
   return (
@@ -286,39 +328,81 @@ const AssignSubjectToClassForm: React.FC<AssignSubjectToClassFormProps> = ({
             </div>
 
             <div>
-              <Label>Select Subjects to Assign</Label>
-              <div className="mt-2 space-y-2 max-h-60 overflow-y-auto border rounded-md p-3">
-                {subjects.map((subject) => (
-                  <div key={subject.id} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={subject.id}
-                      checked={selectedSubjectIds.includes(subject.id)}
-                      onCheckedChange={(checked) => 
-                        handleSubjectChange(subject.id, checked as boolean)
-                      }
-                    />
-                    <Label 
-                      htmlFor={subject.id} 
-                      className="flex-1 text-sm cursor-pointer"
-                    >
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <span className="font-medium">{subject.name}</span>
-                          <span className="text-gray-500 ml-2">({subject.code})</span>
-                        </div>
-                        <div className="flex gap-1">
-                          <Badge variant="outline" className="text-xs">
-                            {subject.category}
-                          </Badge>
-                          <Badge variant="secondary" className="text-xs">
-                            {subject.creditHours}h
-                          </Badge>
-                        </div>
-                      </div>
-                    </Label>
-                  </div>
-                ))}
+              <div className="flex items-center justify-between mb-3">
+                <Label>Select Subjects to Assign</Label>
+                {subjects.length === 0 && (
+                  <Button 
+                    onClick={handleLoadSubjects}
+                    disabled={subjectsLoading}
+                    variant="outline"
+                    size="sm"
+                  >
+                    {subjectsLoading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Loading...
+                      </>
+                    ) : (
+                      'Load Subjects'
+                    )}
+                  </Button>
+                )}
               </div>
+              
+              {subjects.length > 0 && (
+                <div className="mb-3">
+                  <Input
+                    placeholder="Search subjects by name, category, or code..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full"
+                  />
+                </div>
+              )}
+              
+              {subjects.length > 0 ? (
+                <div className="mt-2 space-y-2 max-h-60 overflow-y-auto border rounded-md p-3">
+                  {filteredSubjects.map((subject) => (
+                    <div key={subject.id} className="flex items-center space-x-2">
+                      <Checkbox
+                        id={subject.id}
+                        checked={selectedSubjectIds.includes(subject.id)}
+                        onCheckedChange={(checked) => 
+                          handleSubjectChange(subject.id, checked as boolean)
+                        }
+                      />
+                      <Label 
+                        htmlFor={subject.id} 
+                        className="flex-1 text-sm cursor-pointer"
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <span className="font-medium">{subject.name}</span>
+                          </div>
+                          <div className="flex gap-1">
+                            <Badge variant="outline" className="text-xs">
+                              {subject.category}
+                            </Badge>
+                            <Badge variant="secondary" className="text-xs">
+                              {subject.creditHours}h
+                            </Badge>
+                          </div>
+                        </div>
+                      </Label>
+                    </div>
+                  ))}
+                  {filteredSubjects.length === 0 && searchQuery && (
+                    <p className="text-center text-gray-500 py-4">
+                      No subjects found matching "{searchQuery}"
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <div className="mt-2 border rounded-md p-8 text-center text-gray-500">
+                  Click "Load Subjects" to view available subjects
+                </div>
+              )}
+              
               {selectedSubjectIds.length > 0 && (
                 <p className="text-sm text-gray-600 mt-2">
                   {selectedSubjectIds.length} subject(s) selected
