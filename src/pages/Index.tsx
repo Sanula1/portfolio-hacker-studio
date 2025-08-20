@@ -1,10 +1,17 @@
-
-import React from 'react';
-import AppContent from '@/components/AppContent';
+import Hero from "@/components/Hero";
+import About from "@/components/About";
+import Projects from "@/components/Projects";
+import Contact from "@/components/Contact";
 
 const Index = () => {
-  console.log('Index component rendering');
-  return <AppContent />;
+  return (
+    <div className="min-h-screen bg-background">
+      <Hero />
+      <About />
+      <Projects />
+      <Contact />
+    </div>
+  );
 };
 
 export default Index;
