@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,7 +14,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Building2, Users, Search, LayoutGrid, List } from 'lucide-react';
-import { organizationSpecificApi } from '@/api/organization.api';
+import { organizationApi } from '@/api/organization.api';
 import { useToast } from '@/hooks/use-toast';
 
 interface EnrollableOrganization {
@@ -50,23 +50,17 @@ const EnrollOrganizationDialog = ({ open, onOpenChange }: EnrollOrganizationDial
         ...(search && { search })
       };
       
-      const response = await organizationSpecificApi.get<{
-        data: EnrollableOrganization[];
-        pagination: {
-          page: number;
-          limit: number;
-          total: number;
-          totalPages: number;
-          hasNext: boolean;
-          hasPrev: boolean;
-        };
-        meta: {
-          sortBy: string;
-          sortOrder: string;
-        };
-      }>('/organization/api/v1/organizations', params);
+      const response = await organizationApi.getOrganizations(params);
       
-      setOrganizations(response.data);
+      const mappedOrganizations = response.data.map(org => ({
+        organizationId: org.organizationId,
+        name: org.name,
+        type: org.type,
+        isPublic: org.isPublic,
+        instituteId: org.instituteId
+      }));
+      
+      setOrganizations(mappedOrganizations);
       setTotalPages(response.pagination.totalPages);
     } catch (error) {
       console.error('Error fetching organizations:', error);
@@ -80,47 +74,42 @@ const EnrollOrganizationDialog = ({ open, onOpenChange }: EnrollOrganizationDial
     }
   };
 
-  useEffect(() => {
-    if (open) {
-      fetchOrganizations(currentPage, searchTerm);
-    }
-  }, [open, currentPage, searchTerm]);
 
   const handleEnroll = async (organizationId: string) => {
     const organization = organizations.find(org => org.organizationId === organizationId);
     if (!organization) return;
 
-    // For GLOBAL organizations, no enrollment key is required
-    // For other types, check if enrollment key is needed for private organizations
-    const needsEnrollmentKey = organization.type !== 'GLOBAL' && !organization.isPublic;
-    
-    if (needsEnrollmentKey && !enrollmentKey.trim()) {
-      toast({
-        title: "Enrollment Key Required",
-        description: "Please enter an enrollment key for this private organization",
-        variant: "destructive",
-      });
-      return;
-    }
-
     setEnrollingOrg(organizationId);
     
     try {
-      const requestBody: any = { organizationId };
-      if (organization.type !== 'GLOBAL' && enrollmentKey.trim()) {
-        requestBody.enrollmentKey = enrollmentKey.trim();
+      // For GLOBAL organizations, no enrollment key is needed
+      if (organization.type === 'GLOBAL') {
+        const response = await organizationApi.enrollInOrganization(organizationId);
+        toast({
+          title: "Success",
+          description: response.message || "Successfully enrolled in organization"
+        });
+      } else {
+        // For INSTITUTE organizations, check if enrollment key is needed
+        if (!enrollmentKey.trim()) {
+          toast({
+            title: "Enrollment Key Required",
+            description: "Please enter the enrollment key for this organization",
+            variant: "destructive"
+          });
+          return;
+        }
+        
+        const response = await organizationApi.enrollInOrganization(organizationId, enrollmentKey.trim());
+        toast({
+          title: "Success", 
+          description: response.message || "Successfully enrolled in organization"
+        });
+        
+        // Clear the enrollment key after successful enrollment
+        setEnrollmentKey('');
       }
-
-      const response = await organizationSpecificApi.post('/organization/api/v1/organizations/enroll', requestBody);
       
-      toast({
-        title: "Success",
-        description: `Successfully enrolled in ${response.name}`,
-      });
-      
-      setEnrollmentKey('');
-      // Refresh the organizations list to reflect enrollment status
-      fetchOrganizations(currentPage, searchTerm);
     } catch (error: any) {
       console.error('Error enrolling in organization:', error);
       const errorMessage = error?.response?.data?.message || error?.message || "Failed to enroll in organization";
@@ -206,6 +195,16 @@ const EnrollOrganizationDialog = ({ open, onOpenChange }: EnrollOrganizationDial
         </DialogHeader>
         
         <div className="flex flex-col gap-4 overflow-hidden">
+          {/* Load Organizations Button */}
+          <div className="flex items-center justify-between gap-4">
+            <Button 
+              onClick={() => fetchOrganizations(currentPage, searchTerm)}
+              disabled={loading}
+            >
+              {loading ? "Loading..." : "Load Organizations"}
+            </Button>
+          </div>
+
           {/* Search and View Controls */}
           <div className="flex items-center justify-between gap-4">
             <div className="relative flex-1 max-w-sm">

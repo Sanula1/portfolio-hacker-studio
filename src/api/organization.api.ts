@@ -305,6 +305,23 @@ class OrganizationApiClient {
     }
   }
 
+  async enrollInOrganization(organizationId: string, enrollmentKey?: string): Promise<any> {
+    try {
+      this.checkBaseUrl2();
+      apiClient.setUseBaseUrl2(true);
+      
+      const requestBody: any = { organizationId };
+      if (enrollmentKey) {
+        requestBody.enrollmentKey = enrollmentKey;
+      }
+      
+      const response = await apiClient.post(`${this.baseUrl}/organizations/enroll`, requestBody);
+      return response;
+    } finally {
+      apiClient.setUseBaseUrl2(false);
+    }
+  }
+
   async updateOrganization(id: string, data: Partial<OrganizationCreateData>): Promise<Organization> {
     try {
       this.checkBaseUrl2();
