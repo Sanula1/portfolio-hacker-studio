@@ -316,7 +316,7 @@ class OrganizationApiClient {
       }
       
       console.log('Enrolling in organization with data:', requestBody);
-      const response = await apiClient.post(`${this.baseUrl}/organizations/enroll`, requestBody);
+      const response = await apiClient.post(`/organization/api/v1/organizations/enroll`, requestBody);
       console.log('Enrollment response:', response);
       return response;
     } catch (error) {
