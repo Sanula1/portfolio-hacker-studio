@@ -145,26 +145,11 @@ const OrganizationManagement = ({ userRole, userPermissions, currentInstituteId 
 
   const handleEnrollOrganization = async (organizationId: string) => {
     try {
-      const response = await fetch('/api/organization/api/v1/organizations/enroll', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          organizationId: organizationId,
-          enrollmentKey: ""
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to enroll in organization');
-      }
-
-      const result = await response.json();
+      const result = await organizationApi.enrollInOrganization(organizationId);
       
       toast({
         title: "Success",
-        description: `Successfully enrolled in ${result.organization.name}`,
+        description: result.message || "Successfully enrolled in organization",
       });
       
       fetchEnrollmentOrganizations(); // Refresh the list
