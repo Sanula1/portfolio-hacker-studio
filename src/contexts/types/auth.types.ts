@@ -26,7 +26,7 @@ export interface User {
 }
 
 // Export UserRole type for use in other components
-export type UserRole = 'InstituteAdmin' | 'Teacher' | 'Student' | 'AttendanceMarker' | 'Parent';
+export type UserRole = 'InstituteAdmin' | 'Teacher' | 'Student' | 'AttendanceMarker' | 'Parent' | 'OrganizationManager';
 
 export interface Institute {
   id: string;
