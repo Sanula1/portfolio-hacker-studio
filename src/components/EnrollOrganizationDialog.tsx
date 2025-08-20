@@ -74,7 +74,6 @@ const EnrollOrganizationDialog = ({ open, onOpenChange }: EnrollOrganizationDial
     }
   };
 
-
   const handleEnroll = async (organizationId: string) => {
     const organization = organizations.find(org => org.organizationId === organizationId);
     if (!organization) return;
@@ -82,33 +81,23 @@ const EnrollOrganizationDialog = ({ open, onOpenChange }: EnrollOrganizationDial
     setEnrollingOrg(organizationId);
     
     try {
+      let response;
+      
       // For GLOBAL organizations, no enrollment key is needed
       if (organization.type === 'GLOBAL') {
-        const response = await organizationApi.enrollInOrganization(organizationId);
-        toast({
-          title: "Success",
-          description: response.message || "Successfully enrolled in organization"
-        });
+        response = await organizationApi.enrollInOrganization(organizationId);
       } else {
-        // For INSTITUTE organizations, check if enrollment key is needed
-        if (!enrollmentKey.trim()) {
-          toast({
-            title: "Enrollment Key Required",
-            description: "Please enter the enrollment key for this organization",
-            variant: "destructive"
-          });
-          return;
-        }
-        
-        const response = await organizationApi.enrollInOrganization(organizationId, enrollmentKey.trim());
-        toast({
-          title: "Success", 
-          description: response.message || "Successfully enrolled in organization"
-        });
-        
-        // Clear the enrollment key after successful enrollment
-        setEnrollmentKey('');
+        // For INSTITUTE organizations, enrollment key is optional but can be provided
+        response = await organizationApi.enrollInOrganization(organizationId, enrollmentKey.trim() || undefined);
       }
+      
+      toast({
+        title: "Success",
+        description: response.message || "Successfully enrolled in organization"
+      });
+      
+      // Clear the enrollment key after successful enrollment
+      setEnrollmentKey('');
       
     } catch (error: any) {
       console.error('Error enrolling in organization:', error);
