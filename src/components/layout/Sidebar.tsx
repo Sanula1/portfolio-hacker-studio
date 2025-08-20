@@ -36,7 +36,7 @@ interface SidebarProps {
 }
 
 const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) => {
-  const { user, selectedInstitute, selectedClass, selectedSubject, selectedChild, selectedOrganization, logout, setSelectedInstitute, setSelectedClass, setSelectedSubject, setSelectedChild, setSelectedOrganization } = useAuth();
+  const { user, selectedInstitute, selectedClass, selectedSubject, selectedChild, logout, setSelectedInstitute, setSelectedClass, setSelectedSubject, setSelectedChild } = useAuth();
 
   // Get menu items based on current selection state
   const getMenuItems = () => {
@@ -51,13 +51,6 @@ const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) =
             icon: LayoutDashboard,
             permission: 'view-dashboard',
             alwaysShow: false
-          },
-          {
-            id: 'organizations',
-            label: 'Organizations',
-            icon: Building2,
-            permission: 'view-organizations',
-            alwaysShow: true
           }
         ];
       }
@@ -518,13 +511,6 @@ const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) =
         icon: LayoutDashboard,
         permission: 'view-dashboard',
         alwaysShow: false
-      },
-      {
-        id: 'organizations',
-        label: 'Organizations',
-        icon: Building2,
-        permission: 'view-organizations',
-        alwaysShow: true // Always show organizations for all users
       }
     ];
 
@@ -1005,10 +991,7 @@ const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) =
   };
 
   const handleBackNavigation = () => {
-    if (selectedOrganization) {
-      // Go back from organization level to organization selection
-      setSelectedOrganization(null);
-    } else if (selectedChild) {
+    if (selectedChild) {
       // Go back from child level to children selection
       setSelectedChild(null);
     } else if (selectedSubject) {
@@ -1095,7 +1078,7 @@ const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) =
         </div>
 
         {/* Context Info - Only show for non-SystemAdmin users */}
-        {user?.role !== 'SystemAdmin' && (selectedInstitute || selectedClass || selectedSubject || selectedChild || selectedOrganization) && (
+        {user?.role !== 'SystemAdmin' && (selectedInstitute || selectedClass || selectedSubject || selectedChild) && (
           <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border-b border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-medium text-blue-600 dark:text-blue-400">
@@ -1112,12 +1095,6 @@ const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) =
               </Button>
             </div>
             <div className="space-y-1 text-xs">
-              {selectedOrganization && (
-                <div className="text-blue-600 dark:text-blue-400">
-                  <span className="font-medium">Organization:</span> 
-                  <span className="ml-1 truncate">{selectedOrganization.name}</span>
-                </div>
-              )}
               {selectedInstitute && (
                 <div className="text-blue-600 dark:text-blue-400">
                   <span className="font-medium">Institute:</span> 
