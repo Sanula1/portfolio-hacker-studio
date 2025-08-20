@@ -87,26 +87,46 @@ const EnrollOrganizationDialog = ({ open, onOpenChange }: EnrollOrganizationDial
   }, [open, currentPage, searchTerm]);
 
   const handleEnroll = async (organizationId: string) => {
+    const organization = organizations.find(org => org.organizationId === organizationId);
+    if (!organization) return;
+
+    // For GLOBAL organizations, no enrollment key is required
+    // For other types, check if enrollment key is needed for private organizations
+    const needsEnrollmentKey = organization.type !== 'GLOBAL' && !organization.isPublic;
+    
+    if (needsEnrollmentKey && !enrollmentKey.trim()) {
+      toast({
+        title: "Enrollment Key Required",
+        description: "Please enter an enrollment key for this private organization",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setEnrollingOrg(organizationId);
     
     try {
-      const response = await organizationSpecificApi.post('/organization/api/v1/organizations/enroll', {
-        organizationId,
-        ...(enrollmentKey && { enrollmentKey })
-      });
+      const requestBody: any = { organizationId };
+      if (organization.type !== 'GLOBAL' && enrollmentKey.trim()) {
+        requestBody.enrollmentKey = enrollmentKey.trim();
+      }
+
+      const response = await organizationSpecificApi.post('/organization/api/v1/organizations/enroll', requestBody);
       
       toast({
         title: "Success",
-        description: `Successfully enrolled in ${response.organization.name}`,
+        description: `Successfully enrolled in ${response.name}`,
       });
       
       setEnrollmentKey('');
-      // Don't close dialog to allow enrolling in multiple organizations
-    } catch (error) {
+      // Refresh the organizations list to reflect enrollment status
+      fetchOrganizations(currentPage, searchTerm);
+    } catch (error: any) {
       console.error('Error enrolling in organization:', error);
+      const errorMessage = error?.response?.data?.message || error?.message || "Failed to enroll in organization";
       toast({
         title: "Error",
-        description: "Failed to enroll in organization",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
