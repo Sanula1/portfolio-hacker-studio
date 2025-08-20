@@ -327,6 +327,38 @@ class OrganizationApiClient {
   }
 }
 
+// Enrolled Organization interface
+export interface EnrolledOrganization {
+  organizationId: string;
+  name: string;
+  type: 'INSTITUTE' | 'GLOBAL';
+  isPublic: boolean;
+  needEnrollmentVerification: boolean;
+  imageUrl: string | null;
+  instituteId: string | null;
+  userRole: string;
+  isVerified: boolean;
+  joinedAt: string;
+  memberCount: number;
+  causeCount: number;
+}
+
+export interface EnrolledOrganizationResponse {
+  data: EnrolledOrganization[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+  meta: {
+    sortBy: string;
+    sortOrder: 'asc' | 'desc';
+  };
+}
+
 // Organization-specific API client that uses baseUrl2
 class OrganizationSpecificApiClient {
   private getBaseUrl2(): string {
@@ -410,6 +442,10 @@ class OrganizationSpecificApiClient {
     });
 
     return this.handleResponse<T>(response);
+  }
+
+  async getEnrolledOrganizations(params?: { page?: number; limit?: number }): Promise<EnrolledOrganizationResponse> {
+    return this.get<EnrolledOrganizationResponse>('/organization/api/v1/organizations/user/enrolled', params);
   }
 }
 
