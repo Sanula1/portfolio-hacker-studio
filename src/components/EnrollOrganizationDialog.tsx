@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -81,15 +80,21 @@ const EnrollOrganizationDialog = ({ open, onOpenChange }: EnrollOrganizationDial
     setEnrollingOrg(organizationId);
     
     try {
+      console.log('Starting enrollment for organization:', organizationId, 'with key:', enrollmentKey);
+      
       let response;
       
       // For GLOBAL organizations, no enrollment key is needed
       if (organization.type === 'GLOBAL') {
+        console.log('Enrolling in GLOBAL organization without key');
         response = await organizationApi.enrollInOrganization(organizationId);
       } else {
         // For INSTITUTE organizations, enrollment key is optional but can be provided
+        console.log('Enrolling in INSTITUTE organization with key:', enrollmentKey.trim() || 'none');
         response = await organizationApi.enrollInOrganization(organizationId, enrollmentKey.trim() || undefined);
       }
+      
+      console.log('Enrollment successful:', response);
       
       toast({
         title: "Success",
@@ -101,7 +106,27 @@ const EnrollOrganizationDialog = ({ open, onOpenChange }: EnrollOrganizationDial
       
     } catch (error: any) {
       console.error('Error enrolling in organization:', error);
-      const errorMessage = error?.response?.data?.message || error?.message || "Failed to enroll in organization";
+      
+      let errorMessage = "Failed to enroll in organization";
+      
+      // Extract more specific error information
+      if (error?.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error?.message) {
+        errorMessage = error.message;
+      }
+      
+      // Check for specific error types
+      if (error?.message?.includes('Base URL not configured')) {
+        errorMessage = "Organization API is not configured. Please check your settings.";
+      } else if (error?.message?.includes('404')) {
+        errorMessage = "Organization enrollment endpoint not found. Please check your API configuration.";
+      } else if (error?.message?.includes('401')) {
+        errorMessage = "Authentication failed. Please login again.";
+      }
+      
+      console.log('Final error message:', errorMessage);
+      
       toast({
         title: "Error",
         description: errorMessage,

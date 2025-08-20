@@ -315,8 +315,13 @@ class OrganizationApiClient {
         requestBody.enrollmentKey = enrollmentKey;
       }
       
+      console.log('Enrolling in organization with data:', requestBody);
       const response = await apiClient.post(`${this.baseUrl}/organizations/enroll`, requestBody);
+      console.log('Enrollment response:', response);
       return response;
+    } catch (error) {
+      console.error('Enrollment API error:', error);
+      throw error;
     } finally {
       apiClient.setUseBaseUrl2(false);
     }
