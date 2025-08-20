@@ -38,6 +38,14 @@ export type {
   InstituteQueryParams 
 } from './institute.api';
 
+// Organization API
+export { organizationApi } from './organization.api';
+export type { 
+  Organization, 
+  OrganizationCreateData, 
+  OrganizationQueryParams 
+} from './organization.api';
+
 // Users API
 export { usersApi } from './users.api';
 export type { 

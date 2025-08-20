@@ -93,7 +93,7 @@ const Parents = () => {
   const userRole = (user?.role || 'Student') as UserRole;
   const canEdit = AccessControl.hasPermission(userRole, 'edit-parent');
   const canDelete = AccessControl.hasPermission(userRole, 'delete-parent');
-  const canCreate = userRole === 'InstituteAdmin';
+  const canCreate = userRole === 'InstituteAdmin' || userRole === 'OrganizationManager';
 
   const getApiHeaders = () => {
     const token = localStorage.getItem('access_token');
