@@ -12,6 +12,7 @@ import { AccessControl } from '@/utils/permissions';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import CreateSubjectForm from '@/components/forms/CreateSubjectForm';
+import AssignSubjectToClassForm from '@/components/forms/AssignSubjectToClassForm';
 import { getBaseUrl } from '@/contexts/utils/auth.api';
 
 interface SubjectData {
@@ -31,6 +32,7 @@ const Subjects = () => {
   const { toast } = useToast();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
   const [selectedSubjectData, setSelectedSubjectData] = useState<any>(null);
   const [subjectsData, setSubjectsData] = useState<SubjectData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -44,6 +46,7 @@ const Subjects = () => {
   const canEdit = AccessControl.hasPermission(userRole, 'edit-subject');
   const canDelete = AccessControl.hasPermission(userRole, 'delete-subject');
   const canCreate = userRole === 'InstituteAdmin';
+  const canAssignSubjects = userRole === 'InstituteAdmin' || userRole === 'Teacher';
 
   const getAuthToken = () => {
     const token = localStorage.getItem('access_token') || 
@@ -326,7 +329,18 @@ const Subjects = () => {
                    <Plus className="h-4 w-4" />
                    Create Subject
                  </Button>
-               )}
+                )}
+                
+                {canAssignSubjects && dataLoaded && subjectsData.length > 0 && (
+                  <Button
+                    onClick={() => setIsAssignDialogOpen(true)}
+                    className="bg-purple-600 hover:bg-purple-700 text-white flex items-center gap-2"
+                    size="sm"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Assign Subject
+                  </Button>
+                )}
             </div>
             
             <Button 
@@ -453,6 +467,26 @@ const Subjects = () => {
               setIsEditDialogOpen(false);
               setSelectedSubjectData(null);
             }}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Assign Subject Dialog */}
+      <Dialog open={isAssignDialogOpen} onOpenChange={setIsAssignDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Assign Subjects to Class</DialogTitle>
+          </DialogHeader>
+          <AssignSubjectToClassForm
+            subjects={subjectsData}
+            onSuccess={() => {
+              setIsAssignDialogOpen(false);
+              toast({
+                title: "Success",
+                description: "Subjects assigned successfully!"
+              });
+            }}
+            onCancel={() => setIsAssignDialogOpen(false)}
           />
         </DialogContent>
       </Dialog>
