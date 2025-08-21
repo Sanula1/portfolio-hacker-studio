@@ -72,6 +72,29 @@ export interface Child {
   };
 }
 
+export interface Organization {
+  organizationId: string;
+  name: string;
+  type: string;
+  isPublic: boolean;
+  needEnrollmentVerification: boolean;
+  imageUrl: string | null;
+  instituteId: string | null;
+  userRole: string;
+  isVerified: boolean;
+  joinedAt: string;
+  memberCount: number;
+  causeCount: number;
+}
+
+export interface Course {
+  causeId: string;
+  title: string;
+  description: string;
+  isPublic: boolean;
+  organizationId: string;
+}
+
 export interface LoginCredentials {
   email: string;
   password?: string;
@@ -83,20 +106,22 @@ export interface AuthContextType {
   selectedClass: Class | null;
   selectedSubject: Subject | null;
   selectedChild: Child | null;
+  selectedOrganization: Organization | null;
+  selectedCourse: Course | null;
   currentInstituteId: string | null;
   currentClassId: string | null;
   currentSubjectId: string | null;
   currentChildId: string | null;
   isOrganizationLoggedIn: boolean;
-  organizationUser: any | null;
   login: (credentials: LoginCredentials) => Promise<void>;
   logout: () => void;
   setSelectedInstitute: (institute: Institute | null) => void;
   setSelectedClass: (classData: Class | null) => void;
   setSelectedSubject: (subject: Subject | null) => void;
   setSelectedChild: (child: Child | null) => void;
-  setOrganizationUser: (orgUser: any) => void;
-  clearOrganizationLogin: () => void;
+  setSelectedOrganization: (organization: Organization | null) => void;
+  setSelectedCourse: (course: Course | null) => void;
+  setOrganizationLoggedIn: (loggedIn: boolean) => void;
   loadUserInstitutes: () => Promise<Institute[]>;
   refreshUserData?: (forceRefresh?: boolean) => Promise<void>;
   validateUserToken?: () => Promise<void>;

@@ -23,16 +23,16 @@ export const getBaseUrl2 = (): string => {
 };
 
 export const getOrgUrl = (): string => {
-  // Prefer environment variable when available
-  const envUrl = import.meta.env.VITE_ORG_BASE_URL;
-  if (envUrl) {
-    return envUrl;
-  }
-
-  // Then check localStorage for user-configured URL
+  // First check localStorage for user-configured URL
   const storedUrl = localStorage.getItem('orgUrl');
   if (storedUrl) {
     return storedUrl;
+  }
+  
+  // Then check environment variable
+  const envUrl = import.meta.env.VITE_ORG_BASE_URL;
+  if (envUrl) {
+    return envUrl;
   }
   
   // Return default URL
