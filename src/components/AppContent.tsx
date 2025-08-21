@@ -38,9 +38,11 @@ import TeacherLectures from '@/components/TeacherLectures';
 import AttendanceMarkerSubjectSelector from '@/components/AttendanceMarkerSubjectSelector';
 import InstituteUsers from '@/components/InstituteUsers';
 import OrganizationDashboard from '@/components/OrganizationDashboard';
+import Organizations from '@/components/Organizations';
+import OrganizationCourses from '@/components/OrganizationCourses';
 
 const AppContent = () => {
-  const { user, login, selectedInstitute, selectedClass, selectedSubject, selectedChild } = useAuth();
+  const { user, login, selectedInstitute, selectedClass, selectedSubject, selectedChild, isOrganizationLoggedIn, selectedOrganization } = useAuth();
   const [currentPage, setCurrentPage] = useState('dashboard');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
@@ -62,6 +64,26 @@ const AppContent = () => {
   };
 
   const renderComponent = () => {
+    // Check if user is in organization mode for restricted roles
+    const isRestrictedUser = user?.userType && ['InstituteAdmin', 'Teacher', 'Student'].includes(user.userType);
+    
+    if (isRestrictedUser && isOrganizationLoggedIn) {
+      switch (currentPage) {
+        case 'organizations':
+          return <Organizations />;
+        case 'gallery':
+          return <Gallery />;
+        case 'organization-courses':
+          return <OrganizationCourses />;
+        case 'profile':
+          return <Profile />;
+        case 'appearance':
+          return <Appearance />;
+        default:
+          return <Organizations />;
+      }
+    }
+
     // For Student role - simplified interface
     if (user?.role === 'Student') {
       if (!selectedInstitute && user.institutes.length === 1) {

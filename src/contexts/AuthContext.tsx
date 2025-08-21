@@ -6,6 +6,8 @@ import {
   Class, 
   Subject, 
   Child, 
+  Organization,
+  Course,
   LoginCredentials, 
   AuthContextType 
 } from './types/auth.types';
@@ -35,6 +37,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [selectedClass, setSelectedClassState] = useState<Class | null>(null);
   const [selectedSubject, setSelectedSubjectState] = useState<Subject | null>(null);
   const [selectedChild, setSelectedChildState] = useState<Child | null>(null);
+  const [selectedOrganization, setSelectedOrganizationState] = useState<Organization | null>(null);
+  const [selectedCourse, setSelectedCourseState] = useState<Course | null>(null);
+  const [isOrganizationLoggedIn, setIsOrganizationLoggedInState] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   // Public variables for current IDs - no localStorage sync
@@ -140,6 +145,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setSelectedClassState(null);
     setSelectedSubjectState(null);
     setSelectedChildState(null);
+    setSelectedOrganizationState(null);
+    setSelectedCourseState(null);
+    setIsOrganizationLoggedInState(false);
     
     setCurrentInstituteId(null);
     setCurrentClassId(null);
@@ -181,6 +189,27 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const setSelectedChild = (child: Child | null) => {
     setSelectedChildState(child);
     setCurrentChildId(child?.id || null);
+  };
+
+  const setSelectedOrganization = (organization: Organization | null) => {
+    setSelectedOrganizationState(organization);
+    
+    // Clear dependent selections
+    setSelectedCourseState(null);
+  };
+
+  const setSelectedCourse = (course: Course | null) => {
+    setSelectedCourseState(course);
+  };
+
+  const setOrganizationLoggedIn = (loggedIn: boolean) => {
+    setIsOrganizationLoggedInState(loggedIn);
+    
+    // Clear organization selections when logging out
+    if (!loggedIn) {
+      setSelectedOrganizationState(null);
+      setSelectedCourseState(null);
+    }
   };
 
   // Method to refresh user data from backend - only called manually
@@ -231,16 +260,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     selectedClass,
     selectedSubject,
     selectedChild,
+    selectedOrganization,
+    selectedCourse,
     currentInstituteId,
     currentClassId,
     currentSubjectId,
     currentChildId,
+    isOrganizationLoggedIn,
     login,
     logout,
     setSelectedInstitute,
     setSelectedClass,
     setSelectedSubject,
     setSelectedChild,
+    setSelectedOrganization,
+    setSelectedCourse,
+    setOrganizationLoggedIn,
     loadUserInstitutes,
     refreshUserData,
     validateUserToken,

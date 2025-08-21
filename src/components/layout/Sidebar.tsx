@@ -37,16 +37,85 @@ interface SidebarProps {
 }
 
 const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) => {
-  const { user, selectedInstitute, selectedClass, selectedSubject, selectedChild, logout, setSelectedInstitute, setSelectedClass, setSelectedSubject, setSelectedChild } = useAuth();
+  const { user, selectedInstitute, selectedClass, selectedSubject, selectedChild, selectedOrganization, selectedCourse, isOrganizationLoggedIn, logout, setSelectedInstitute, setSelectedClass, setSelectedSubject, setSelectedChild, setOrganizationLoggedIn } = useAuth();
   const [isOrgLoginOpen, setIsOrgLoginOpen] = useState(false);
 
-  // Check if user is restricted role
-  const isRestrictedRole = user?.role && ['InstituteAdmin', 'Teacher', 'Student', 'OrganizationManager'].includes(user.role);
+  // Check if user is restricted role for organizations
+  const isRestrictedRole = user?.userType && ['InstituteAdmin', 'Teacher', 'Student'].includes(user.userType);
 
   // Get menu items based on current selection state
   const getMenuItems = () => {
+    // Special navigation for organization-logged-in restricted users
+    if (isOrganizationLoggedIn && isRestrictedRole) {
+      // If organization is selected, show Gallery and Courses
+      if (selectedOrganization) {
+        return [
+          {
+            id: 'gallery',
+            label: 'Gallery',
+            icon: Images,
+            permission: 'view-gallery',
+            alwaysShow: true,
+            section: 'main'
+          },
+          {
+            id: 'organization-courses',
+            label: 'Courses',
+            icon: BookOpen,
+            permission: 'view-courses',
+            alwaysShow: true,
+            section: 'main'
+          },
+          {
+            id: 'profile',
+            label: 'Profile',
+            icon: User,
+            permission: 'view-profile',
+            alwaysShow: true,
+            section: 'settings'
+          },
+          {
+            id: 'appearance',
+            label: 'Appearance',
+            icon: Palette,
+            permission: 'view-appearance',
+            alwaysShow: true,
+            section: 'settings'
+          }
+        ];
+      }
+      
+      // If no organization selected, only show Organization section
+      return [
+        {
+          id: 'organizations',
+          label: 'Organization',
+          icon: Building2,
+          permission: 'view-organizations',
+          alwaysShow: true,
+          section: 'main'
+        },
+        {
+          id: 'profile',
+          label: 'Profile',
+          icon: User,
+          permission: 'view-profile',
+          alwaysShow: true,
+          section: 'settings'
+        },
+        {
+          id: 'appearance',
+          label: 'Appearance',
+          icon: Palette,
+          permission: 'view-appearance',
+          alwaysShow: true,
+          section: 'settings'
+        }
+      ];
+    }
+
     // For restricted roles without institute selected - only show limited navigation
-    if (isRestrictedRole && !selectedInstitute) {
+    if (isRestrictedRole && !selectedInstitute && !isOrganizationLoggedIn) {
       return [
         {
           id: 'dashboard',
@@ -999,8 +1068,11 @@ const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) =
 
   const handleOrgLoginSuccess = (data: any) => {
     console.log('Organization login successful:', data);
-    // Navigate to a new organization page or dashboard
-    onPageChange('organization-dashboard');
+    // Set organization logged in state
+    setOrganizationLoggedIn(true);
+    // Navigate to organizations page
+    onPageChange('organizations');
+    setIsOrgLoginOpen(false);
   };
 
   const handleLogout = () => {
