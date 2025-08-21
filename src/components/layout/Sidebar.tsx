@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAuth } from '@/contexts/AuthContext';
 import { AccessControl } from '@/utils/permissions';
-import OrganizationLogin from '@/components/OrganizationLogin';
 import {
   LayoutDashboard,
   Users,
@@ -37,104 +36,32 @@ interface SidebarProps {
 }
 
 const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) => {
-  const { user, selectedInstitute, selectedClass, selectedSubject, selectedChild, selectedOrganization, selectedCourse, isOrganizationLoggedIn, logout, setSelectedInstitute, setSelectedClass, setSelectedSubject, setSelectedChild, setOrganizationLoggedIn } = useAuth();
-  const [isOrgLoginOpen, setIsOrgLoginOpen] = useState(false);
-
-  // Check if user is restricted role for organizations
-  const isRestrictedRole = user?.userType && ['InstituteAdmin', 'Teacher', 'Student'].includes(user.userType);
+  const { user, selectedInstitute, selectedClass, selectedSubject, selectedChild, selectedOrganization, logout, setSelectedInstitute, setSelectedClass, setSelectedSubject, setSelectedChild, setSelectedOrganization } = useAuth();
 
   // Get menu items based on current selection state
   const getMenuItems = () => {
-    // Special navigation for organization-logged-in restricted users
-    if (isOrganizationLoggedIn && isRestrictedRole) {
-      // If organization is selected, show Gallery and Courses
-      if (selectedOrganization) {
+    // Special handling for Student role
+    if (user?.role === 'Student') {
+      // 1. Student without institute - only show basic options
+      if (!selectedInstitute) {
         return [
           {
-            id: 'gallery',
-            label: 'Gallery',
-            icon: Images,
-            permission: 'view-gallery',
-            alwaysShow: true,
-            section: 'main'
+            id: 'dashboard',
+            label: 'Select Institutes',
+            icon: LayoutDashboard,
+            permission: 'view-dashboard',
+            alwaysShow: false
           },
           {
-            id: 'organization-courses',
-            label: 'Courses',
-            icon: BookOpen,
-            permission: 'view-courses',
-            alwaysShow: true,
-            section: 'main'
-          },
-          {
-            id: 'profile',
-            label: 'Profile',
-            icon: User,
-            permission: 'view-profile',
-            alwaysShow: true,
-            section: 'settings'
-          },
-          {
-            id: 'appearance',
-            label: 'Appearance',
-            icon: Palette,
-            permission: 'view-appearance',
-            alwaysShow: true,
-            section: 'settings'
+            id: 'organizations',
+            label: 'Organizations',
+            icon: Building2,
+            permission: 'view-organizations',
+            alwaysShow: true
           }
         ];
       }
-      
-      // If no organization selected, only show Organization section
-      return [
-        {
-          id: 'organizations',
-          label: 'Organization',
-          icon: Building2,
-          permission: 'view-organizations',
-          alwaysShow: true,
-          section: 'main'
-        },
-        {
-          id: 'profile',
-          label: 'Profile',
-          icon: User,
-          permission: 'view-profile',
-          alwaysShow: true,
-          section: 'settings'
-        },
-        {
-          id: 'appearance',
-          label: 'Appearance',
-          icon: Palette,
-          permission: 'view-appearance',
-          alwaysShow: true,
-          section: 'settings'
-        }
-      ];
-    }
 
-    // For restricted roles without institute selected - only show limited navigation
-    if (isRestrictedRole && !selectedInstitute && !isOrganizationLoggedIn) {
-      return [
-        {
-          id: 'dashboard',
-          label: 'Select Institutes',
-          icon: LayoutDashboard,
-          permission: 'view-dashboard',
-          alwaysShow: false
-        },
-        {
-          id: 'organizations',
-          label: 'Organizations',
-          icon: Building2,
-          permission: 'view-organizations',
-          alwaysShow: true
-        }
-      ];
-    }
-    // Special handling for Student role
-    if (user?.role === 'Student') {
       // 2. Student with institute selected (but no class)
       if (selectedInstitute && !selectedClass) {
         return [
@@ -226,6 +153,26 @@ const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) =
 
     // Special handling for Teacher role
     if (user?.role === 'Teacher') {
+      // 1. Teacher without institute - only show basic options
+      if (!selectedInstitute) {
+        return [
+          {
+            id: 'dashboard',
+            label: 'Select Institutes',
+            icon: LayoutDashboard,
+            permission: 'view-dashboard',
+            alwaysShow: false
+          },
+          {
+            id: 'organizations',
+            label: 'Organizations',
+            icon: Building2,
+            permission: 'view-organizations',
+            alwaysShow: true
+          }
+        ];
+      }
+
       // 2. Teacher with institute selected (but no class/subject)
       if (selectedInstitute && !selectedClass && !selectedSubject) {
         return [
@@ -331,6 +278,18 @@ const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) =
 
     // Special handling for InstituteAdmin role
     if (user?.role === 'InstituteAdmin') {
+      if (!selectedInstitute) {
+        return [
+          {
+            id: 'dashboard',
+            label: 'Select Institutes',
+            icon: LayoutDashboard,
+            permission: 'view-dashboard',
+            alwaysShow: false
+          }
+        ];
+      }
+
       // If only institute is selected
       if (selectedInstitute && !selectedClass && !selectedSubject) {
         return [
@@ -520,27 +479,35 @@ const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) =
 
     // Special handling for AttendanceMarker role - only show specific items when institute is selected
     if (user?.role === 'AttendanceMarker') {
-      // AttendanceMarker is handled by the restricted role logic above when no institute is selected
-      
-      // For AttendanceMarker with institute selected, only show QR Attendance and selection options
-      if (selectedInstitute) {
+      if (!selectedInstitute) {
         return [
           {
-            id: 'select-class',
-            label: 'Select Class',
-            icon: School,
-            permission: 'view-classes',
-            alwaysShow: false
-          },
-          {
-            id: 'select-subject',
-            label: 'Select Subject',
-            icon: BookOpen,
-            permission: 'view-subjects',
+            id: 'dashboard',
+            label: 'Select Institutes',
+            icon: LayoutDashboard,
+            permission: 'view-dashboard',
             alwaysShow: false
           }
         ];
       }
+
+      // For AttendanceMarker with institute selected, only show QR Attendance and selection options
+      return [
+        {
+          id: 'select-class',
+          label: 'Select Class',
+          icon: School,
+          permission: 'view-classes',
+          alwaysShow: false
+        },
+        {
+          id: 'select-subject',
+          label: 'Select Subject',
+          icon: BookOpen,
+          permission: 'view-subjects',
+          alwaysShow: false
+        }
+      ];
     }
 
     // Base items that are always available for all other users
@@ -551,6 +518,13 @@ const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) =
         icon: LayoutDashboard,
         permission: 'view-dashboard',
         alwaysShow: false
+      },
+      {
+        id: 'organizations',
+        label: 'Organizations',
+        icon: Building2,
+        permission: 'view-organizations',
+        alwaysShow: true // Always show organizations for all users
       }
     ];
 
@@ -633,10 +607,6 @@ const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) =
   };
 
   const getAttendanceItems = () => {
-    // For restricted roles without institute selected - no attendance items
-    if (isRestrictedRole && !selectedInstitute) {
-      return [];
-    }
     // For Student - no additional attendance items needed as they are in main menu
     if (user?.role === 'Student') {
       return [];
@@ -778,10 +748,6 @@ const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) =
   };
 
   const getSystemItems = () => {
-    // For restricted roles without institute selected - no system items
-    if (isRestrictedRole && !selectedInstitute) {
-      return [];
-    }
     // For Student - no additional system items needed as they are in main menu
     if (user?.role === 'Student') {
       return [];
@@ -908,32 +874,6 @@ const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) =
   };
 
   const getSettingsItems = () => {
-    // For restricted roles without institute selected - only show Profile, Appearance, Settings
-    if (isRestrictedRole && !selectedInstitute) {
-      return [
-        {
-          id: 'profile',
-          label: 'Profile',
-          icon: User,
-          permission: 'view-profile',
-          alwaysShow: false
-        },
-        {
-          id: 'appearance',
-          label: 'Appearance',
-          icon: Palette,
-          permission: 'view-appearance',
-          alwaysShow: false
-        },
-        {
-          id: 'settings',
-          label: 'Settings',
-          icon: Settings,
-          permission: 'view-settings',
-          alwaysShow: false
-        }
-      ];
-    }
     // For Student - always show Profile and Appearance
     if (user?.role === 'Student') {
       return [
@@ -1055,24 +995,8 @@ const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) =
 
   const handleItemClick = (itemId: string) => {
     console.log('Sidebar item clicked:', itemId);
-    
-    // Handle organization click - open login popup
-    if (itemId === 'organizations') {
-      setIsOrgLoginOpen(true);
-      return;
-    }
-    
     onPageChange(itemId);
     onClose();
-  };
-
-  const handleOrgLoginSuccess = (data: any) => {
-    console.log('Organization login successful:', data);
-    // Set organization logged in state
-    setOrganizationLoggedIn(true);
-    // Navigate to organizations page
-    onPageChange('organizations');
-    setIsOrgLoginOpen(false);
   };
 
   const handleLogout = () => {
@@ -1081,7 +1005,10 @@ const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) =
   };
 
   const handleBackNavigation = () => {
-    if (selectedChild) {
+    if (selectedOrganization) {
+      // Go back from organization level to organization selection
+      setSelectedOrganization(null);
+    } else if (selectedChild) {
       // Go back from child level to children selection
       setSelectedChild(null);
     } else if (selectedSubject) {
@@ -1129,13 +1056,6 @@ const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) =
 
   return (
     <>
-      {/* Organization Login Modal */}
-      <OrganizationLogin
-        isOpen={isOrgLoginOpen}
-        onClose={() => setIsOrgLoginOpen(false)}
-        onSuccess={handleOrgLoginSuccess}
-      />
-      
       {/* Mobile Overlay */}
       {isOpen && (
         <div 
@@ -1175,7 +1095,7 @@ const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) =
         </div>
 
         {/* Context Info - Only show for non-SystemAdmin users */}
-        {user?.role !== 'SystemAdmin' && (selectedInstitute || selectedClass || selectedSubject || selectedChild) && (
+        {user?.role !== 'SystemAdmin' && (selectedInstitute || selectedClass || selectedSubject || selectedChild || selectedOrganization) && (
           <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border-b border-gray-200 dark:border-gray-700">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-medium text-blue-600 dark:text-blue-400">
@@ -1192,6 +1112,12 @@ const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) =
               </Button>
             </div>
             <div className="space-y-1 text-xs">
+              {selectedOrganization && (
+                <div className="text-blue-600 dark:text-blue-400">
+                  <span className="font-medium">Organization:</span> 
+                  <span className="ml-1 truncate">{selectedOrganization.name}</span>
+                </div>
+              )}
               {selectedInstitute && (
                 <div className="text-blue-600 dark:text-blue-400">
                   <span className="font-medium">Institute:</span> 
