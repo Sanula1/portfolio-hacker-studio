@@ -37,7 +37,7 @@ interface SidebarProps {
 }
 
 const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) => {
-  const { user, selectedInstitute, selectedClass, selectedSubject, selectedChild, logout, setSelectedInstitute, setSelectedClass, setSelectedSubject, setSelectedChild } = useAuth();
+  const { user, selectedInstitute, selectedClass, selectedSubject, selectedChild, logout, setSelectedInstitute, setSelectedClass, setSelectedSubject, setSelectedChild, isOrganizationLoggedIn, setOrganizationUser } = useAuth();
   const [isOrgLoginOpen, setIsOrgLoginOpen] = useState(false);
 
   // Check if user is restricted role
@@ -45,6 +45,19 @@ const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) =
 
   // Get menu items based on current selection state
   const getMenuItems = () => {
+    // For restricted roles that are organization-logged-in - show only Organization
+    if (isRestrictedRole && isOrganizationLoggedIn && ['InstituteAdmin', 'Teacher', 'Student'].includes(user?.role || '')) {
+      return [
+        {
+          id: 'organization-dashboard',
+          label: 'Organization',
+          icon: Building2,
+          permission: 'view-organization',
+          alwaysShow: true
+        }
+      ];
+    }
+    
     // For restricted roles without institute selected - only show limited navigation
     if (isRestrictedRole && !selectedInstitute) {
       return [
@@ -564,8 +577,8 @@ const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) =
   };
 
   const getAttendanceItems = () => {
-    // For restricted roles without institute selected - no attendance items
-    if (isRestrictedRole && !selectedInstitute) {
+    // For restricted roles without institute selected OR organization-logged-in - no attendance items
+    if (isRestrictedRole && (!selectedInstitute || isOrganizationLoggedIn)) {
       return [];
     }
     // For Student - no additional attendance items needed as they are in main menu
@@ -709,8 +722,8 @@ const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) =
   };
 
   const getSystemItems = () => {
-    // For restricted roles without institute selected - no system items
-    if (isRestrictedRole && !selectedInstitute) {
+    // For restricted roles without institute selected OR organization-logged-in - no system items
+    if (isRestrictedRole && (!selectedInstitute || isOrganizationLoggedIn)) {
       return [];
     }
     // For Student - no additional system items needed as they are in main menu
@@ -839,6 +852,26 @@ const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) =
   };
 
   const getSettingsItems = () => {
+    // For restricted roles that are organization-logged-in - show only Profile and Appearance
+    if (isRestrictedRole && isOrganizationLoggedIn && ['InstituteAdmin', 'Teacher', 'Student'].includes(user?.role || '')) {
+      return [
+        {
+          id: 'profile',
+          label: 'Profile',
+          icon: User,
+          permission: 'view-profile',
+          alwaysShow: false
+        },
+        {
+          id: 'appearance',
+          label: 'Appearance',
+          icon: Palette,
+          permission: 'view-appearance',
+          alwaysShow: false
+        }
+      ];
+    }
+    
     // For restricted roles without institute selected - only show Profile, Appearance, Settings
     if (isRestrictedRole && !selectedInstitute) {
       return [
@@ -999,7 +1032,8 @@ const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) =
 
   const handleOrgLoginSuccess = (data: any) => {
     console.log('Organization login successful:', data);
-    // Navigate to a new organization page or dashboard
+    setOrganizationUser(data);
+    // Navigate to organization dashboard
     onPageChange('organization-dashboard');
   };
 
