@@ -4,24 +4,25 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { getBaseUrl2, getOrgUrl } from '@/contexts/utils/auth.api';
+import { getBaseUrl, getBaseUrl2, getOrgUrl } from '@/contexts/utils/auth.api';
 
 const BackendConfiguration = () => {
-  const [apiUrl, setApiUrl] = useState('');
-  const [orgUrl, setOrgUrl] = useState('');
+  const [backendUrl, setBackendUrl] = useState('');
+  const [attendanceBackendUrl, setAttendanceBackendUrl] = useState('');
+  const [isTestingConnection, setIsTestingConnection] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
-    // Load current URLs from localStorage
-    setApiUrl(getBaseUrl2());
-    setOrgUrl(getOrgUrl());
+    // Load current URLs from localStorage and environment
+    setBackendUrl(getBaseUrl());
+    setAttendanceBackendUrl(getBaseUrl2() || getOrgUrl());
   }, []);
 
-  const handleSaveApiUrl = () => {
-    if (!apiUrl.trim()) {
+  const handleSaveBackendUrl = () => {
+    if (!backendUrl.trim()) {
       toast({
         title: "Error",
-        description: "Please enter a valid API URL",
+        description: "Please enter a valid Backend URL",
         variant: "destructive"
       });
       return;
@@ -29,66 +30,119 @@ const BackendConfiguration = () => {
 
     try {
       // Remove trailing slash if present
-      const cleanUrl = apiUrl.trim().replace(/\/$/, '');
+      const cleanUrl = backendUrl.trim().replace(/\/$/, '');
+      localStorage.setItem('baseUrl', cleanUrl);
+      
+      toast({
+        title: "Success",
+        description: "Backend URL saved successfully"
+      });
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to save Backend URL",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleSaveAttendanceUrl = () => {
+    if (!attendanceBackendUrl.trim()) {
+      toast({
+        title: "Error",
+        description: "Please enter a valid Attendance Backend URL",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    try {
+      // Remove trailing slash if present
+      const cleanUrl = attendanceBackendUrl.trim().replace(/\/$/, '');
       localStorage.setItem('baseUrl2', cleanUrl);
       
       toast({
         title: "Success",
-        description: "API URL saved successfully"
+        description: "Attendance Backend URL saved successfully"
       });
     } catch (error) {
       toast({
         title: "Error",
-        description: "Failed to save API URL",
+        description: "Failed to save Attendance Backend URL",
         variant: "destructive"
       });
     }
   };
 
-  const handleSaveOrgUrl = () => {
-    if (!orgUrl.trim()) {
-      toast({
-        title: "Error",
-        description: "Please enter a valid Organization URL",
-        variant: "destructive"
-      });
-      return;
-    }
+  const testConnection = async () => {
+    setIsTestingConnection(true);
 
     try {
-      // Remove trailing slash if present
-      const cleanUrl = orgUrl.trim().replace(/\/$/, '');
-      localStorage.setItem('orgUrl', cleanUrl);
-      
-      toast({
-        title: "Success",
-        description: "Organization URL saved successfully"
-      });
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to save Organization URL",
-        variant: "destructive"
-      });
+      // Test main backend
+      if (backendUrl) {
+        try {
+          const response = await fetch(`${backendUrl}/health`, {
+            method: 'GET',
+            headers: {
+              'ngrok-skip-browser-warning': 'true'
+            }
+          });
+          
+          if (response.ok) {
+            toast({
+              title: "Backend Connection",
+              description: "✅ Main backend is reachable"
+            });
+          } else {
+            toast({
+              title: "Backend Connection",
+              description: "⚠️ Main backend responded but may have issues",
+              variant: "destructive"
+            });
+          }
+        } catch (error) {
+          toast({
+            title: "Backend Connection",
+            description: "❌ Main backend is not reachable",
+            variant: "destructive"
+          });
+        }
+      }
+
+      // Test attendance backend
+      if (attendanceBackendUrl) {
+        try {
+          const response = await fetch(`${attendanceBackendUrl}/health`, {
+            method: 'GET',
+            headers: {
+              'ngrok-skip-browser-warning': 'true'
+            }
+          });
+          
+          if (response.ok) {
+            toast({
+              title: "Attendance Backend Connection",
+              description: "✅ Attendance backend is reachable"
+            });
+          } else {
+            toast({
+              title: "Attendance Backend Connection",
+              description: "⚠️ Attendance backend responded but may have issues",
+              variant: "destructive"
+            });
+          }
+        } catch (error) {
+          toast({
+            title: "Attendance Backend Connection",
+            description: "❌ Attendance backend is not reachable",
+            variant: "destructive"
+          });
+        }
+      }
+
+    } finally {
+      setIsTestingConnection(false);
     }
-  };
-
-  const handleClearApiUrl = () => {
-    localStorage.removeItem('baseUrl2');
-    setApiUrl('');
-    toast({
-      title: "Success",
-      description: "API URL cleared successfully"
-    });
-  };
-
-  const handleClearOrgUrl = () => {
-    localStorage.removeItem('orgUrl');
-    setOrgUrl('');
-    toast({
-      title: "Success",
-      description: "Organization URL cleared successfully"
-    });
   };
 
   return (
@@ -100,109 +154,84 @@ const BackendConfiguration = () => {
         </p>
       </div>
 
-      <div className="grid gap-6">
-        {/* Main API Configuration */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Main API Configuration</CardTitle>
-            <CardDescription>
-              Configure the main backend API URL for the application.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="api-url">API Base URL</Label>
-              <Input
-                id="api-url"
-                type="url"
-                placeholder="https://your-api-domain.com"
-                value={apiUrl}
-                onChange={(e) => setApiUrl(e.target.value)}
-              />
-              <p className="text-sm text-muted-foreground">
-                The base URL for your main API endpoints
-              </p>
+      <Card>
+        <CardHeader>
+          <CardTitle>API Configuration</CardTitle>
+          <CardDescription>
+            Configure the backend endpoints for your application
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Backend URL */}
+          <div className="space-y-3">
+            <Label htmlFor="backend-url" className="text-base font-medium">
+              Backend URL
+            </Label>
+            <Input
+              id="backend-url"
+              type="url"
+              placeholder="http://localhost:3000"
+              value={backendUrl}
+              onChange={(e) => setBackendUrl(e.target.value)}
+              className="text-sm"
+            />
+            <div className="text-sm text-muted-foreground">
+              <strong>Current:</strong> {getBaseUrl() || 'Not configured'}
             </div>
-            <div className="flex gap-2">
-              <Button onClick={handleSaveApiUrl}>
-                Save API URL
-              </Button>
-              <Button variant="outline" onClick={handleClearApiUrl}>
-                Clear
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+            <Button 
+              onClick={handleSaveBackendUrl}
+              size="sm"
+              className="w-fit"
+            >
+              Save Backend URL
+            </Button>
+          </div>
 
-        {/* Organization API Configuration */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Organization API Configuration</CardTitle>
-            <CardDescription>
-              Configure the organization backend API URL. This will be used as the base URL for organization endpoints.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="org-url">Organization Base URL</Label>
-              <Input
-                id="org-url"
-                type="url"
-                placeholder="https://your-org-api-domain.com"
-                value={orgUrl}
-                onChange={(e) => setOrgUrl(e.target.value)}
-              />
-              <p className="text-sm text-muted-foreground">
-                The base URL for organization API endpoints. Organization login will use this URL with /api/auth
-              </p>
+          {/* Attendance Backend URL */}
+          <div className="space-y-3">
+            <Label htmlFor="attendance-url" className="text-base font-medium">
+              Attendance Backend URL
+            </Label>
+            <Input
+              id="attendance-url"
+              type="url"
+              placeholder="http://localhost:3001"
+              value={attendanceBackendUrl}
+              onChange={(e) => setAttendanceBackendUrl(e.target.value)}
+              className="text-sm"
+            />
+            <div className="text-sm text-muted-foreground">
+              <strong>Current:</strong> {getBaseUrl2() || getOrgUrl() || 'Not configured'}
             </div>
-            <div className="flex gap-2">
-              <Button onClick={handleSaveOrgUrl}>
-                Save Organization URL
-              </Button>
-              <Button variant="outline" onClick={handleClearOrgUrl}>
-                Clear
-              </Button>
-            </div>
-            
-            {orgUrl && (
-              <div className="mt-4 p-3 bg-muted rounded-md">
-                <p className="text-sm">
-                  <strong>Organization Login Endpoint:</strong><br />
-                  <code className="text-sm bg-background px-2 py-1 rounded">
-                    {orgUrl}/api/auth
-                  </code>
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+            <Button 
+              onClick={handleSaveAttendanceUrl}
+              size="sm"
+              className="w-fit"
+            >
+              Save Attendance URL
+            </Button>
+          </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Configuration Status</CardTitle>
-            <CardDescription>
-              Current status of your backend configurations
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between p-2 bg-muted rounded">
-                <span className="text-sm font-medium">Main API:</span>
-                <span className={`text-sm ${apiUrl ? 'text-green-600' : 'text-red-600'}`}>
-                  {apiUrl ? 'Configured' : 'Not Configured'}
-                </span>
-              </div>
-              <div className="flex items-center justify-between p-2 bg-muted rounded">
-                <span className="text-sm font-medium">Organization API:</span>
-                <span className={`text-sm ${orgUrl ? 'text-green-600' : 'text-red-600'}`}>
-                  {orgUrl ? 'Configured' : 'Not Configured'}
-                </span>
-              </div>
+          {/* ngrok Info */}
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-4">
+            <div className="text-sm text-blue-800 dark:text-blue-200">
+              <strong>For ngrok:</strong> Add <code className="bg-blue-100 dark:bg-blue-800 px-2 py-1 rounded text-xs">--host-header=localhost:3000</code> flag when starting tunnel
             </div>
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+
+          {/* Test Connection */}
+          <div className="pt-4 border-t">
+            <Button 
+              onClick={testConnection}
+              disabled={isTestingConnection}
+              variant="outline"
+              className="w-full"
+            >
+              {isTestingConnection ? 'Testing Connection...' : 'Test Connection'}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 };
