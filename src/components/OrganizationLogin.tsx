@@ -31,6 +31,12 @@ const OrganizationLogin = ({ isOpen, onClose, onSuccess }: OrganizationLoginProp
 
     try {
       const baseUrl = getOrgUrl();
+      console.log('Organization login base URL:', baseUrl);
+      if (!baseUrl) {
+        toast.error('Organization server URL is not configured.');
+        setIsLoading(false);
+        return;
+      }
       const response = await fetch(`${baseUrl}/organization/api/v1/auth/login`, {
         method: 'POST',
         headers: {
