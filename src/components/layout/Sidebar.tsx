@@ -4,6 +4,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAuth } from '@/contexts/AuthContext';
 import { AccessControl } from '@/utils/permissions';
 import OrganizationLogin from '@/components/OrganizationLogin';
+import { Link, useLocation } from 'react-router-dom';
 import {
   LayoutDashboard,
   Users,
@@ -39,6 +40,7 @@ interface SidebarProps {
 const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) => {
   const { user, selectedInstitute, selectedClass, selectedSubject, selectedChild, logout, setSelectedInstitute, setSelectedClass, setSelectedSubject, setSelectedChild, isOrganizationLoggedIn, setOrganizationUser } = useAuth();
   const [isOrgLoginOpen, setIsOrgLoginOpen] = useState(false);
+  const location = useLocation();
 
   // Check if user is restricted role
   const isRestrictedRole = user?.role && ['InstituteAdmin', 'Teacher', 'Student', 'OrganizationManager'].includes(user.role);
@@ -1017,6 +1019,30 @@ const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) =
     });
   };
 
+  // Convert itemId to route path
+  const getRoutePath = (itemId: string) => {
+    const routeMap: Record<string, string> = {
+      'dashboard': '/',
+      'organization-dashboard': '/organization',
+      'organizations': '/organization',
+      'profile': '/profile',
+      'settings': '/settings',
+      'appearance': '/appearance',
+      'students': '/students',
+      'teachers': '/teachers',
+      'parents': '/parents',
+      'classes': '/classes',
+      'subjects': '/subjects',
+      'attendance': '/attendance',
+      'lectures': '/lectures',
+      'homework': '/homework',
+      'exams': '/exams',
+      'results': '/results',
+      'gallery': '/gallery'
+    };
+    return routeMap[itemId] || '/';
+  };
+
   const handleItemClick = (itemId: string) => {
     console.log('Sidebar item clicked:', itemId);
     
@@ -1026,15 +1052,15 @@ const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) =
       return;
     }
     
-    onPageChange(itemId);
+    // For other navigation, React Router will handle it
     onClose();
   };
 
   const handleOrgLoginSuccess = (data: any) => {
     console.log('Organization login successful:', data);
     setOrganizationUser(data);
-    // Navigate to organization dashboard
-    onPageChange('organization-dashboard');
+    // Navigate to organization page using React Router
+    window.location.href = '/organization';
   };
 
   const handleLogout = () => {
@@ -1069,21 +1095,44 @@ const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) =
           {title}
         </h3>
         <div className="space-y-1">
-          {filteredItems.map((item) => (
-            <Button
-              key={item.id}
-              variant={currentPage === item.id ? "secondary" : "ghost"}
-              className={`w-full justify-start h-9 sm:h-10 px-3 text-sm ${
-                currentPage === item.id 
-                  ? 'bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-100 border-r-2 border-blue-600' 
-                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-              }`}
-              onClick={() => handleItemClick(item.id)}
-            >
-              <item.icon className="mr-3 h-4 w-4 flex-shrink-0" />
-              {item.label}
-            </Button>
-          ))}
+          {filteredItems.map((item) => {
+            // Special handling for organization button
+            if (item.id === 'organizations') {
+              return (
+                <Button
+                  key={item.id}
+                  variant={currentPage === item.id ? "secondary" : "ghost"}
+                  className={`w-full justify-start h-9 sm:h-10 px-3 text-sm ${
+                    currentPage === item.id 
+                      ? 'bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-100 border-r-2 border-blue-600' 
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                  }`}
+                  onClick={() => handleItemClick(item.id)}
+                >
+                  <item.icon className="mr-3 h-4 w-4 flex-shrink-0" />
+                  {item.label}
+                </Button>
+              );
+            }
+            
+            // Use Link for navigation
+            return (
+              <Link key={item.id} to={getRoutePath(item.id)}>
+                <Button
+                  variant={location.pathname === getRoutePath(item.id) ? "secondary" : "ghost"}
+                  className={`w-full justify-start h-9 sm:h-10 px-3 text-sm ${
+                    location.pathname === getRoutePath(item.id)
+                      ? 'bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-100 border-r-2 border-blue-600' 
+                      : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
+                  }`}
+                  onClick={onClose}
+                >
+                  <item.icon className="mr-3 h-4 w-4 flex-shrink-0" />
+                  {item.label}
+                </Button>
+              </Link>
+            );
+          })}
         </div>
       </div>
     );
