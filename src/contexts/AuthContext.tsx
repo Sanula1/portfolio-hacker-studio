@@ -38,8 +38,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isOrganizationLoggedIn, setIsOrganizationLoggedIn] = useState(false);
   const [organizationUser, setOrganizationUserState] = useState<any | null>(null);
-  const [selectedOrganization, setSelectedOrganizationState] = useState<any | null>(null);
-  const [selectedCourse, setSelectedCourseState] = useState<any | null>(null);
 
   // Public variables for current IDs - no localStorage sync
   const [currentInstituteId, setCurrentInstituteId] = useState<string | null>(null);
@@ -195,21 +193,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setIsOrganizationLoggedIn(true);
   };
 
-  const setSelectedOrganization = (organization: any | null) => {
-    setSelectedOrganizationState(organization);
-    // Clear course selection when organization changes
-    setSelectedCourseState(null);
-  };
-
-  const setSelectedCourse = (course: any | null) => {
-    setSelectedCourseState(course);
-  };
-
   const clearOrganizationLogin = () => {
     setOrganizationUserState(null);
     setIsOrganizationLoggedIn(false);
-    setSelectedOrganizationState(null);
-    setSelectedCourseState(null);
     localStorage.removeItem('org_access_token');
     localStorage.removeItem('org_refresh_token');
   };
@@ -268,8 +254,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     currentChildId,
     isOrganizationLoggedIn,
     organizationUser,
-    selectedOrganization,
-    selectedCourse,
     login,
     logout,
     setSelectedInstitute,
@@ -278,8 +262,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setSelectedChild,
     setOrganizationUser,
     clearOrganizationLogin,
-    setSelectedOrganization,
-    setSelectedCourse,
     loadUserInstitutes,
     refreshUserData,
     validateUserToken,

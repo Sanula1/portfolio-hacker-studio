@@ -37,7 +37,7 @@ interface SidebarProps {
 }
 
 const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) => {
-  const { user, selectedInstitute, selectedClass, selectedSubject, selectedChild, logout, setSelectedInstitute, setSelectedClass, setSelectedSubject, setSelectedChild, isOrganizationLoggedIn, setOrganizationUser, organizationUser, selectedOrganization, selectedCourse } = useAuth();
+  const { user, selectedInstitute, selectedClass, selectedSubject, selectedChild, logout, setSelectedInstitute, setSelectedClass, setSelectedSubject, setSelectedChild, isOrganizationLoggedIn, setOrganizationUser } = useAuth();
   const [isOrgLoginOpen, setIsOrgLoginOpen] = useState(false);
 
   // Check if user is restricted role
@@ -45,33 +45,11 @@ const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) =
 
   // Get menu items based on current selection state
   const getMenuItems = () => {
-    // For restricted roles that are organization-logged-in with selected organization - show Gallery and Courses
-    if (isRestrictedRole && isOrganizationLoggedIn && selectedOrganization && 
-        ['InstituteAdmin', 'Teacher', 'Student'].includes(user?.role || '')) {
+    // For restricted roles that are organization-logged-in - show only Organization
+    if (isRestrictedRole && isOrganizationLoggedIn && ['InstituteAdmin', 'Teacher', 'Student'].includes(user?.role || '')) {
       return [
         {
-          id: 'gallery',
-          label: 'Gallery',
-          icon: Images,
-          permission: 'view-gallery',
-          alwaysShow: true
-        },
-        {
-          id: 'courses',
-          label: 'Courses',
-          icon: BookOpen,
-          permission: 'view-courses',
-          alwaysShow: true
-        }
-      ];
-    }
-
-    // For restricted roles that are organization-logged-in without selected organization - show Organization
-    if (isRestrictedRole && isOrganizationLoggedIn && !selectedOrganization && 
-        ['InstituteAdmin', 'Teacher', 'Student'].includes(user?.role || '')) {
-      return [
-        {
-          id: 'organizations',
+          id: 'organization-dashboard',
           label: 'Organization',
           icon: Building2,
           permission: 'view-organization',

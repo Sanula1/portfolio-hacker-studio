@@ -38,8 +38,6 @@ import TeacherLectures from '@/components/TeacherLectures';
 import AttendanceMarkerSubjectSelector from '@/components/AttendanceMarkerSubjectSelector';
 import InstituteUsers from '@/components/InstituteUsers';
 import OrganizationDashboard from '@/components/OrganizationDashboard';
-import Organizations from '@/components/Organizations';
-import OrganizationCourses from '@/components/OrganizationCourses';
 
 const AppContent = () => {
   const { user, login, selectedInstitute, selectedClass, selectedSubject, selectedChild } = useAuth();
@@ -317,10 +315,6 @@ const AppContent = () => {
         return <TeacherStudents />;
       case 'organization-dashboard':
         return <OrganizationDashboard />;
-      case 'organizations':
-        return <Organizations />;
-      case 'courses':
-        return <OrganizationCourses />;
       default:
         return <Dashboard />;
     }
