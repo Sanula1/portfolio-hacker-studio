@@ -1,10 +1,10 @@
 
 import React from 'react';
-import { Navigate } from 'react-router-dom';
+import AppContent from '@/components/AppContent';
 
 const Index = () => {
-  // Redirect to home page which is now the dashboard
-  return <Navigate to="/" replace />;
+  console.log('Index component rendering');
+  return <AppContent />;
 };
 
 export default Index;
