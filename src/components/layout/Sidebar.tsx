@@ -1,9 +1,8 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAuth } from '@/contexts/AuthContext';
 import { AccessControl } from '@/utils/permissions';
-import OrganizationLogin from '@/components/OrganizationLogin';
 import {
   LayoutDashboard,
   Users,
@@ -38,7 +37,6 @@ interface SidebarProps {
 
 const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) => {
   const { user, selectedInstitute, selectedClass, selectedSubject, selectedChild, logout, setSelectedInstitute, setSelectedClass, setSelectedSubject, setSelectedChild } = useAuth();
-  const [isOrgLoginOpen, setIsOrgLoginOpen] = useState(false);
 
   // Get menu items based on current selection state
   const getMenuItems = () => {
@@ -516,24 +514,9 @@ const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) =
       }
     ];
 
-    // If no institute is selected, return restricted navigation for ALL users
+    // If no institute is selected, return basic navigation including organizations
     if (!selectedInstitute) {
-      return [
-        {
-          id: 'dashboard',
-          label: 'Select Institutes',
-          icon: LayoutDashboard,
-          permission: 'view-dashboard',
-          alwaysShow: true
-        },
-        {
-          id: 'organizations',
-          label: 'Organization',
-          icon: Building2,
-          permission: 'view-organizations',
-          alwaysShow: true
-        }
-      ];
+      return baseItems;
     }
 
     // If institute is selected, show full navigation for other roles
@@ -917,33 +900,6 @@ const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) =
       ];
     }
 
-    // If no institute is selected, return restricted settings for ALL users
-    if (!selectedInstitute) {
-      return [
-        {
-          id: 'profile',
-          label: 'Profile',
-          icon: User,
-          permission: 'view-profile',
-          alwaysShow: true
-        },
-        {
-          id: 'appearance',
-          label: 'Appearance',
-          icon: Palette,
-          permission: 'view-appearance',
-          alwaysShow: true
-        },
-        {
-          id: 'settings',
-          label: 'Settings',
-          icon: Settings,
-          permission: 'view-settings',
-          alwaysShow: true
-        }
-      ];
-    }
-
     // For InstituteAdmin - always show specific settings items when institute is selected
     if (user?.role === 'InstituteAdmin' && selectedInstitute) {
       return [
@@ -1025,14 +981,6 @@ const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) =
 
   const handleItemClick = (itemId: string) => {
     console.log('Sidebar item clicked:', itemId);
-    
-    // Handle organization login popup
-    if (itemId === 'organizations') {
-      setIsOrgLoginOpen(true);
-      onClose();
-      return;
-    }
-    
     onPageChange(itemId);
     onClose();
   };
@@ -1244,12 +1192,6 @@ const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) =
           </Button>
         </div>
       </div>
-
-      {/* Organization Login Dialog */}
-      <OrganizationLogin 
-        isOpen={isOrgLoginOpen} 
-        onClose={() => setIsOrgLoginOpen(false)} 
-      />
     </>
   );
 };
