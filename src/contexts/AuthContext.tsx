@@ -36,10 +36,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [selectedSubject, setSelectedSubjectState] = useState<Subject | null>(null);
   const [selectedChild, setSelectedChildState] = useState<Child | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [isOrganizationLoggedIn, setIsOrganizationLoggedIn] = useState(false);
-  const [organizationUser, setOrganizationUserState] = useState<any | null>(null);
-  const [selectedOrganization, setSelectedOrganizationState] = useState<any | null>(null);
-  const [selectedCourse, setSelectedCourseState] = useState<any | null>(null);
 
   // Public variables for current IDs - no localStorage sync
   const [currentInstituteId, setCurrentInstituteId] = useState<string | null>(null);
@@ -150,9 +146,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setCurrentSubjectId(null);
     setCurrentChildId(null);
     
-    // Clear organization state
-    clearOrganizationLogin();
-    
     // Clear all cache and pending requests
     apiCache.clearAllCache();
     cachedApiClient.clearPendingRequests();
@@ -188,30 +181,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const setSelectedChild = (child: Child | null) => {
     setSelectedChildState(child);
     setCurrentChildId(child?.id || null);
-  };
-
-  const setOrganizationUser = (orgUser: any) => {
-    setOrganizationUserState(orgUser);
-    setIsOrganizationLoggedIn(true);
-  };
-
-  const setSelectedOrganization = (organization: any | null) => {
-    setSelectedOrganizationState(organization);
-    // Clear course selection when organization changes
-    setSelectedCourseState(null);
-  };
-
-  const setSelectedCourse = (course: any | null) => {
-    setSelectedCourseState(course);
-  };
-
-  const clearOrganizationLogin = () => {
-    setOrganizationUserState(null);
-    setIsOrganizationLoggedIn(false);
-    setSelectedOrganizationState(null);
-    setSelectedCourseState(null);
-    localStorage.removeItem('org_access_token');
-    localStorage.removeItem('org_refresh_token');
   };
 
   // Method to refresh user data from backend - only called manually
@@ -266,20 +235,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     currentClassId,
     currentSubjectId,
     currentChildId,
-    isOrganizationLoggedIn,
-    organizationUser,
-    selectedOrganization,
-    selectedCourse,
     login,
     logout,
     setSelectedInstitute,
     setSelectedClass,
     setSelectedSubject,
     setSelectedChild,
-    setOrganizationUser,
-    clearOrganizationLogin,
-    setSelectedOrganization,
-    setSelectedCourse,
     loadUserInstitutes,
     refreshUserData,
     validateUserToken,
