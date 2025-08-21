@@ -89,6 +89,8 @@ export interface AuthContextType {
   currentChildId: string | null;
   isOrganizationLoggedIn: boolean;
   organizationUser: any | null;
+  selectedOrganization: any | null;
+  selectedCourse: any | null;
   login: (credentials: LoginCredentials) => Promise<void>;
   logout: () => void;
   setSelectedInstitute: (institute: Institute | null) => void;
@@ -97,6 +99,8 @@ export interface AuthContextType {
   setSelectedChild: (child: Child | null) => void;
   setOrganizationUser: (orgUser: any) => void;
   clearOrganizationLogin: () => void;
+  setSelectedOrganization: (organization: any | null) => void;
+  setSelectedCourse: (course: any | null) => void;
   loadUserInstitutes: () => Promise<Institute[]>;
   refreshUserData?: (forceRefresh?: boolean) => Promise<void>;
   validateUserToken?: () => Promise<void>;
