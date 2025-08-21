@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Building2, Users, Target, Calendar, Globe, Lock } from 'lucide-react';
+import { Building2, Users, Target, Calendar, Globe, Lock, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { getOrgUrl } from '@/contexts/utils/auth.api';
 import { useAuth } from '@/contexts/AuthContext';
@@ -39,7 +39,7 @@ interface OrganizationsResponse {
 }
 
 const Organizations = () => {
-  const { setSelectedOrganization } = useAuth();
+  const { setSelectedOrganization, clearOrganizationLogin } = useAuth();
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
@@ -106,11 +106,22 @@ const Organizations = () => {
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Organizations</h1>
-          <p className="text-muted-foreground mt-2">
-            View and manage your enrolled organizations
-          </p>
+        <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={clearOrganizationLogin}
+            className="flex items-center gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Main
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">Organizations</h1>
+            <p className="text-muted-foreground mt-2">
+              View and manage your enrolled organizations
+            </p>
+          </div>
         </div>
         <Button 
           onClick={loadEnrolledOrganizations}

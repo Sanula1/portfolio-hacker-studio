@@ -1,15 +1,30 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Building2, Users, School, BarChart3 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Building2, Users, School, BarChart3, ArrowLeft } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 const OrganizationDashboard = () => {
+  const { organizationUser, clearOrganizationLogin } = useAuth();
+
   return (
     <div className="p-6 space-y-6 bg-background min-h-screen">
       <div className="flex items-center gap-3 mb-8">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={clearOrganizationLogin}
+          className="flex items-center gap-2"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to Main
+        </Button>
         <Building2 className="h-8 w-8 text-primary" />
         <div>
           <h1 className="text-3xl font-bold text-foreground">Organization Dashboard</h1>
-          <p className="text-muted-foreground">Manage your organization's institutes and resources</p>
+          <p className="text-muted-foreground">
+            Welcome to your organization portal, {organizationUser?.name || 'User'}
+          </p>
         </div>
       </div>
 
