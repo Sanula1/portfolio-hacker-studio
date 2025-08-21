@@ -22,6 +22,23 @@ export const getBaseUrl2 = (): string => {
   return '';
 };
 
+export const getOrgUrl = (): string => {
+  // First check localStorage for user-configured URL
+  const storedUrl = localStorage.getItem('orgUrl');
+  if (storedUrl) {
+    return storedUrl;
+  }
+  
+  // Then check environment variable
+  const envUrl = import.meta.env.VITE_ORG_BASE_URL;
+  if (envUrl) {
+    return envUrl;
+  }
+  
+  // Return default URL
+  return 'http://localhost:3002';
+};
+
 export const getApiHeaders = (): Record<string, string> => {
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',

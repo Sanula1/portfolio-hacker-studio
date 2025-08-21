@@ -1,291 +1,185 @@
-
-import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { BookOpen, Search, Filter, Eye, EyeOff, Plus } from 'lucide-react';
-import { organizationApi, Course, OrganizationQueryParams } from '@/api/organization.api';
-import { useToast } from '@/hooks/use-toast';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { BookOpen, Globe, Lock, Target } from 'lucide-react';
+import { toast } from 'sonner';
+import { getOrgUrl } from '@/contexts/utils/auth.api';
 import { useAuth } from '@/contexts/AuthContext';
-import CreateCourseForm from './forms/CreateCourseForm';
 
-interface OrganizationCoursesProps {
-  organizationId?: string;
-  onSelectCourse?: (course: Course) => void;
+interface Course {
+  causeId: string;
+  title: string;
+  description: string;
+  isPublic: boolean;
+  organizationId: string;
 }
 
-const OrganizationCourses = ({ organizationId, onSelectCourse }: OrganizationCoursesProps) => {
+interface CoursesResponse {
+  data: Course[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+  meta: {
+    sortBy: string;
+    sortOrder: string;
+  };
+}
+
+const OrganizationCourses = () => {
+  const { selectedOrganization, setSelectedCourse } = useAuth();
   const [courses, setCourses] = useState<Course[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [publicFilter, setPublicFilter] = useState<string>('all');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [showCreateForm, setShowCreateForm] = useState(false);
-  const { toast } = useToast();
-  const { user } = useAuth();
+  const [isLoading, setIsLoading] = useState(false);
+  const [hasLoaded, setHasLoaded] = useState(false);
 
-  const fetchCourses = async () => {
+  const loadOrganizationCourses = async () => {
+    if (!selectedOrganization) {
+      toast.error('No organization selected');
+      return;
+    }
+
+    setIsLoading(true);
     try {
-      setLoading(true);
-      
-      const params: OrganizationQueryParams = {
-        page: currentPage,
-        limit: 10,
-        ...(searchTerm && { search: searchTerm }),
-        ...(publicFilter !== 'all' && { isPublic: publicFilter === 'public' })
-      };
-
-      let response;
-      if (organizationId) {
-        // Fetch courses for specific organization
-        response = await organizationApi.getOrganizationCourses(organizationId, params);
-      } else {
-        // Fetch all courses globally
-        response = await organizationApi.getCourses(params);
+      const orgToken = localStorage.getItem('org_access_token');
+      if (!orgToken) {
+        toast.error('Organization access token not found');
+        return;
       }
-      
-      setCourses(response.data);
-      setTotalPages(response.pagination.totalPages);
+
+      const baseUrl = getOrgUrl();
+      const response = await fetch(
+        `${baseUrl}/organization/api/v1/organizations/${selectedOrganization.organizationId}/causes`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${orgToken}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.message || 'Failed to load courses');
+      }
+
+      const data: CoursesResponse = await response.json();
+      setCourses(data.data);
+      setHasLoaded(true);
+      toast.success('Courses loaded successfully!');
     } catch (error) {
-      console.error('Error fetching courses:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load courses",
-        variant: "destructive",
-      });
+      console.error('Error loading courses:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to load courses');
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  const handleCreateCourse = () => {
-    setShowCreateForm(true);
+  const handleSelectCourse = (course: Course) => {
+    setSelectedCourse(course);
+    toast.success(`Selected course: ${course.title}`);
   };
 
-  const handleCreateSuccess = (course: any) => {
-    console.log('Course created successfully:', course);
-    setShowCreateForm(false);
-    fetchCourses(); // Refresh the list
-    toast({
-      title: "Success",
-      description: "Course created successfully",
-    });
-  };
-
-  const handleCreateCancel = () => {
-    setShowCreateForm(false);
-  };
-
-  useEffect(() => {
-    fetchCourses();
-  }, [currentPage, searchTerm, publicFilter, organizationId]);
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    setCurrentPage(1);
-    fetchCourses();
-  };
-
-  const resetFilters = () => {
-    setSearchTerm('');
-    setPublicFilter('all');
-    setCurrentPage(1);
-  };
-
-  if (showCreateForm) {
+  if (!selectedOrganization) {
     return (
-      <CreateCourseForm
-        onSuccess={handleCreateSuccess}
-        onCancel={handleCreateCancel}
-      />
-    );
-  }
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      <div className="container mx-auto p-6">
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <Target className="h-12 w-12 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-medium text-foreground mb-2">No Organization Selected</h3>
+            <p className="text-muted-foreground text-center">
+              Please select an organization first to view its courses.
+            </p>
+          </CardContent>
+        </Card>
       </div>
     );
   }
-
-  const getHeaderInfo = () => {
-    if (organizationId) {
-      return {
-        title: 'Organization Courses',
-        description: 'Browse courses for this organization'
-      };
-    }
-    return {
-      title: 'All Organization Courses',
-      description: 'Browse all courses across organizations'
-    };
-  };
-
-  const headerInfo = getHeaderInfo();
 
   return (
-    <div className="space-y-6">
+    <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{headerInfo.title}</h2>
-          <p className="text-gray-600 dark:text-gray-400">
-            {headerInfo.description}
+          <h1 className="text-3xl font-bold text-foreground">Courses</h1>
+          <p className="text-muted-foreground mt-2">
+            Courses from {selectedOrganization.name}
           </p>
         </div>
-        {user?.role === 'OrganizationManager' && (
-          <Button onClick={handleCreateCourse} className="flex items-center gap-2">
-            <Plus className="h-4 w-4" />
-            Create Course
-          </Button>
-        )}
+        <Button 
+          onClick={loadOrganizationCourses}
+          disabled={isLoading}
+          className="flex items-center gap-2"
+        >
+          {isLoading ? (
+            <>
+              <div className="h-4 w-4 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+              Loading...
+            </>
+          ) : (
+            <>
+              <BookOpen className="h-4 w-4" />
+              Load Courses
+            </>
+          )}
+        </Button>
       </div>
 
-      {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Filter className="h-5 w-5" />
-            Filters
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSearch} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Search</label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                  <Input
-                    placeholder="Search courses..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Visibility</label>
-                <Select value={publicFilter} onValueChange={setPublicFilter}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All</SelectItem>
-                    <SelectItem value="public">Public</SelectItem>
-                    <SelectItem value="private">Private</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="space-y-2 flex items-end">
-                <div className="flex gap-2 w-full">
-                  <Button type="submit" className="flex-1">
-                    <Search className="h-4 w-4 mr-2" />
-                    Search
-                  </Button>
-                  <Button type="button" variant="outline" onClick={resetFilters}>
-                    Reset
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+      {hasLoaded && courses.length === 0 && (
+        <Card>
+          <CardContent className="flex flex-col items-center justify-center py-12">
+            <BookOpen className="h-12 w-12 text-muted-foreground mb-4" />
+            <h3 className="text-lg font-medium text-foreground mb-2">No Courses Found</h3>
+            <p className="text-muted-foreground text-center">
+              This organization doesn't have any courses yet.
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
-      {/* Courses Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {courses.map((course) => (
           <Card key={course.causeId} className="hover:shadow-lg transition-shadow">
             <CardHeader>
               <div className="flex items-start justify-between">
-                <div className="flex items-center gap-2">
-                  <BookOpen className="h-6 w-6 text-blue-600" />
-                  <div>
-                    <CardTitle className="text-lg">{course.title}</CardTitle>
-                    <CardDescription className="line-clamp-2">
-                      {course.description}
-                    </CardDescription>
-                  </div>
+                <CardTitle className="text-lg text-foreground flex-1 pr-2">
+                  {course.title}
+                </CardTitle>
+                <div className="flex items-center">
+                  {course.isPublic ? (
+                    <Globe className="h-4 w-4 text-green-600" />
+                  ) : (
+                    <Lock className="h-4 w-4 text-orange-600" />
+                  )}
                 </div>
               </div>
             </CardHeader>
             
-            <CardContent>
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Badge variant={course.isPublic ? "default" : "secondary"}>
-                    {course.isPublic ? (
-                      <><Eye className="h-3 w-3 mr-1" /> Public</>
-                    ) : (
-                      <><EyeOff className="h-3 w-3 mr-1" /> Private</>
-                    )}
-                  </Badge>
-                  
-                  {!organizationId && (
-                    <Badge variant="outline" className="text-xs">
-                      Org: {course.organizationId}
-                    </Badge>
-                  )}
-                </div>
-                
-                {onSelectCourse && (
-                  <Button 
-                    onClick={() => onSelectCourse(course)}
-                    className="w-full"
-                  >
-                    Select Course
-                  </Button>
-                )}
+            <CardContent className="space-y-4">
+              <p className="text-muted-foreground text-sm">
+                {course.description}
+              </p>
+
+              <div className="flex items-center gap-2">
+                <Badge variant={course.isPublic ? 'default' : 'secondary'}>
+                  {course.isPublic ? 'Public' : 'Private'}
+                </Badge>
               </div>
+
+              <Button 
+                onClick={() => handleSelectCourse(course)}
+                className="w-full mt-4"
+              >
+                Select Course
+              </Button>
             </CardContent>
           </Card>
         ))}
       </div>
-
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2">
-          <Button
-            variant="outline"
-            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-            disabled={currentPage === 1}
-          >
-            Previous
-          </Button>
-          
-          <span className="text-sm text-gray-600">
-            Page {currentPage} of {totalPages}
-          </span>
-          
-          <Button
-            variant="outline"
-            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-            disabled={currentPage === totalPages}
-          >
-            Next
-          </Button>
-        </div>
-      )}
-
-      {courses.length === 0 && !loading && (
-        <Card>
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <BookOpen className="h-12 w-12 text-gray-400 mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No Courses Found</h3>
-            <p className="text-gray-600 dark:text-gray-400 text-center">
-              {searchTerm || publicFilter !== 'all'
-                ? 'No courses match your current filters.'
-                : 'No courses available at the moment.'}
-            </p>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 };
