@@ -68,4 +68,4 @@ export type {
 } from './instituteClasses.api';
 
 // Re-export auth API utilities
-export { getBaseUrl, getApiHeaders } from '@/contexts/utils/auth.api';
+export { getBaseUrl, getBaseUrl2, getOrgUrl, getApiHeaders } from '@/contexts/utils/auth.api';

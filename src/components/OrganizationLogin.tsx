@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Building2, Eye, EyeOff, LogIn } from 'lucide-react';
 import { toast } from 'sonner';
-import { getBaseUrl } from '@/contexts/utils/auth.api';
+import { getOrgUrl } from '@/contexts/utils/auth.api';
 
 interface OrganizationLoginProps {
   isOpen: boolean;
@@ -30,7 +30,7 @@ const OrganizationLogin = ({ isOpen, onClose, onSuccess }: OrganizationLoginProp
     setIsLoading(true);
 
     try {
-      const baseUrl = getBaseUrl();
+      const baseUrl = getOrgUrl();
       const response = await fetch(`${baseUrl}/organization/api/v1/auth/login`, {
         method: 'POST',
         headers: {

@@ -91,6 +91,7 @@ const Login = ({ onLogin, loginFunction }: LoginProps) => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [otpTimer, setOtpTimer] = useState(0);
   const [attendanceUrl, setAttendanceUrl] = useState('http://localhost:3001');
+  const [organizationUrl, setOrganizationUrl] = useState('http://localhost:3002');
   
   const { toast } = useToast();
 
@@ -100,6 +101,10 @@ const Login = ({ onLogin, loginFunction }: LoginProps) => {
 
   const getAttendanceUrl = () => {
     return localStorage.getItem('attendanceUrl') || attendanceUrl;
+  };
+
+  const getOrganizationUrl = () => {
+    return localStorage.getItem('orgUrl') || organizationUrl;
   };
 
   const getApiHeaders = () => ({
@@ -488,6 +493,7 @@ const Login = ({ onLogin, loginFunction }: LoginProps) => {
     // Store URLs in localStorage for other components to use
     localStorage.setItem('baseUrl', getBaseUrl());
     localStorage.setItem('attendanceUrl', getAttendanceUrl());
+    localStorage.setItem('orgUrl', getOrganizationUrl());
 
     try {
       if (useApiLogin) {
@@ -628,6 +634,18 @@ const Login = ({ onLogin, loginFunction }: LoginProps) => {
                 />
                 <p className="text-xs text-gray-500">
                   Current: {attendanceUrl}
+                </p>
+                
+                <Label htmlFor="organizationUrl">Organization Backend URL</Label>
+                <Input
+                  id="organizationUrl"
+                  type="url"
+                  placeholder="Enter organization backend URL"
+                  value={organizationUrl}
+                  onChange={(e) => setOrganizationUrl(e.target.value)}
+                />
+                <p className="text-xs text-gray-500">
+                  Current: {organizationUrl}
                 </p>
                 
                 <p className="text-xs text-orange-600">
