@@ -6,6 +6,7 @@ import {
   Class, 
   Subject, 
   Child, 
+  Organization,
   LoginCredentials, 
   AuthContextType 
 } from './types/auth.types';
@@ -35,17 +36,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [selectedClass, setSelectedClassState] = useState<Class | null>(null);
   const [selectedSubject, setSelectedSubjectState] = useState<Subject | null>(null);
   const [selectedChild, setSelectedChildState] = useState<Child | null>(null);
+  const [selectedOrganization, setSelectedOrganizationState] = useState<Organization | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [isOrganizationLoggedIn, setIsOrganizationLoggedIn] = useState(false);
-  const [organizationUser, setOrganizationUserState] = useState<any | null>(null);
-  const [selectedOrganization, setSelectedOrganizationState] = useState<any | null>(null);
-  const [selectedCourse, setSelectedCourseState] = useState<any | null>(null);
 
   // Public variables for current IDs - no localStorage sync
   const [currentInstituteId, setCurrentInstituteId] = useState<string | null>(null);
   const [currentClassId, setCurrentClassId] = useState<string | null>(null);
   const [currentSubjectId, setCurrentSubjectId] = useState<string | null>(null);
   const [currentChildId, setCurrentChildId] = useState<string | null>(null);
+  const [currentOrganizationId, setCurrentOrganizationId] = useState<string | null>(null);
 
   const fetchUserInstitutes = async (userId: string, forceRefresh = false): Promise<Institute[]> => {
     try {
@@ -144,14 +143,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setSelectedClassState(null);
     setSelectedSubjectState(null);
     setSelectedChildState(null);
+    setSelectedOrganizationState(null);
     
     setCurrentInstituteId(null);
     setCurrentClassId(null);
     setCurrentSubjectId(null);
     setCurrentChildId(null);
-    
-    // Clear organization state
-    clearOrganizationLogin();
+    setCurrentOrganizationId(null);
     
     // Clear all cache and pending requests
     apiCache.clearAllCache();
@@ -190,28 +188,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setCurrentChildId(child?.id || null);
   };
 
-  const setOrganizationUser = (orgUser: any) => {
-    setOrganizationUserState(orgUser);
-    setIsOrganizationLoggedIn(true);
-  };
-
-  const setSelectedOrganization = (organization: any | null) => {
+  const setSelectedOrganization = (organization: Organization | null) => {
     setSelectedOrganizationState(organization);
-    // Clear course selection when organization changes
-    setSelectedCourseState(null);
-  };
-
-  const setSelectedCourse = (course: any | null) => {
-    setSelectedCourseState(course);
-  };
-
-  const clearOrganizationLogin = () => {
-    setOrganizationUserState(null);
-    setIsOrganizationLoggedIn(false);
-    setSelectedOrganizationState(null);
-    setSelectedCourseState(null);
-    localStorage.removeItem('org_access_token');
-    localStorage.removeItem('org_refresh_token');
+    setCurrentOrganizationId(organization?.id || null);
   };
 
   // Method to refresh user data from backend - only called manually
@@ -262,24 +241,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     selectedClass,
     selectedSubject,
     selectedChild,
+    selectedOrganization,
     currentInstituteId,
     currentClassId,
     currentSubjectId,
     currentChildId,
-    isOrganizationLoggedIn,
-    organizationUser,
-    selectedOrganization,
-    selectedCourse,
+    currentOrganizationId,
     login,
     logout,
     setSelectedInstitute,
     setSelectedClass,
     setSelectedSubject,
     setSelectedChild,
-    setOrganizationUser,
-    clearOrganizationLogin,
     setSelectedOrganization,
-    setSelectedCourse,
     loadUserInstitutes,
     refreshUserData,
     validateUserToken,
