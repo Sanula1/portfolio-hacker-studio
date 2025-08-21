@@ -4,9 +4,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Images, Upload, Search, Grid3X3, List } from 'lucide-react';
+import { Images, Upload, Search, Grid3X3, List, ArrowLeft } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 const Gallery = () => {
+  const { setSelectedOrganization } = useAuth();
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchTerm, setSearchTerm] = useState('');
   const [activeTab, setActiveTab] = useState('all');
@@ -69,6 +71,10 @@ const Gallery = () => {
     return matchesSearch && matchesTab;
   });
 
+  const handleBackToOrganizations = () => {
+    setSelectedOrganization(null);
+  };
+
   const GalleryCard = ({ item }: { item: any }) => {
     return (
       <Card className="group hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1">
@@ -94,9 +100,20 @@ const Gallery = () => {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Gallery</h1>
-          <p className="text-muted-foreground">Browse and manage your images</p>
+        <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleBackToOrganizations}
+            className="flex items-center gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Organizations
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">Gallery</h1>
+            <p className="text-muted-foreground">Browse and manage your images</p>
+          </div>
         </div>
         <div className="ml-auto">
           <Button>

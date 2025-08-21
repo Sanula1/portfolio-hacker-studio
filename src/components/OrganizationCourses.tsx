@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { BookOpen, Globe, Lock, Target } from 'lucide-react';
+import { BookOpen, Globe, Lock, Target, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import { getOrgUrl } from '@/contexts/utils/auth.api';
 import { useAuth } from '@/contexts/AuthContext';
@@ -32,7 +32,7 @@ interface CoursesResponse {
 }
 
 const OrganizationCourses = () => {
-  const { selectedOrganization, setSelectedCourse } = useAuth();
+  const { selectedOrganization, setSelectedCourse, setSelectedOrganization } = useAuth();
   const [courses, setCourses] = useState<Course[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
@@ -85,6 +85,10 @@ const OrganizationCourses = () => {
     toast.success(`Selected course: ${course.title}`);
   };
 
+  const handleBackToOrganizations = () => {
+    setSelectedOrganization(null);
+  };
+
   if (!selectedOrganization) {
     return (
       <div className="container mx-auto p-6">
@@ -104,11 +108,22 @@ const OrganizationCourses = () => {
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Courses</h1>
-          <p className="text-muted-foreground mt-2">
-            Courses from {selectedOrganization.name}
-          </p>
+        <div className="flex items-center gap-4">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleBackToOrganizations}
+            className="flex items-center gap-2"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Organizations
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">Courses</h1>
+            <p className="text-muted-foreground mt-2">
+              Courses from {selectedOrganization.name}
+            </p>
+          </div>
         </div>
         <Button 
           onClick={loadOrganizationCourses}
