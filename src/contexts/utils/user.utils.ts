@@ -1,7 +1,6 @@
-
 import { User, UserRole } from '../types/auth.types';
 
-// Updated user type mapping to handle backend enum - added OrganizationManager back
+// Updated user type mapping to handle backend enum - removed Super Admin and System Admin
 export const mapUserTypeToRole = (userType: string): UserRole => {
   const typeMapping: Record<string, UserRole> = {
     'STUDENT': 'Student',
@@ -10,6 +9,7 @@ export const mapUserTypeToRole = (userType: string): UserRole => {
     'ATTEDANCE_MARKER': 'AttendanceMarker',
     'ATTENDANCE_MARKER': 'AttendanceMarker',
     'PARENT': 'Parent',
+    'ORGANIZATIONMANAGER': 'OrganizationManager',
     'ORGANIZATION_MANAGER': 'OrganizationManager'
   };
   return typeMapping[userType.toUpperCase()] || 'Student';

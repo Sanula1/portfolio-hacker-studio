@@ -1,4 +1,4 @@
-import { getBaseUrl, getBaseUrl2, getOrgUrl, getApiHeaders } from '@/contexts/utils/auth.api';
+import { getBaseUrl, getBaseUrl2, getApiHeaders } from '@/contexts/utils/auth.api';
 
 export interface ApiResponse<T = any> {
   data?: T;
