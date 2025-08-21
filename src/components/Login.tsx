@@ -54,20 +54,9 @@ const mockUsers = [
     email: 'parent@cambridge.edu',
     password: 'parent123',
     role: 'Parent' as UserRole,
-    name: 'Michael Johnson',
+    name: 'Robert Wilson',
     institutes: [
       { id: '1', name: 'Cambridge International School', code: 'CIS001', description: 'Premier educational institution', isActive: true }
-    ]
-  },
-  {
-    email: 'orgmanager@company.com',
-    password: 'orgmanager123',
-    role: 'OrganizationManager' as UserRole,
-    name: 'Organization Manager',
-    institutes: [
-      { id: 'org-1', name: 'Education Network International', code: 'ENI', description: 'Global education network', isActive: true },
-      { id: 'org-2', name: 'Academic Solutions Group', code: 'ASG', description: 'Educational technology solutions', isActive: true },
-      { id: 'org-3', name: 'Learning Excellence Corp', code: 'LEC', description: 'Excellence in learning management', isActive: true }
     ]
   }
 ];
@@ -102,6 +91,7 @@ const Login = ({ onLogin, loginFunction }: LoginProps) => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [otpTimer, setOtpTimer] = useState(0);
   const [attendanceUrl, setAttendanceUrl] = useState('http://localhost:3001');
+  const [organizationUrl, setOrganizationUrl] = useState('http://localhost:3002');
   
   const { toast } = useToast();
 
@@ -111,6 +101,10 @@ const Login = ({ onLogin, loginFunction }: LoginProps) => {
 
   const getAttendanceUrl = () => {
     return localStorage.getItem('attendanceUrl') || attendanceUrl;
+  };
+
+  const getOrganizationUrl = () => {
+    return localStorage.getItem('orgUrl') || organizationUrl;
   };
 
   const getApiHeaders = () => ({
@@ -499,6 +493,7 @@ const Login = ({ onLogin, loginFunction }: LoginProps) => {
     // Store URLs in localStorage for other components to use
     localStorage.setItem('baseUrl', getBaseUrl());
     localStorage.setItem('attendanceUrl', getAttendanceUrl());
+    localStorage.setItem('orgUrl', getOrganizationUrl());
 
     try {
       if (useApiLogin) {
@@ -641,6 +636,18 @@ const Login = ({ onLogin, loginFunction }: LoginProps) => {
                   Current: {attendanceUrl}
                 </p>
                 
+                <Label htmlFor="organizationUrl">Organization Backend URL</Label>
+                <Input
+                  id="organizationUrl"
+                  type="url"
+                  placeholder="Enter organization backend URL"
+                  value={organizationUrl}
+                  onChange={(e) => setOrganizationUrl(e.target.value)}
+                />
+                <p className="text-xs text-gray-500">
+                  Current: {organizationUrl}
+                </p>
+                
                 <p className="text-xs text-orange-600">
                   For ngrok: Add --host-header=localhost:3000 flag when starting tunnel
                 </p>
@@ -740,7 +747,6 @@ const Login = ({ onLogin, loginFunction }: LoginProps) => {
                         <SelectItem value="AttendanceMarker">Attendance Marker</SelectItem>
                         <SelectItem value="Student">Student</SelectItem>
                         <SelectItem value="Parent">Parent</SelectItem>
-                        <SelectItem value="OrganizationManager">Organization Manager</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -1269,14 +1275,6 @@ const Login = ({ onLogin, loginFunction }: LoginProps) => {
                 >
                   Parent
                 </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleQuickLogin('OrganizationManager')}
-                  className="text-xs"
-                >
-                  Org Manager
-                </Button>
               </div>
             </CardContent>
           </Card>
@@ -1306,7 +1304,6 @@ const Login = ({ onLogin, loginFunction }: LoginProps) => {
               <div><strong>Attendance Marker:</strong> marker@cambridge.edu / marker123</div>
               <div><strong>Student:</strong> student@cambridge.edu / student123</div>
               <div><strong>Parent:</strong> parent@cambridge.edu / parent123</div>
-              <div><strong>Organization Manager:</strong> orgmanager@company.com / orgmanager123</div>
             </CardContent>
           </Card>
         )}
