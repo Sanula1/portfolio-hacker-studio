@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
-import { getOrgUrl } from '@/contexts/utils/auth.api';
+import { getBaseUrl2 } from '@/contexts/utils/auth.api';
 
 interface OrganizationLoginProps {
   isOpen: boolean;
@@ -50,18 +50,18 @@ const OrganizationLogin = ({ isOpen, onClose }: OrganizationLoginProps) => {
     setIsLoading(true);
 
     try {
-      const baseUrl = getOrgUrl();
+      const baseUrl = getBaseUrl2();
       
       if (!baseUrl) {
         toast({
           title: "Error",
-          description: "Organization API URL is not configured. Please configure it in Backend Configuration.",
+          description: "Organization API URL is not configured",
           variant: "destructive"
         });
         return;
       }
 
-      const response = await fetch(`${baseUrl}/api/auth`, {
+      const response = await fetch(`${baseUrl}/organization/api/v1/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

@@ -5,23 +5,6 @@ export const getBaseUrl = (): string => {
   return import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
 };
 
-export const getOrgUrl = (): string => {
-  // First check localStorage for user-configured URL
-  const storedUrl = localStorage.getItem('orgUrl');
-  if (storedUrl) {
-    return storedUrl;
-  }
-  
-  // Then check environment variable
-  const envUrl = import.meta.env.VITE_ORG_BASE_URL;
-  if (envUrl) {
-    return envUrl;
-  }
-  
-  // Return empty string to force user configuration
-  return '';
-};
-
 export const getBaseUrl2 = (): string => {
   // First check localStorage for user-configured URL
   const storedUrl = localStorage.getItem('baseUrl2');

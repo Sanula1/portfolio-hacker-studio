@@ -935,12 +935,12 @@ const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) =
           alwaysShow: true
         },
         {
-          id: 'backend-configuration',
-          label: 'Backend Configuration',
+          id: 'settings',
+          label: 'Settings',
           icon: Settings,
-          permission: 'view-backend-config',
+          permission: 'view-settings',
           alwaysShow: true
-        },
+        }
       ];
     }
 

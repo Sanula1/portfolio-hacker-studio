@@ -37,7 +37,6 @@ import TeacherExams from '@/components/TeacherExams';
 import TeacherLectures from '@/components/TeacherLectures';
 import AttendanceMarkerSubjectSelector from '@/components/AttendanceMarkerSubjectSelector';
 import InstituteUsers from '@/components/InstituteUsers';
-import BackendConfiguration from '@/components/BackendConfiguration';
 
 const AppContent = () => {
   const { user, login, selectedInstitute, selectedClass, selectedSubject, selectedChild } = useAuth();
@@ -92,8 +91,6 @@ const AppContent = () => {
           return <InstituteSelector />;
         case 'appearance':
           return <Appearance />;
-        case 'backend-configuration':
-          return <BackendConfiguration />;
         default:
           return <Dashboard />;
       }
@@ -126,8 +123,6 @@ const AppContent = () => {
           return <ParentChildrenSelector />;
         case 'appearance':
           return <Appearance />;
-        case 'backend-configuration':
-          return <BackendConfiguration />;
         default:
           return <ParentChildrenSelector />;
       }
@@ -194,8 +189,6 @@ const AppContent = () => {
           return <Profile />;
         case 'appearance':
           return <Appearance />;
-        case 'backend-configuration':
-          return <BackendConfiguration />;
         default:
           return <Dashboard />;
       }
@@ -230,8 +223,6 @@ const AppContent = () => {
           return <ClassSelector />;
         case 'appearance':
           return <Appearance />;
-        case 'backend-configuration':
-          return <BackendConfiguration />;
         case 'settings':
           return <Settings />;
         default:
@@ -319,8 +310,6 @@ const AppContent = () => {
         return <Settings />;
       case 'appearance':
         return <Appearance />;
-      case 'backend-configuration':
-        return <BackendConfiguration />;
       case 'teacher-students':
         return <TeacherStudents />;
       default:
