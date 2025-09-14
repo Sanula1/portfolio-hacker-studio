@@ -4,14 +4,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Users, UserPlus, Shield } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Users, UserPlus, Shield, Crown, UserMinus } from 'lucide-react';
 import { organizationSpecificApi } from '@/api/organization.api';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import AssignRoleDialog from './AssignRoleDialog';
+import TransferPresidencyDialog from './forms/TransferPresidencyDialog';
+import { OrganizationRoleManager, OrganizationRole } from '@/utils/organizationRoles';
 
 interface OrganizationMembersProps {
   organizationId: string;
+  userRole?: string;
 }
 
 interface Member {
@@ -29,10 +33,12 @@ interface MembersResponse {
   roleBreakdown: Record<string, number>;
 }
 
-const OrganizationMembers = ({ organizationId }: OrganizationMembersProps) => {
+const OrganizationMembers = ({ organizationId, userRole }: OrganizationMembersProps) => {
   const [membersData, setMembersData] = useState<MembersResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [showAssignRoleDialog, setShowAssignRoleDialog] = useState(false);
+  const [showTransferPresidencyDialog, setShowTransferPresidencyDialog] = useState(false);
+  const [showRemoveDialog, setShowRemoveDialog] = useState(false);
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
@@ -69,6 +75,46 @@ const OrganizationMembers = ({ organizationId }: OrganizationMembersProps) => {
     setShowAssignRoleDialog(false);
     setSelectedMember(null);
     fetchMembers(); // Refresh the members list
+  };
+
+  const handleTransferPresidencySuccess = () => {
+    setShowTransferPresidencyDialog(false);
+    fetchMembers(); // Refresh the members list
+  };
+
+  const handleRemoveMember = (member: Member) => {
+    setSelectedMember(member);
+    setShowRemoveDialog(true);
+  };
+
+  const handleRemoveConfirm = async () => {
+    if (!selectedMember) return;
+    
+    try {
+      await organizationSpecificApi.removeUserFromOrganization(organizationId, {
+        userId: selectedMember.userId
+      });
+      
+      toast({
+        title: "Success",
+        description: `${selectedMember.name} has been removed from the organization`,
+      });
+      
+      setShowRemoveDialog(false);
+      setSelectedMember(null);
+      fetchMembers(); // Refresh the members list
+    } catch (error) {
+      console.error('Error removing member:', error);
+      toast({
+        title: "Error",
+        description: "Failed to remove member from organization",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const getCurrentPresidentId = () => {
+    return membersData?.members.find(member => member.role === 'PRESIDENT')?.userId;
   };
 
   const getRoleBadgeVariant = (role: string) => {
@@ -108,26 +154,36 @@ const OrganizationMembers = ({ organizationId }: OrganizationMembersProps) => {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-4 md:space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">Organization Members</h2>
-          <p className="text-gray-600 dark:text-gray-400">
-            Manage members and their roles in the organization
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Members ({membersData.totalMembers})</h2>
+          <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">
+            All organization members and their current roles
           </p>
         </div>
+        {(userRole === 'PRESIDENT' || user?.role === 'OrganizationManager') && (
+          <Button
+            variant="outline"
+            onClick={() => setShowTransferPresidencyDialog(true)}
+            className="flex items-center gap-2"
+          >
+            <Crown className="h-4 w-4" />
+            Transfer Presidency
+          </Button>
+        )}
       </div>
 
       {/* Role Breakdown Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
         {Object.entries(membersData.roleBreakdown).map(([role, count]) => (
           <Card key={role}>
-            <CardContent className="flex items-center justify-between p-4">
+            <CardContent className="flex items-center justify-between p-3 md:p-4">
               <div>
-                <p className="text-sm font-medium text-gray-600">{role}</p>
-                <p className="text-2xl font-bold">{count}</p>
+                <p className="text-xs sm:text-sm font-medium text-gray-600 truncate">{role}</p>
+                <p className="text-lg sm:text-2xl font-bold">{count}</p>
               </div>
-              <Shield className="h-8 w-8 text-blue-600" />
+              <Shield className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600 flex-shrink-0" />
             </CardContent>
           </Card>
         ))}
@@ -144,45 +200,77 @@ const OrganizationMembers = ({ organizationId }: OrganizationMembersProps) => {
             All organization members and their current roles
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="overflow-x-auto">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Status</TableHead>
-                {user?.role === 'OrganizationManager' && <TableHead>Actions</TableHead>}
+                <TableHead className="min-w-[150px]">Name</TableHead>
+                <TableHead className="hidden sm:table-cell min-w-[200px]">Email</TableHead>
+                <TableHead className="min-w-[80px]">Role</TableHead>
+                <TableHead className="hidden md:table-cell min-w-[80px]">Status</TableHead>
+                {(user?.role === 'OrganizationManager' || userRole === 'ADMIN' || userRole === 'PRESIDENT') && <TableHead className="min-w-[160px]">Actions</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
               {membersData.members.map((member) => (
                 <TableRow key={member.userId}>
                   <TableCell>
-                    <div className="font-medium">{member.name}</div>
-                    <div className="text-sm text-gray-500">ID: {member.userId}</div>
+                    <div className="min-w-0">
+                      <div className="font-medium truncate">{member.name}</div>
+                      <div className="text-xs text-gray-500 truncate">ID: {member.userId}</div>
+                      <div className="sm:hidden text-xs text-gray-500 truncate">{member.email}</div>
+                    </div>
                   </TableCell>
-                  <TableCell>{member.email}</TableCell>
+                  <TableCell className="hidden sm:table-cell">
+                    <div className="truncate max-w-[200px]">{member.email}</div>
+                  </TableCell>
                   <TableCell>
-                    <Badge variant={getRoleBadgeVariant(member.role)}>
+                    <Badge variant={getRoleBadgeVariant(member.role)} className="text-xs">
                       {member.role}
                     </Badge>
+                    <div className="md:hidden mt-1">
+                      <Badge variant={member.isVerified ? "default" : "secondary"} className="text-xs">
+                        {member.isVerified ? "Verified" : "Pending"}
+                      </Badge>
+                    </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="hidden md:table-cell">
                     <Badge variant={member.isVerified ? "default" : "secondary"}>
                       {member.isVerified ? "Verified" : "Pending"}
                     </Badge>
                   </TableCell>
-                  {user?.role === 'OrganizationManager' && (
+                  {(user?.role === 'OrganizationManager' || userRole === 'ADMIN' || userRole === 'PRESIDENT') && (
                     <TableCell>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleAssignRole(member)}
-                      >
-                        <UserPlus className="h-4 w-4 mr-1" />
-                        Assign Role
-                      </Button>
+                      <div className="flex gap-2">
+                        {OrganizationRoleManager.canManageUser(userRole || '', user?.role || '', member.role as OrganizationRole) && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleAssignRole(member)}
+                            className="flex-1 sm:flex-none"
+                          >
+                            <UserPlus className="h-4 w-4 sm:mr-1" />
+                            <span className="hidden sm:inline">Assign Role</span>
+                          </Button>
+                        )}
+                        {OrganizationRoleManager.canRemoveUser(
+                          userRole || '', 
+                          user?.role || '', 
+                          member.role as OrganizationRole, 
+                          user?.id || '', 
+                          member.userId
+                        ) && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleRemoveMember(member)}
+                            className="flex-1 sm:flex-none text-destructive hover:text-destructive"
+                          >
+                            <UserMinus className="h-4 w-4 sm:mr-1" />
+                            <span className="hidden sm:inline">Remove</span>
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   )}
                 </TableRow>
@@ -200,8 +288,43 @@ const OrganizationMembers = ({ organizationId }: OrganizationMembersProps) => {
           member={selectedMember}
           organizationId={organizationId}
           onSuccess={handleAssignRoleSuccess}
+          currentUserRole={userRole}
         />
       )}
+
+      {/* Transfer Presidency Dialog */}
+      {membersData && (
+        <TransferPresidencyDialog
+          open={showTransferPresidencyDialog}
+          onOpenChange={setShowTransferPresidencyDialog}
+          organizationId={organizationId}
+          members={membersData.members}
+          currentPresidentId={getCurrentPresidentId()}
+          onSuccess={handleTransferPresidencySuccess}
+        />
+      )}
+
+      {/* Remove Member Confirmation Dialog */}
+      <AlertDialog open={showRemoveDialog} onOpenChange={setShowRemoveDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Remove Member</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to remove <strong>{selectedMember?.name}</strong> from this organization? 
+              This action cannot be undone and they will lose access to all organization resources.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleRemoveConfirm}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Remove Member
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

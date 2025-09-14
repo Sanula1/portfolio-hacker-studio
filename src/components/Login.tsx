@@ -8,6 +8,7 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp
 import { type UserRole } from '@/contexts/AuthContext';
 import { Eye, EyeOff, GraduationCap, Wifi, WifiOff, Settings, Mail, Key, UserCheck, RotateCcw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { getBaseUrl, getBaseUrl2 } from '@/contexts/utils/auth.api';
 
 // Mock user credentials for different roles
 const mockUsers = [
@@ -82,7 +83,10 @@ type LoginStep = 'login' | 'first-login-email' | 'first-login-otp' | 'first-logi
 const Login = ({ onLogin, loginFunction }: LoginProps) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [baseUrl, setBaseUrl] = useState('http://localhost:3000');
+  const [baseUrl, setBaseUrl] = useState(() => {
+    const stored = getBaseUrl();
+    return stored || 'https://your-backend-url.com';
+  });
   const [selectedRole, setSelectedRole] = useState<UserRole>('Student');
   const [showPassword, setShowPassword] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
@@ -101,15 +105,29 @@ const Login = ({ onLogin, loginFunction }: LoginProps) => {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [otpTimer, setOtpTimer] = useState(0);
-  const [attendanceUrl, setAttendanceUrl] = useState('http://localhost:3001');
+  const [attendanceUrl, setAttendanceUrl] = useState(() => {
+    const stored = getBaseUrl2();
+    return stored || getBaseUrl() || 'https://your-attendance-backend-url.com';
+  });
   
   const { toast } = useToast();
 
-  const getBaseUrl = () => {
-    return localStorage.getItem('baseUrl') || baseUrl;
+  // Store URL changes immediately to localStorage
+  const handleBaseUrlChange = (newUrl: string) => {
+    setBaseUrl(newUrl);
+    if (newUrl.startsWith('http')) {
+      localStorage.setItem('baseUrl', newUrl);
+    }
   };
 
-  const getAttendanceUrl = () => {
+  const handleAttendanceUrlChange = (newUrl: string) => {
+    setAttendanceUrl(newUrl);
+    if (newUrl.startsWith('http')) {
+      localStorage.setItem('attendanceUrl', newUrl);
+    }
+  };
+
+  const getCurrentAttendanceUrl = () => {
     return localStorage.getItem('attendanceUrl') || attendanceUrl;
   };
 
@@ -143,7 +161,7 @@ const Login = ({ onLogin, loginFunction }: LoginProps) => {
   const testConnection = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch(`${getBaseUrl()}/health`, {
+      const response = await fetch(`${baseUrl}/health`, {
         headers: getApiHeaders(),
       });
       
@@ -170,7 +188,7 @@ const Login = ({ onLogin, loginFunction }: LoginProps) => {
   // Check if user requires first login
   const checkFirstLoginStatus = async (email: string) => {
     try {
-      const response = await fetch(`${getBaseUrl()}/auth/status?email=${email}`, {
+      const response = await fetch(`${baseUrl}/auth/status?email=${email}`, {
         headers: getApiHeaders(),
       });
 
@@ -187,7 +205,7 @@ const Login = ({ onLogin, loginFunction }: LoginProps) => {
   // New First Login API Functions
   const initiateFirstLoginAPI = async (email: string) => {
     try {
-      const response = await fetch(`${getBaseUrl()}/auth/initiate`, {
+      const response = await fetch(`${baseUrl}/auth/initiate`, {
         method: 'POST',
         headers: getApiHeaders(),
         body: JSON.stringify({ email }),
@@ -215,7 +233,7 @@ const Login = ({ onLogin, loginFunction }: LoginProps) => {
 
   const verifyFirstLoginOTP = async (email: string, otp: string) => {
     try {
-      const response = await fetch(`${getBaseUrl()}/auth/verify-otp`, {
+      const response = await fetch(`${baseUrl}/auth/verify-otp`, {
         method: 'POST',
         headers: getApiHeaders(),
         body: JSON.stringify({ email, otp }),
@@ -248,7 +266,7 @@ const Login = ({ onLogin, loginFunction }: LoginProps) => {
     }
 
     try {
-      const response = await fetch(`${getBaseUrl()}/auth/set-password`, {
+      const response = await fetch(`${baseUrl}/auth/set-password`, {
         method: 'POST',
         headers: getApiHeaders(),
         body: JSON.stringify({
@@ -290,7 +308,7 @@ const Login = ({ onLogin, loginFunction }: LoginProps) => {
 
   const resendFirstLoginOTP = async () => {
     try {
-      const response = await fetch(`${getBaseUrl()}/auth/resend-otp`, {
+      const response = await fetch(`${baseUrl}/auth/resend-otp`, {
         method: 'POST',
         headers: getApiHeaders(),
         body: JSON.stringify({ email }),
@@ -328,7 +346,7 @@ const Login = ({ onLogin, loginFunction }: LoginProps) => {
 
   const initiateForgotPassword = async (email: string) => {
     try {
-      const response = await fetch(`${getBaseUrl()}/auth/forgot-password`, {
+      const response = await fetch(`${baseUrl}/auth/forgot-password`, {
         method: 'POST',
         headers: getApiHeaders(),
         body: JSON.stringify({ email }),
@@ -356,7 +374,7 @@ const Login = ({ onLogin, loginFunction }: LoginProps) => {
 
   const verifyForgotPasswordOTP = async (email: string, otp: string) => {
     try {
-      const response = await fetch(`${getBaseUrl()}/auth/verify-reset-otp`, {
+      const response = await fetch(`${baseUrl}/auth/verify-reset-otp`, {
         method: 'POST',
         headers: getApiHeaders(),
         body: JSON.stringify({ email, otp }),
@@ -389,7 +407,7 @@ const Login = ({ onLogin, loginFunction }: LoginProps) => {
     }
 
     try {
-      const response = await fetch(`${getBaseUrl()}/auth/reset-password`, {
+      const response = await fetch(`${baseUrl}/auth/reset-password`, {
         method: 'POST',
         headers: getApiHeaders(),
         body: JSON.stringify({
@@ -429,7 +447,7 @@ const Login = ({ onLogin, loginFunction }: LoginProps) => {
 
   const resendForgotPasswordOtp = async () => {
     try {
-      const response = await fetch(`${getBaseUrl()}/auth/resend-reset-otp`, {
+      const response = await fetch(`${baseUrl}/auth/resend-reset-otp`, {
         method: 'POST',
         headers: getApiHeaders(),
         body: JSON.stringify({ email }),
@@ -496,14 +514,17 @@ const Login = ({ onLogin, loginFunction }: LoginProps) => {
     setError('');
     setIsLoading(true);
 
-    // Store URLs in localStorage for other components to use
-    localStorage.setItem('baseUrl', getBaseUrl());
-    localStorage.setItem('attendanceUrl', getAttendanceUrl());
+    // Validate base URL is configured for API login
+    if (useApiLogin && !baseUrl.startsWith('http')) {
+      setError('Please enter a valid Backend URL (starting with http:// or https://) in the settings above before attempting login.');
+      setIsLoading(false);
+      return;
+    }
 
     try {
       if (useApiLogin) {
         console.log('Attempting API login with credentials:', { email, password: '***' });
-        console.log('Using base URL:', getBaseUrl());
+        console.log('Using base URL:', baseUrl);
         
         // Use the passed login function from AuthContext
         await loginFunction({ email, password });
@@ -623,7 +644,7 @@ const Login = ({ onLogin, loginFunction }: LoginProps) => {
                   type="url"
                   placeholder="Enter backend URL"
                   value={baseUrl}
-                  onChange={(e) => setBaseUrl(e.target.value)}
+                  onChange={(e) => handleBaseUrlChange(e.target.value)}
                 />
                 <p className="text-xs text-gray-500">
                   Current: {baseUrl}
@@ -635,14 +656,14 @@ const Login = ({ onLogin, loginFunction }: LoginProps) => {
                   type="url"
                   placeholder="Enter attendance backend URL"
                   value={attendanceUrl}
-                  onChange={(e) => setAttendanceUrl(e.target.value)}
+                  onChange={(e) => handleAttendanceUrlChange(e.target.value)}
                 />
                 <p className="text-xs text-gray-500">
                   Current: {attendanceUrl}
                 </p>
                 
                 <p className="text-xs text-orange-600">
-                  For ngrok: Add --host-header=localhost:3000 flag when starting tunnel
+                  For ngrok: Add --host-header=rewrite flag when starting tunnel
                 </p>
                 <Button
                   type="button"

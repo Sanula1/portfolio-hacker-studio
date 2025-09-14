@@ -11,38 +11,15 @@ import { getBaseUrl } from '@/contexts/utils/auth.api';
 
 interface Child {
   id: string;
-  userId: string;
-  studentId: string;
-  emergencyContact: string;
-  medicalConditions: string;
-  allergies: string;
-  bloodGroup: string;
-  user: {
-    id: string;
-    firstName: string;
-    lastName: string;
-    email: string;
-    imageUrl: string;
-    dateOfBirth: string;
-    gender: string;
-    userType: string;
-  };
+  name: string;
+  phoneNumber: string;
+  relationship: string;
 }
 
 interface ParentData {
-  parent: {
-    userId: string;
-    occupation: string;
-    workplace: string;
-    workPhone: string;
-    educationLevel: string;
-    user: any;
-  };
-  children: {
-    asFather: Child[];
-    asMother: Child[];
-    asGuardian: Child[];
-  };
+  parentId: string;
+  parentName: string;
+  children: Child[];
 }
 
 const ParentChildrenSelector = () => {
@@ -99,27 +76,26 @@ const ParentChildrenSelector = () => {
 
   const handleChildSelect = (child: Child) => {
     console.log('Selected child:', child);
-    setSelectedChild(child);
+    // For now, we'll create a simplified child object for setSelectedChild
+    const childForAuth = {
+      id: child.id,
+      name: child.name,
+      relationship: child.relationship
+    };
+    setSelectedChild(childForAuth as any);
     toast({
       title: "Child Selected",
-      description: `Now viewing ${child.user.firstName} ${child.user.lastName}'s information`,
+      description: `Now viewing ${child.name}'s information`,
     });
   };
 
   const getAllChildren = () => {
     if (!parentData) return [];
-    return [
-      ...parentData.children.asFather,
-      ...parentData.children.asMother,
-      ...parentData.children.asGuardian
-    ];
+    return parentData.children;
   };
 
   const getRelationshipLabel = (child: Child) => {
-    if (parentData?.children.asFather.some(c => c.id === child.id)) return 'Father';
-    if (parentData?.children.asMother.some(c => c.id === child.id)) return 'Mother';
-    if (parentData?.children.asGuardian.some(c => c.id === child.id)) return 'Guardian';
-    return 'Parent';
+    return child.relationship.charAt(0).toUpperCase() + child.relationship.slice(1);
   };
 
   const formatDate = (dateString: string) => {
@@ -184,32 +160,20 @@ const ParentChildrenSelector = () => {
       </div>
 
       {/* Parent Info */}
-      {parentData.parent && (
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <User className="h-5 w-5" />
-              Parent Information
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Occupation</p>
-                <p className="font-medium">{parentData.parent.occupation}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Workplace</p>
-                <p className="font-medium">{parentData.parent.workplace}</p>
-              </div>
-              <div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Education Level</p>
-                <p className="font-medium">{parentData.parent.educationLevel}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <User className="h-5 w-5" />
+            Parent Information
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="text-center">
+            <p className="text-lg font-medium">{parentData.parentName}</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Parent ID: {parentData.parentId}</p>
+          </div>
+        </CardContent>
+      </Card>
 
       {allChildren.length === 0 ? (
         <Card>
@@ -237,19 +201,19 @@ const ParentChildrenSelector = () => {
                 <div className="flex items-center space-x-4">
                   <Avatar className="h-16 w-16">
                     <AvatarImage 
-                      src={child.user.imageUrl || `https://images.unsplash.com/photo-1535268647677-300dbf3d78d1`} 
-                      alt={`${child.user.firstName} ${child.user.lastName}`}
+                      src={`https://images.unsplash.com/photo-1535268647677-300dbf3d78d1`} 
+                      alt={child.name}
                     />
                     <AvatarFallback className="text-lg">
-                      {getInitials(child.user.firstName, child.user.lastName)}
+                      {child.name.split(' ').map(n => n.charAt(0)).join('').toUpperCase()}
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1">
                     <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                      {child.user.firstName} {child.user.lastName}
+                      {child.name}
                     </h3>
                     <p className="text-sm text-gray-600 dark:text-gray-400">
-                      Student ID: {child.studentId}
+                      Child ID: {child.id}
                     </p>
                     <Badge variant="secondary" className="mt-1">
                       {getRelationshipLabel(child)}
@@ -260,50 +224,14 @@ const ParentChildrenSelector = () => {
               
               <CardContent className="space-y-3">
                 <div className="flex items-center gap-2 text-sm">
-                  <Calendar className="h-4 w-4 text-blue-600" />
-                  <span className="text-gray-600 dark:text-gray-400">
-                    Born: {formatDate(child.user.dateOfBirth)}
-                  </span>
-                </div>
-                
-                <div className="flex items-center gap-2 text-sm">
                   <Phone className="h-4 w-4 text-green-600" />
                   <span className="text-gray-600 dark:text-gray-400">
-                    Emergency: {child.emergencyContact}
+                    Phone: {child.phoneNumber}
                   </span>
                 </div>
-                
-                <div className="flex items-center gap-2 text-sm">
-                  <Heart className="h-4 w-4 text-red-600" />
-                  <span className="text-gray-600 dark:text-gray-400">
-                    Blood: {child.bloodGroup}
-                  </span>
-                </div>
-
-                {child.medicalConditions && child.medicalConditions !== 'None' && (
-                  <div className="flex items-start gap-2 text-sm">
-                    <AlertTriangle className="h-4 w-4 text-orange-600 mt-0.5" />
-                    <div>
-                      <p className="text-gray-600 dark:text-gray-400">
-                        <strong>Medical:</strong> {child.medicalConditions}
-                      </p>
-                    </div>
-                  </div>
-                )}
-
-                {child.allergies && child.allergies !== 'None' && (
-                  <div className="flex items-start gap-2 text-sm">
-                    <AlertTriangle className="h-4 w-4 text-yellow-600 mt-0.5" />
-                    <div>
-                      <p className="text-gray-600 dark:text-gray-400">
-                        <strong>Allergies:</strong> {child.allergies}
-                      </p>
-                    </div>
-                  </div>
-                )}
                 
                 <Button className="w-full mt-4">
-                  View {child.user.firstName}'s Dashboard
+                  View {child.name.split(' ')[0]}'s Dashboard
                 </Button>
               </CardContent>
             </Card>

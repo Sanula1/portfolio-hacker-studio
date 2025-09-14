@@ -21,6 +21,9 @@ const CreateOrganizationForm = ({ onSuccess, onCancel }: CreateOrganizationFormP
     type: 'INSTITUTE',
     isPublic: true,
     enrollmentKey: '',
+    needEnrollmentVerification: true,
+    enabledEnrollments: true,
+    imageUrl: '',
     instituteId: ''
   });
   const [isLoading, setIsLoading] = useState(false);
@@ -33,6 +36,16 @@ const CreateOrganizationForm = ({ onSuccess, onCancel }: CreateOrganizationFormP
       toast({
         title: "Validation Error",
         description: "Organization name is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate enrollment key for INSTITUTE organizations
+    if (formData.type === 'INSTITUTE' && !formData.enrollmentKey?.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Enrollment key is required for institute organizations",
         variant: "destructive",
       });
       return;
@@ -142,12 +155,28 @@ const CreateOrganizationForm = ({ onSuccess, onCancel }: CreateOrganizationFormP
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="enrollmentKey">Enrollment Key (Optional)</Label>
+                <Label htmlFor="imageUrl">Image URL (Optional)</Label>
+                <Input
+                  id="imageUrl"
+                  placeholder="Enter organization image URL"
+                  value={formData.imageUrl}
+                  onChange={(e) => handleInputChange('imageUrl', e.target.value)}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="enrollmentKey">
+                  Enrollment Key {formData.type === 'INSTITUTE' ? '(Required)' : '(Optional)'}
+                </Label>
                 <Input
                   id="enrollmentKey"
-                  placeholder="Enter enrollment key (optional)"
+                  placeholder={formData.type === 'INSTITUTE' 
+                    ? "Enter enrollment key..." 
+                    : "Enter enrollment key (optional)"
+                  }
                   value={formData.enrollmentKey}
                   onChange={(e) => handleInputChange('enrollmentKey', e.target.value)}
+                  required={formData.type === 'INSTITUTE'}
                 />
               </div>
 
@@ -158,6 +187,24 @@ const CreateOrganizationForm = ({ onSuccess, onCancel }: CreateOrganizationFormP
                   onCheckedChange={(checked) => handleInputChange('isPublic', checked)}
                 />
                 <Label htmlFor="isPublic">Public Organization</Label>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="needEnrollmentVerification"
+                  checked={formData.needEnrollmentVerification}
+                  onCheckedChange={(checked) => handleInputChange('needEnrollmentVerification', checked)}
+                />
+                <Label htmlFor="needEnrollmentVerification">Require Enrollment Verification</Label>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="enabledEnrollments"
+                  checked={formData.enabledEnrollments}
+                  onCheckedChange={(checked) => handleInputChange('enabledEnrollments', checked)}
+                />
+                <Label htmlFor="enabledEnrollments">Enable Enrollments</Label>
               </div>
 
               <div className="flex justify-end space-x-4">

@@ -5,14 +5,17 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { RefreshCw, Filter, Plus, Calendar, Clock, BookOpen, FileText, Upload } from 'lucide-react';
+import { RefreshCw, Filter, Plus, Calendar, Clock, BookOpen, FileText, Upload, ExternalLink, BarChart3, Eye } from 'lucide-react';
 import { useAuth, type UserRole } from '@/contexts/AuthContext';
 import { AccessControl } from '@/utils/permissions';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import CreateHomeworkForm from '@/components/forms/CreateHomeworkForm';
 import UpdateHomeworkForm from '@/components/forms/UpdateHomeworkForm';
+import SubmitHomeworkForm from '@/components/forms/SubmitHomeworkForm';
+import HomeworkDetailsDialog from '@/components/forms/HomeworkDetailsDialog';
 import { DataCardView } from '@/components/ui/data-card-view';
+import { useNavigate } from 'react-router-dom';
 import { cachedApiClient } from '@/api/cachedClient';
 
 interface HomeworkProps {
@@ -20,10 +23,14 @@ interface HomeworkProps {
 }
 
 const Homework = ({ apiLevel = 'institute' }: HomeworkProps) => {
+  const navigate = useNavigate();
   const { user, selectedInstitute, selectedClass, selectedSubject, currentInstituteId, currentClassId, currentSubjectId } = useAuth();
   const { toast } = useToast();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isSubmitDialogOpen, setIsSubmitDialogOpen] = useState(false);
+  const [isViewDialogOpen, setIsViewDialogOpen] = useState(false);
+  
   const [selectedHomeworkData, setSelectedHomeworkData] = useState<any>(null);
   const [homeworkData, setHomeworkData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -36,6 +43,7 @@ const Homework = ({ apiLevel = 'institute' }: HomeworkProps) => {
   const [statusFilter, setStatusFilter] = useState('all');
 
   const buildQueryParams = () => {
+    const userRole = (user?.role || 'Student') as UserRole;
     const params: Record<string, any> = {
       page: 1,
       limit: 10
@@ -52,6 +60,11 @@ const Homework = ({ apiLevel = 'institute' }: HomeworkProps) => {
 
     if (currentSubjectId) {
       params.subjectId = currentSubjectId;
+    }
+
+    // For Teachers, add teacherId parameter
+    if (userRole === 'Teacher' && user?.id) {
+      params.teacherId = user.id;
     }
 
     // Add filter parameters
@@ -83,8 +96,8 @@ const Homework = ({ apiLevel = 'institute' }: HomeworkProps) => {
       }
       
       endpoint = '/institute-class-subject-homeworks';
-    } else if (userRole === 'InstituteAdmin') {
-      // For InstituteAdmin: use institute class subject homeworks API
+    } else if (userRole === 'InstituteAdmin' || userRole === 'Teacher') {
+      // For InstituteAdmin and Teacher: use institute class subject homeworks API
       if (currentInstituteId && currentClassId && currentSubjectId) {
         endpoint = '/institute-class-subject-homeworks';
       } else {
@@ -151,7 +164,7 @@ const Homework = ({ apiLevel = 'institute' }: HomeworkProps) => {
   };
 
   const handleEditHomework = async (homeworkData: any) => {
-    console.log('Loading homework for editing:', homeworkData);
+    console.log('Opening update homework dialog:', homeworkData);
     setSelectedHomeworkData(homeworkData);
     setIsEditDialogOpen(true);
   };
@@ -197,24 +210,36 @@ const Homework = ({ apiLevel = 'institute' }: HomeworkProps) => {
 
   const handleViewHomework = (homeworkData: any) => {
     console.log('View homework:', homeworkData);
-    toast({
-      title: "Homework Viewed",
-      description: `Viewing homework: ${homeworkData.title}`
-    });
+    setSelectedHomeworkData(homeworkData);
+    setIsViewDialogOpen(true);
   };
 
   const handleSubmitHomework = (homeworkData: any) => {
     console.log('Submit homework:', homeworkData);
+    setSelectedHomeworkData(homeworkData);
+    setIsSubmitDialogOpen(true);
+  };
+
+  const handleViewSubmissions = (homeworkData: any) => {
+    console.log('View homework submissions:', homeworkData);
+    navigate(`/homework/${homeworkData.id}/submissions`);
+  };
+
+  const handleSubmissionSuccess = async () => {
+    setIsSubmitDialogOpen(false);
+    setSelectedHomeworkData(null);
     toast({
-      title: "Homework Submission",
-      description: `Opening submission form for: ${homeworkData.title}`
+      title: "Submission Successful",
+      description: "Your homework has been submitted successfully!"
     });
+    // Force refresh after successful submission
+    await handleLoadData(true);
   };
 
   const userRole = (user?.role || 'Student') as UserRole;
   const canAdd = AccessControl.hasPermission(userRole, 'create-homework');
-  const canEdit = AccessControl.hasPermission(userRole, 'edit-homework');
-  const canDelete = AccessControl.hasPermission(userRole, 'delete-homework');
+  const canEdit = userRole === 'Teacher' ? true : AccessControl.hasPermission(userRole, 'edit-homework');
+  const canDelete = userRole === 'Teacher' ? true : AccessControl.hasPermission(userRole, 'delete-homework');
   const isStudent = userRole === 'Student';
 
   const homeworkColumns = [
@@ -223,15 +248,23 @@ const Homework = ({ apiLevel = 'institute' }: HomeworkProps) => {
     { key: 'teacher', header: 'Teacher', render: (value: any) => value?.name || 'N/A' },
     { key: 'startDate', header: 'Start Date', render: (value: string) => value ? new Date(value).toLocaleDateString() : 'N/A' },
     { key: 'endDate', header: 'End Date', render: (value: string) => value ? new Date(value).toLocaleDateString() : 'N/A' },
-    { 
+    ...((['InstituteAdmin', 'Teacher', 'Student'] as UserRole[]).includes(userRole) ? [{
       key: 'referenceLink', 
       header: 'Reference', 
-      render: (value: string) => value ? (
-        <a href={value} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-          View Link
-        </a>
-      ) : 'N/A'
-    },
+      render: (value: string, row: any) => value ? (
+        <Button
+          size="sm"
+          variant="default"
+          className="bg-blue-900 hover:bg-blue-800 text-white"
+          onClick={() => window.open(value, '_blank')}
+        >
+          <FileText className="h-3 w-3 mr-1" />
+          Reference
+        </Button>
+      ) : (
+        <span className="text-gray-400">No reference</span>
+      )
+    }] : []),
     { 
       key: 'isActive', 
       header: 'Status',
@@ -243,26 +276,51 @@ const Homework = ({ apiLevel = 'institute' }: HomeworkProps) => {
     }
   ];
 
-  // Add submission action for students
+  // Custom actions based on user role
   const customActions = [
-    {
-      label: 'View',
-      action: (homework: any) => handleViewHomework(homework),
-      icon: <FileText className="h-3 w-3" />,
-      variant: 'outline' as const
-    },
-    ...(isStudent ? [{
-      label: 'Submit',
-      action: (homework: any) => handleSubmitHomework(homework),
-      icon: <Upload className="h-3 w-3" />,
-      variant: 'default' as const
-    }] : []),
-    ...(canEdit ? [{
-      label: 'Edit',
-      action: (homework: any) => handleEditHomework(homework),
-      icon: <FileText className="h-3 w-3" />,
-      variant: 'outline' as const
-    }] : []),
+    // Actions for InstituteAdmin and Teacher
+    ...((userRole === 'InstituteAdmin' || userRole === 'Teacher') ? [
+      {
+        label: 'View',
+        action: (homework: any) => handleViewHomework(homework),
+        icon: <Eye className="h-3 w-3" />,
+        variant: 'outline' as const
+      },
+      {
+        label: 'Edit Homework',
+        action: (homework: any) => handleEditHomework(homework),
+        icon: <FileText className="h-3 w-3" />,
+        variant: 'outline' as const
+      },
+      {
+        label: 'View Submissions',
+        action: (homework: any) => handleViewSubmissions(homework),
+        icon: <BarChart3 className="h-3 w-3" />,
+        variant: 'outline' as const
+      },
+      {
+        label: 'Update',
+        action: (homework: any) => handleEditHomework(homework),
+        icon: <FileText className="h-3 w-3" />,
+        variant: 'outline' as const
+      }
+    ] : []),
+    
+    // Actions for Students
+    ...(userRole === 'Student' ? [
+      {
+        label: 'View',
+        action: (homework: any) => handleViewHomework(homework),
+        icon: <Eye className="h-3 w-3" />,
+        variant: 'outline' as const
+      },
+      {
+        label: 'Submit',
+        action: (homework: any) => handleSubmitHomework(homework),
+        icon: <Upload className="h-3 w-3" />,
+        variant: 'default' as const
+      }
+    ] : [])
   ];
 
   const getTitle = () => {
@@ -441,12 +499,9 @@ const Homework = ({ apiLevel = 'institute' }: HomeworkProps) => {
               title=""
               data={homeworkData}
               columns={homeworkColumns}
-              onAdd={canAdd && userRole !== 'InstituteAdmin' ? () => setIsCreateDialogOpen(true) : undefined}
-              onEdit={canEdit ? handleEditHomework : undefined}
-              onDelete={canDelete ? handleDeleteHomework : undefined}
-              onView={handleViewHomework}
-              customActions={isStudent ? customActions : undefined}
+              customActions={customActions}
               searchPlaceholder="Search homework..."
+              sectionType="homework"
             />
           </div>
 
@@ -468,33 +523,59 @@ const Homework = ({ apiLevel = 'institute' }: HomeworkProps) => {
 
       {/* Create Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Create New Homework</DialogTitle>
           </DialogHeader>
-          <CreateHomeworkForm
-            onClose={() => setIsCreateDialogOpen(false)}
+          <CreateHomeworkForm 
             onSuccess={handleCreateHomework}
+            onClose={() => setIsCreateDialogOpen(false)}
           />
         </DialogContent>
       </Dialog>
 
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Edit Homework</DialogTitle>
           </DialogHeader>
-          <UpdateHomeworkForm
-            homework={selectedHomeworkData}
-            onClose={() => {
-              setIsEditDialogOpen(false);
-              setSelectedHomeworkData(null);
-            }}
-            onSuccess={handleUpdateHomework}
-          />
+          {selectedHomeworkData && (
+            <UpdateHomeworkForm 
+              homework={selectedHomeworkData}
+              onSuccess={handleUpdateHomework}
+              onClose={() => setIsEditDialogOpen(false)}
+            />
+          )}
         </DialogContent>
       </Dialog>
+
+      {/* Submit Dialog */}
+      <Dialog open={isSubmitDialogOpen} onOpenChange={setIsSubmitDialogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Submit Homework</DialogTitle>
+          </DialogHeader>
+          {selectedHomeworkData && (
+            <SubmitHomeworkForm 
+              homework={selectedHomeworkData}
+              onSuccess={handleSubmissionSuccess}
+              onClose={() => setIsSubmitDialogOpen(false)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* View Homework Details Dialog */}
+      <HomeworkDetailsDialog
+        isOpen={isViewDialogOpen}
+        onClose={() => {
+          setIsViewDialogOpen(false);
+          setSelectedHomeworkData(null);
+        }}
+        homework={selectedHomeworkData}
+      />
+
     </div>
   );
 };

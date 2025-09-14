@@ -13,8 +13,9 @@ import { organizationApi } from '@/api/organization.api';
 import { getBaseUrl2 } from '@/contexts/utils/auth.api';
 
 interface CreateOrganizationLectureFormProps {
-  onSuccess?: (lecture: any) => void;
-  onCancel?: () => void;
+  courseId: string;
+  onSuccess: (lecture: any) => void;
+  onCancel: () => void;
 }
 
 interface LectureCreateData {
@@ -32,9 +33,9 @@ interface LectureCreateData {
   isPublic: boolean;
 }
 
-const CreateOrganizationLectureForm = ({ onSuccess, onCancel }: CreateOrganizationLectureFormProps) => {
+const CreateOrganizationLectureForm = ({ courseId, onSuccess, onCancel }: CreateOrganizationLectureFormProps) => {
   const [formData, setFormData] = useState<LectureCreateData>({
-    causeId: '',
+    causeId: courseId,
     title: '',
     description: '',
     content: '',
@@ -50,6 +51,7 @@ const CreateOrganizationLectureForm = ({ onSuccess, onCancel }: CreateOrganizati
   const [courses, setCourses] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingCourses, setLoadingCourses] = useState(true);
+  const [documents, setDocuments] = useState<File[]>([]);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -74,7 +76,7 @@ const CreateOrganizationLectureForm = ({ onSuccess, onCancel }: CreateOrganizati
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.title.trim() || !formData.description.trim() || !formData.causeId) {
       toast({
         title: "Validation Error",
@@ -85,54 +87,55 @@ const CreateOrganizationLectureForm = ({ onSuccess, onCancel }: CreateOrganizati
     }
 
     setIsLoading(true);
-    
-    try {
-      // Create the API payload according to the specified format
-      const lectureData = {
-        causeId: formData.causeId,
-        title: formData.title,
-        description: formData.description,
-        content: formData.content || undefined,
-        venue: formData.venue,
-        mode: formData.mode,
-        timeStart: formData.timeStart ? new Date(formData.timeStart).toISOString() : undefined,
-        timeEnd: formData.timeEnd ? new Date(formData.timeEnd).toISOString() : undefined,
-        liveLink: formData.liveLink || undefined,
-        liveMode: formData.liveMode || undefined,
-        recordingUrl: formData.recordingUrl || undefined,
-        isPublic: formData.isPublic
-      };
 
-      // Use the organization API to create the lecture
+    try {
       const baseUrl2 = getBaseUrl2();
       if (!baseUrl2) {
         throw new Error('Organization base URL not configured');
       }
 
-      const response = await fetch(`${baseUrl2}/organization/api/v1/lectures`, {
+      // Build multipart form data
+      const fd = new FormData();
+      fd.append('causeId', formData.causeId);
+      fd.append('title', formData.title);
+      fd.append('description', formData.description);
+      if (formData.content) fd.append('content', formData.content);
+      fd.append('venue', formData.venue);
+      fd.append('mode', formData.mode);
+      if (formData.timeStart) fd.append('timeStart', new Date(formData.timeStart).toISOString());
+      if (formData.timeEnd) fd.append('timeEnd', new Date(formData.timeEnd).toISOString());
+      if (formData.liveLink) fd.append('liveLink', formData.liveLink);
+      if (formData.liveMode) fd.append('liveMode', formData.liveMode);
+      if (formData.recordingUrl) fd.append('recordingUrl', formData.recordingUrl);
+      fd.append('isPublic', String(formData.isPublic));
+
+      // Append multiple documents
+      documents.forEach((file) => {
+        fd.append('documents', file, file.name);
+      });
+
+      const response = await fetch(`${baseUrl2}/organization/api/v1/lectures/with-documents/${formData.causeId}`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('org_access_token')}`,
           'ngrok-skip-browser-warning': 'true'
         },
-        body: JSON.stringify(lectureData)
+        body: fd,
       });
 
       if (!response.ok) {
-        throw new Error('Failed to create lecture');
+        const errText = await response.text().catch(() => '');
+        throw new Error(errText || 'Failed to create lecture');
       }
 
       const lecture = await response.json();
-      
+
       toast({
         title: "Success",
         description: "Lecture created successfully",
       });
-      
-      if (onSuccess) {
-        onSuccess(lecture);
-      }
+
+      onSuccess?.(lecture);
     } catch (error) {
       console.error('Error creating lecture:', error);
       toast({
@@ -339,6 +342,25 @@ const CreateOrganizationLectureForm = ({ onSuccess, onCancel }: CreateOrganizati
                   </div>
                 </div>
               )}
+
+              <div className="space-y-2">
+                <Label htmlFor="documents">Documents (optional)</Label>
+                <Input
+                  id="documents"
+                  type="file"
+                  multiple
+                  onChange={(e) => {
+                    const files = Array.from((e.target as HTMLInputElement).files || []);
+                    setDocuments(files);
+                  }}
+                  disabled={isLoading}
+                />
+                {documents.length > 0 && (
+                  <div className="text-sm text-muted-foreground">
+                    {documents.length} file(s) selected: {documents.map((f) => f.name).join(', ')}
+                  </div>
+                )}
+              </div>
 
               <div className="flex items-center space-x-2">
                 <Switch

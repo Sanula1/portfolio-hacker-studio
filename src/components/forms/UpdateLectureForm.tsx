@@ -7,7 +7,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { X, Save, Video, MapPin } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { getBaseUrl, getApiHeaders } from '@/contexts/utils/auth.api';
+import { useAuth } from '@/contexts/AuthContext';
+import { lectureApi } from '@/api/lecture.api';
 
 interface UpdateLectureFormProps {
   lecture: any;
@@ -16,8 +17,26 @@ interface UpdateLectureFormProps {
 }
 
 const UpdateLectureForm = ({ lecture, onClose, onSuccess }: UpdateLectureFormProps) => {
+  const { user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+
+  // Check if user has permission to update lectures
+  const canUpdate = user?.role === 'InstituteAdmin' || user?.role === 'Teacher';
+
+  if (!canUpdate) {
+    return (
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle>Access Denied</CardTitle>
+          <CardDescription>You don't have permission to update lectures.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button onClick={onClose} className="w-full">Close</Button>
+        </CardContent>
+      </Card>
+    );
+  }
   
   const [formData, setFormData] = useState({
     title: lecture.title || '',
@@ -58,27 +77,14 @@ const UpdateLectureForm = ({ lecture, onClose, onSuccess }: UpdateLectureFormPro
         isActive: formData.isActive
       };
 
-      const baseUrl = getBaseUrl();
-      const response = await fetch(
-        `${baseUrl}/institute-class-subject-lectures/${lecture.id}`,
-        {
-          method: 'PATCH',
-          headers: getApiHeaders(),
-          body: JSON.stringify(payload)
-        }
-      );
-
-      if (response.ok) {
-        toast({
-          title: "Success",
-          description: "Lecture updated successfully"
-        });
-        onSuccess();
-        onClose();
-      } else {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to update lecture');
-      }
+      await lectureApi.updateLecture(lecture.id, payload);
+      
+      toast({
+        title: "Success",
+        description: "Lecture updated successfully"
+      });
+      onSuccess();
+      onClose();
     } catch (error) {
       console.error('Error updating lecture:', error);
       toast({
@@ -96,20 +102,19 @@ const UpdateLectureForm = ({ lecture, onClose, onSuccess }: UpdateLectureFormPro
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <Card className="w-full max-w-3xl max-h-[90vh] overflow-auto">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Update Lecture</CardTitle>
-              <CardDescription>Update lecture details and information</CardDescription>
-            </div>
-            <Button variant="ghost" size="sm" onClick={onClose}>
-              <X className="h-4 w-4" />
-            </Button>
+    <Card className="w-full">
+      <CardHeader>
+        <div className="flex items-center justify-between">
+          <div>
+            <CardTitle>Update Lecture</CardTitle>
+            <CardDescription>Update lecture details and information</CardDescription>
           </div>
-        </CardHeader>
-        <CardContent>
+          <Button variant="ghost" size="sm" onClick={onClose}>
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
@@ -122,20 +127,21 @@ const UpdateLectureForm = ({ lecture, onClose, onSuccess }: UpdateLectureFormPro
                   required
                 />
               </div>
-              <div>
-                <Label htmlFor="status">Status</Label>
-                <Select value={formData.status} onValueChange={(value) => handleInputChange('status', value)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="scheduled">Scheduled</SelectItem>
-                    <SelectItem value="in_progress">In Progress</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
-                    <SelectItem value="cancelled">Cancelled</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+                  <div>
+                    <Label htmlFor="status">Status</Label>
+                    <Select value={formData.status} onValueChange={(value) => handleInputChange('status', value)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="scheduled">Scheduled</SelectItem>
+                        <SelectItem value="live">Live</SelectItem>
+                        <SelectItem value="in_progress">In Progress</SelectItem>
+                        <SelectItem value="completed">Completed</SelectItem>
+                        <SelectItem value="cancelled">Cancelled</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
             </div>
 
             <div>
@@ -262,7 +268,6 @@ const UpdateLectureForm = ({ lecture, onClose, onSuccess }: UpdateLectureFormPro
           </form>
         </CardContent>
       </Card>
-    </div>
   );
 };
 

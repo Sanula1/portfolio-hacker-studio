@@ -3,13 +3,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { RefreshCw, Users, Mail, Phone, Search, Filter } from 'lucide-react';
+import { RefreshCw, Users, Mail, Phone, Search, Filter, UserPlus } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { getBaseUrl } from '@/contexts/utils/auth.api';
 import { DataCardView } from '@/components/ui/data-card-view';
 import DataTable from '@/components/ui/data-table';
 import { Input } from '@/components/ui/input';
+import AssignStudentsDialog from '@/components/forms/AssignStudentsDialog';
 
 interface ClassSubjectStudent {
   id: string;
@@ -44,16 +45,17 @@ const TeacherStudents = () => {
   const [loading, setLoading] = useState(false);
   const [dataLoaded, setDataLoaded] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [showAssignDialog, setShowAssignDialog] = useState(false);
   
   // Filter states
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Role check - only Teacher can access this component
-  if (!user || user.role !== 'Teacher') {
+  // Role check - only InstituteAdmin and Teacher can access this component
+  if (!user || !['InstituteAdmin', 'Teacher'].includes(user.role)) {
     return (
       <div className="text-center py-12">
         <p className="text-gray-600 dark:text-gray-400">
-          Access denied. This section is only available for teachers.
+          Access denied. This section is only available for teachers and institute admins.
         </p>
       </div>
     );
@@ -142,7 +144,7 @@ const TeacherStudents = () => {
 
   const studentColumns = [
     {
-      key: 'name',
+      key: 'student',
       header: 'Student',
       render: (value: any, row: ClassSubjectStudent) => (
         <div className="flex items-center space-x-3">
@@ -154,37 +156,77 @@ const TeacherStudents = () => {
           </Avatar>
           <div className="min-w-0 flex-1">
             <p className="font-medium truncate">{row.name}</p>
-            <p className="text-sm text-gray-500 truncate">{row.email || 'N/A'}</p>
+            <p className="text-sm text-muted-foreground truncate">ID: {row.userIdByInstitute || row.id}</p>
           </div>
         </div>
       )
     },
     {
       key: 'contact',
-      header: 'Contact',
+      header: 'Contact Information',
       render: (value: any, row: ClassSubjectStudent) => (
         <div className="space-y-1">
           <div className="flex items-center text-sm">
-            <Phone className="h-3 w-3 mr-1 flex-shrink-0" />
-            <span className="truncate">{row.phoneNumber || 'N/A'}</span>
-          </div>
-          <div className="flex items-center text-sm">
             <Mail className="h-3 w-3 mr-1 flex-shrink-0" />
             <span className="truncate">{row.email || 'N/A'}</span>
+          </div>
+          <div className="flex items-center text-sm">
+            <Phone className="h-3 w-3 mr-1 flex-shrink-0" />
+            <span className="truncate">{row.phoneNumber || 'N/A'}</span>
           </div>
         </div>
       )
     },
     {
-      key: 'details',
-      header: 'Details',
+      key: 'address',
+      header: 'Address',
+      render: (value: any, row: ClassSubjectStudent) => (
+        <div className="space-y-1 text-sm">
+          <p className="truncate">{row.addressLine1 || 'N/A'}</p>
+          {row.addressLine2 && (
+            <p className="text-muted-foreground truncate">{row.addressLine2}</p>
+          )}
+        </div>
+      )
+    },
+    {
+      key: 'dateOfBirth',
+      header: 'Date of Birth',
+      render: (value: any, row: ClassSubjectStudent) => (
+        <div className="text-sm">
+          {row.dateOfBirth 
+            ? new Date(row.dateOfBirth).toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+              })
+            : 'N/A'
+          }
+        </div>
+      )
+    },
+    {
+      key: 'guardians',
+      header: 'Parent/Guardian',
       render: (value: any, row: ClassSubjectStudent) => (
         <div className="space-y-1">
-          <p className="text-sm">ID: {row.id}</p>
-          {row.dateOfBirth && (
-            <p className="text-sm text-gray-500">
-              DOB: {new Date(row.dateOfBirth).toLocaleDateString()}
-            </p>
+          {row.fatherId && (
+            <Badge variant="outline" className="text-xs">
+              Father: {row.fatherId}
+            </Badge>
+          )}
+          {row.motherId && (
+            <Badge variant="outline" className="text-xs">
+              Mother: {row.motherId}
+            </Badge>
+          )}
+          {row.guardianId && (
+            <Badge variant="outline" className="text-xs">
+              Guardian: {row.guardianId}
+            </Badge>
+          )}
+          {!row.fatherId && !row.motherId && !row.guardianId && (
+            <span className="text-sm text-muted-foreground">N/A</span>
           )}
         </div>
       )
@@ -201,12 +243,12 @@ const TeacherStudents = () => {
 
   const getTitle = () => {
     if (selectedSubject) {
-      return `My Subject Students - ${selectedSubject.name}`;
+      return `Students - ${selectedSubject.name}`;
     }
     if (selectedClass) {
-      return `My Class Students - ${selectedClass.name}`;
+      return `Students`;
     }
-    return 'My Students';
+    return 'Students';
   };
 
   const getCurrentSelection = () => {
@@ -296,6 +338,13 @@ const TeacherStudents = () => {
             <Users className="h-4 w-4" />
             {students.length} Students
           </Badge>
+          <Button
+            onClick={() => setShowAssignDialog(true)}
+            className="flex items-center gap-2"
+          >
+            <UserPlus className="h-4 w-4" />
+            Assign Students
+          </Button>
           <Button
             variant="outline"
             onClick={() => setShowFilters(!showFilters)}
@@ -399,6 +448,15 @@ const TeacherStudents = () => {
           </div>
         </>
       )}
+
+      {/* Assign Students Dialog */}
+      <AssignStudentsDialog
+        open={showAssignDialog}
+        onOpenChange={setShowAssignDialog}
+        onAssignmentComplete={() => {
+          getLoadFunction()(); // Refresh the list
+        }}
+      />
     </div>
   );
 };

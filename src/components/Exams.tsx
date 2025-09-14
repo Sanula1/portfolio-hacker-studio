@@ -5,14 +5,17 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { RefreshCw, Filter, Plus, Calendar, Clock, FileText, CheckCircle } from 'lucide-react';
+import { RefreshCw, Filter, Plus, Calendar, Clock, FileText, CheckCircle, ExternalLink, BarChart3 } from 'lucide-react';
 import { useAuth, type UserRole } from '@/contexts/AuthContext';
 import { AccessControl } from '@/utils/permissions';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import CreateExamForm from '@/components/forms/CreateExamForm';
+import { UpdateExamForm } from '@/components/forms/UpdateExamForm';
+import CreateResultsForm from '@/components/forms/CreateResultsForm';
 import { DataCardView } from '@/components/ui/data-card-view';
 import { cachedApiClient } from '@/api/cachedClient';
+import { ExamResultsDialog } from '@/components/ExamResultsDialog';
 
 interface ExamsProps {
   apiLevel?: 'institute' | 'class' | 'subject';
@@ -22,6 +25,10 @@ const Exams = ({ apiLevel = 'institute' }: ExamsProps) => {
   const { user, selectedInstitute, selectedClass, selectedSubject, currentInstituteId, currentClassId, currentSubjectId } = useAuth();
   const { toast } = useToast();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
+  const [isCreateResultsDialogOpen, setIsCreateResultsDialogOpen] = useState(false);
+  const [isExamResultsDialogOpen, setIsExamResultsDialogOpen] = useState(false);
+  const [selectedExam, setSelectedExam] = useState<any>(null);
   const [examsData, setExamsData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [dataLoaded, setDataLoaded] = useState(false);
@@ -34,6 +41,7 @@ const Exams = ({ apiLevel = 'institute' }: ExamsProps) => {
   const [typeFilter, setTypeFilter] = useState('all');
 
   const buildQueryParams = () => {
+    const userRole = (user?.role || 'Student') as UserRole;
     const params: Record<string, any> = {
       page: 1,
       limit: 10
@@ -50,6 +58,11 @@ const Exams = ({ apiLevel = 'institute' }: ExamsProps) => {
 
     if (currentSubjectId) {
       params.subjectId = currentSubjectId;
+    }
+
+    // For Teachers, add teacherId parameter
+    if (userRole === 'Teacher' && user?.id) {
+      params.teacherId = user.id;
     }
 
     // Add filter parameters
@@ -83,8 +96,8 @@ const Exams = ({ apiLevel = 'institute' }: ExamsProps) => {
       }
     }
     
-    // For InstituteAdmin: require at least institute selection
-    if (userRole === 'InstituteAdmin') {
+    // For InstituteAdmin and Teacher: require at least institute selection
+    if (userRole === 'InstituteAdmin' || userRole === 'Teacher') {
       if (!currentInstituteId) {
         toast({
           title: "Selection Required",
@@ -142,12 +155,21 @@ const Exams = ({ apiLevel = 'institute' }: ExamsProps) => {
     await handleLoadData(true);
   };
 
+  const handleEditExam = (examData: any) => {
+    setSelectedExam(examData);
+    setIsUpdateDialogOpen(true);
+  };
+
+  const handleUpdateExam = () => {
+    handleRefreshData();
+    setIsUpdateDialogOpen(false);
+    setSelectedExam(null);
+  };
+
   const handleViewExam = (examData: any) => {
-    console.log('View exam:', examData);
-    toast({
-      title: "Exam Viewed",
-      description: `Viewing exam: ${examData.title}`
-    });
+    console.log('View exam results:', examData);
+    setSelectedExam(examData);
+    setIsExamResultsDialogOpen(true);
   };
 
   const handleDeleteExam = async (examData: any) => {
@@ -181,6 +203,13 @@ const Exams = ({ apiLevel = 'institute' }: ExamsProps) => {
       setIsLoading(false);
     }
   };
+
+  const handleCreateResults = () => {
+    console.log('Create results clicked');
+    setIsCreateResultsDialogOpen(true);
+  };
+
+  const userRole = (user?.role || 'Student') as UserRole;
 
   const examsColumns = [
     { key: 'title', header: 'Title' },
@@ -217,15 +246,23 @@ const Exams = ({ apiLevel = 'institute' }: ExamsProps) => {
       render: (value: string) => value ? new Date(value).toLocaleString() : 'Not set'
     },
     { key: 'venue', header: 'Venue' },
-    { 
+    ...((['InstituteAdmin', 'Teacher', 'Student'] as UserRole[]).includes(userRole) ? [{
       key: 'examLink', 
       header: 'Exam Link', 
-      render: (value: string) => value ? (
-        <a href={value} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
-          Join Exam
-        </a>
-      ) : 'N/A'
-    },
+      render: (value: string, row: any) => value ? (
+        <Button
+          size="sm"
+          variant="destructive"
+          className="bg-red-600 hover:bg-red-700 text-white"
+          onClick={() => window.open(value, '_blank')}
+        >
+          <ExternalLink className="h-3 w-3 mr-1" />
+          Exam Link
+        </Button>
+      ) : (
+        <span className="text-gray-400">No link</span>
+      )
+    }] : []),
     { 
       key: 'status', 
       header: 'Status',
@@ -241,11 +278,20 @@ const Exams = ({ apiLevel = 'institute' }: ExamsProps) => {
     }
   ];
 
-  const userRole = (user?.role || 'Student') as UserRole;
   const canAdd = AccessControl.hasPermission(userRole, 'create-exam');
-  const canEdit = AccessControl.hasPermission(userRole, 'edit-exam');
-  const canDelete = AccessControl.hasPermission(userRole, 'delete-exam');
+  const canEdit = userRole === 'Teacher' ? true : AccessControl.hasPermission(userRole, 'edit-exam');
+  const canDelete = userRole === 'Teacher' ? true : AccessControl.hasPermission(userRole, 'delete-exam');
   const canView = true; // All users can view exams
+  
+  console.log('Exams Component Debug:', {
+    userRole,
+    canAdd,
+    canEdit,
+    canDelete,
+    canView,
+    handleEditExam: !!handleEditExam,
+    handleViewExam: !!handleViewExam
+  });
 
   const getTitle = () => {
     const contexts = [];
@@ -290,7 +336,7 @@ const Exams = ({ apiLevel = 'institute' }: ExamsProps) => {
     if (userRole === 'Student') {
       return currentInstituteId && currentClassId && currentSubjectId;
     }
-    if (userRole === 'InstituteAdmin') {
+    if (userRole === 'InstituteAdmin' || userRole === 'Teacher') {
       return currentInstituteId;
     }
     return true;
@@ -300,7 +346,7 @@ const Exams = ({ apiLevel = 'institute' }: ExamsProps) => {
     if (userRole === 'Student' && (!currentInstituteId || !currentClassId || !currentSubjectId)) {
       return 'Please select institute, class, and subject to view exams.';
     }
-    if (userRole === 'InstituteAdmin' && !currentInstituteId) {
+    if ((userRole === 'InstituteAdmin' || userRole === 'Teacher') && !currentInstituteId) {
       return 'Please select institute to view exams.';
     }
     return 'Click the button below to load exams data';
@@ -442,29 +488,41 @@ const Exams = ({ apiLevel = 'institute' }: ExamsProps) => {
             </div>
           )}
 
-           {/* Add Create Button for InstituteAdmin and Teacher */}
+           {/* Add Create Buttons for InstituteAdmin and Teacher */}
            {(userRole === 'InstituteAdmin' || userRole === 'Teacher') && canAdd && (
-             <div className="flex justify-end mb-4">
-               <Button 
-                 onClick={() => setIsCreateDialogOpen(true)}
-                 className="flex items-center gap-2"
-               >
-                 <Plus className="h-4 w-4" />
-                 Create Exam
-               </Button>
-             </div>
+              <div className="flex justify-end gap-2 mb-4">
+                <Button 
+                  onClick={handleCreateResults}
+                  variant="outline"
+                  className="flex items-center gap-2"
+                >
+                  <BarChart3 className="h-4 w-4" />
+                  Create Results
+                </Button>
+                <Button 
+                  onClick={() => setIsCreateDialogOpen(true)}
+                  className="flex items-center gap-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  Create Exam
+                </Button>
+              </div>
            )}
 
-          {/* Desktop Table View */}
+           {/* Desktop Table View */}
           <div className="hidden md:block">
             <DataTable
               title=""
               data={examsData}
               columns={examsColumns}
-              onAdd={canAdd && userRole !== 'InstituteAdmin' ? () => setIsCreateDialogOpen(true) : undefined}
+              onAdd={canAdd ? () => setIsCreateDialogOpen(true) : undefined}
+              onEdit={userRole === 'InstituteAdmin' ? handleEditExam : undefined}
               onDelete={canDelete ? handleDeleteExam : undefined}
               onView={handleViewExam}
+              allowEdit={userRole === 'InstituteAdmin'}
+              allowDelete={canDelete}
               searchPlaceholder="Search exams..."
+              sectionType="exams"
             />
           </div>
 
@@ -474,8 +532,9 @@ const Exams = ({ apiLevel = 'institute' }: ExamsProps) => {
               data={filteredExams}
               columns={examsColumns}
               onView={handleViewExam}
+              onEdit={canEdit ? handleEditExam : undefined}
               onDelete={canDelete ? handleDeleteExam : undefined}
-              allowEdit={false}
+              allowEdit={canEdit}
               allowDelete={canDelete}
             />
           </div>
@@ -494,6 +553,51 @@ const Exams = ({ apiLevel = 'institute' }: ExamsProps) => {
           />
         </DialogContent>
       </Dialog>
+
+      {/* Update Dialog */}
+      <Dialog open={isUpdateDialogOpen} onOpenChange={setIsUpdateDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Update Exam</DialogTitle>
+          </DialogHeader>
+          {selectedExam && (
+            <UpdateExamForm
+              exam={selectedExam}
+              onClose={() => setIsUpdateDialogOpen(false)}
+              onSuccess={handleUpdateExam}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Results Dialog */}
+      <Dialog open={isCreateResultsDialogOpen} onOpenChange={setIsCreateResultsDialogOpen}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Create Results</DialogTitle>
+          </DialogHeader>
+          <CreateResultsForm
+            onClose={() => setIsCreateResultsDialogOpen(false)}
+            onSuccess={() => {
+              setIsCreateResultsDialogOpen(false);
+              toast({
+                title: "Results Created",
+                description: "Exam results have been created successfully."
+              });
+            }}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Exam Results Dialog */}
+      <ExamResultsDialog
+        isOpen={isExamResultsDialogOpen}
+        onClose={() => {
+          setIsExamResultsDialogOpen(false);
+          setSelectedExam(null);
+        }}
+        exam={selectedExam}
+      />
     </div>
   );
 };

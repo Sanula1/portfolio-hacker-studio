@@ -21,7 +21,9 @@ const createCourseSchema = z.object({
   title: z.string().min(1, 'Title is required').max(100, 'Title must be less than 100 characters'),
   description: z.string().min(1, 'Description is required').max(500, 'Description must be less than 500 characters'),
   organizationId: z.string().min(1, 'Organization is required'),
+  introVideoUrl: z.string().url('Must be a valid URL').optional().or(z.literal('')),
   isPublic: z.boolean(),
+  image: z.any().optional(),
 });
 
 type CreateCourseFormData = z.infer<typeof createCourseSchema>;
@@ -35,6 +37,7 @@ const CreateCourseForm = ({ onSuccess, onCancel }: CreateCourseFormProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [organizations, setOrganizations] = useState<any[]>([]);
   const [loadingOrganizations, setLoadingOrganizations] = useState(true);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const { toast } = useToast();
   const { user } = useAuth();
 
@@ -44,6 +47,7 @@ const CreateCourseForm = ({ onSuccess, onCancel }: CreateCourseFormProps) => {
       title: '',
       description: '',
       organizationId: '',
+      introVideoUrl: '',
       isPublic: true,
     },
   });
@@ -73,27 +77,32 @@ const CreateCourseForm = ({ onSuccess, onCancel }: CreateCourseFormProps) => {
     try {
       setIsSubmitting(true);
 
-      const courseData = {
-        title: data.title,
-        description: data.description,
-        organizationId: data.organizationId,
-        isPublic: data.isPublic,
-      };
-
-      // Use the organization API endpoint for OrganizationManager
+      // Use the organization API endpoint for OrganizationManager with new endpoint
       const baseUrl2 = getBaseUrl2();
       if (!baseUrl2) {
         throw new Error('Organization base URL not configured');
       }
 
-      const response = await fetch(`${baseUrl2}/organization/api/v1/causes`, {
+      // Create FormData for multipart/form-data request
+      const formData = new FormData();
+      formData.append('organizationId', data.organizationId);
+      formData.append('title', data.title);
+      formData.append('description', data.description);
+      if (data.introVideoUrl) {
+        formData.append('introVideoUrl', data.introVideoUrl);
+      }
+      formData.append('isPublic', data.isPublic.toString());
+      if (selectedImage) {
+        formData.append('image', selectedImage);
+      }
+
+      const response = await fetch(`${baseUrl2}/organization/api/v1/causes/with-image`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('org_access_token')}`,
           'ngrok-skip-browser-warning': 'true'
         },
-        body: JSON.stringify(courseData),
+        body: formData,
       });
 
       if (!response.ok) {
@@ -217,6 +226,23 @@ const CreateCourseForm = ({ onSuccess, onCancel }: CreateCourseFormProps) => {
 
               <FormField
                 control={form.control}
+                name="introVideoUrl"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Intro Video URL (Optional)</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="https://youtube.com/watch?v=example"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
                 name="isPublic"
                 render={({ field }) => (
                   <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
@@ -235,6 +261,24 @@ const CreateCourseForm = ({ onSuccess, onCancel }: CreateCourseFormProps) => {
                   </FormItem>
                 )}
               />
+
+              <div className="space-y-2">
+                <Label htmlFor="image">Course Image (Optional)</Label>
+                <Input
+                  id="image"
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    setSelectedImage(file || null);
+                  }}
+                />
+                {selectedImage && (
+                  <p className="text-sm text-muted-foreground">
+                    Selected: {selectedImage.name}
+                  </p>
+                )}
+              </div>
 
               <div className="flex gap-4 pt-4">
                 <Button

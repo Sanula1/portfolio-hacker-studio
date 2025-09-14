@@ -19,6 +19,8 @@ import {
 } from '@/components/ui/select';
 import { organizationSpecificApi } from '@/api/organization.api';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
+import { OrganizationRoleManager, OrganizationRole } from '@/utils/organizationRoles';
 
 interface Member {
   userId: string;
@@ -35,19 +37,27 @@ interface AssignRoleDialogProps {
   member: Member;
   organizationId: string;
   onSuccess: () => void;
+  currentUserRole?: string;
 }
 
-const AVAILABLE_ROLES = [
-  { value: 'MEMBER', label: 'Member' },
-  { value: 'MODERATOR', label: 'Moderator' },
-  { value: 'ADMIN', label: 'Admin' },
-  { value: 'PRESIDENT', label: 'President' },
-];
+const ROLE_LABELS: Record<OrganizationRole, string> = {
+  MEMBER: 'Member',
+  MODERATOR: 'Moderator', 
+  ADMIN: 'Admin',
+  PRESIDENT: 'President',
+};
 
-const AssignRoleDialog = ({ open, onOpenChange, member, organizationId, onSuccess }: AssignRoleDialogProps) => {
+const AssignRoleDialog = ({ open, onOpenChange, member, organizationId, onSuccess, currentUserRole }: AssignRoleDialogProps) => {
   const [selectedRole, setSelectedRole] = useState(member.role);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const { user } = useAuth();
+  
+  // Get assignable roles based on current user's permissions
+  const assignableRoles = OrganizationRoleManager.getAssignableRoles(
+    currentUserRole || '', 
+    user?.role || ''
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -108,9 +118,9 @@ const AssignRoleDialog = ({ open, onOpenChange, member, organizationId, onSucces
                   <SelectValue placeholder="Select a role" />
                 </SelectTrigger>
                 <SelectContent>
-                  {AVAILABLE_ROLES.map((role) => (
-                    <SelectItem key={role.value} value={role.value}>
-                      {role.label}
+                  {assignableRoles.map((role) => (
+                    <SelectItem key={role} value={role}>
+                      {ROLE_LABELS[role]}
                     </SelectItem>
                   ))}
                 </SelectContent>

@@ -4,10 +4,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Calendar, Clock, MapPin, Monitor, Users, FileText, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Calendar, Clock, MapPin, Monitor, Users, FileText, ExternalLink, Eye, Plus, Edit } from 'lucide-react';
 import { organizationSpecificApi, OrganizationLecture, LectureDocument } from '@/api/organization.api';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
+import CreateOrganizationLectureForm from './forms/CreateOrganizationLectureForm';
+import UpdateOrganizationLectureForm from './forms/UpdateOrganizationLectureForm';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Course {
   causeId: string;
@@ -20,15 +23,21 @@ interface Course {
 interface OrganizationCourseLecturesProps {
   course: Course | null;
   onBack: () => void;
+  organization?: any;
 }
 
-const OrganizationCourseLectures = ({ course, onBack }: OrganizationCourseLecturesProps) => {
+const OrganizationCourseLectures = ({ course, onBack, organization }: OrganizationCourseLecturesProps) => {
   const [lectures, setLectures] = useState<OrganizationLecture[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [selectedLectureDocuments, setSelectedLectureDocuments] = useState<string | null>(null);
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showUpdateForm, setShowUpdateForm] = useState(false);
+  const [selectedLecture, setSelectedLecture] = useState<OrganizationLecture | null>(null);
   const { toast } = useToast();
+  const { selectedOrganization } = useAuth();
 
   const fetchLectures = async () => {
     if (!course) return;
@@ -108,6 +117,55 @@ const OrganizationCourseLectures = ({ course, onBack }: OrganizationCourseLectur
     }
   };
 
+  const handleViewDocuments = (lectureId: string) => {
+    setSelectedLectureDocuments(selectedLectureDocuments === lectureId ? null : lectureId);
+  };
+
+  const handleCreateLecture = () => {
+    setShowCreateForm(true);
+  };
+
+  const handleCreateSuccess = (lecture: any) => {
+    console.log('Lecture created successfully:', lecture);
+    setShowCreateForm(false);
+    fetchLectures(); // Refresh the list
+    toast({
+      title: "Success",
+      description: "Lecture created successfully",
+    });
+  };
+
+  const handleCreateCancel = () => {
+    setShowCreateForm(false);
+  };
+
+  const handleUpdateLecture = (lecture: OrganizationLecture) => {
+    setSelectedLecture(lecture);
+    setShowUpdateForm(true);
+  };
+
+  const handleUpdateSuccess = () => {
+    setShowUpdateForm(false);
+    setSelectedLecture(null);
+    fetchLectures(); // Refresh the list
+    toast({
+      title: "Success",
+      description: "Lecture updated successfully",
+    });
+  };
+
+  const handleUpdateCancel = () => {
+    setShowUpdateForm(false);
+    setSelectedLecture(null);
+  };
+
+  // Check if user has permission to update lectures
+  // Use selectedOrganization from AuthContext, fallback to prop organization
+  const currentOrg = selectedOrganization || organization;
+  const canUpdateLectures = currentOrg?.userRole === 'PRESIDENT' || 
+                           currentOrg?.userRole === 'ADMIN' || 
+                           currentOrg?.userRole === 'MODERATOR';
+
   if (!course) {
     return (
       <div className="space-y-6">
@@ -127,6 +185,26 @@ const OrganizationCourseLectures = ({ course, onBack }: OrganizationCourseLectur
     );
   }
 
+  if (showCreateForm && course) {
+    return (
+      <CreateOrganizationLectureForm
+        courseId={course.causeId}
+        onSuccess={handleCreateSuccess}
+        onCancel={handleCreateCancel}
+      />
+    );
+  }
+
+  if (showUpdateForm && selectedLecture) {
+    return (
+      <UpdateOrganizationLectureForm
+        lecture={selectedLecture}
+        onSuccess={handleUpdateSuccess}
+        onClose={handleUpdateCancel}
+      />
+    );
+  }
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -142,23 +220,33 @@ const OrganizationCourseLectures = ({ course, onBack }: OrganizationCourseLectur
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 md:space-y-6">
       {/* Header */}
-      <div className="flex items-center gap-4">
-        <Button variant="outline" onClick={onBack}>
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Courses
-        </Button>
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{course.title}</h2>
-          <p className="text-gray-600 dark:text-gray-400">Course Lectures</p>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+          <Button variant="outline" onClick={onBack} className="w-fit">
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Courses
+          </Button>
+          <div>
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">{course.title}</h2>
+            <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">Course Lectures</p>
+          </div>
         </div>
+        
+        {canUpdateLectures && (
+          <Button onClick={handleCreateLecture} className="flex items-center gap-2 w-full sm:w-auto">
+            <Plus className="h-4 w-4" />
+            <span className="hidden sm:inline">Create Lecture</span>
+            <span className="sm:hidden">Create</span>
+          </Button>
+        )}
       </div>
 
       {/* Search */}
       <Card>
         <CardContent className="pt-6">
-          <form onSubmit={handleSearch} className="flex gap-4">
+          <form onSubmit={handleSearch} className="flex flex-col sm:flex-row gap-4">
             <div className="flex-1">
               <Input
                 placeholder="Search lectures..."
@@ -166,7 +254,7 @@ const OrganizationCourseLectures = ({ course, onBack }: OrganizationCourseLectur
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
             </div>
-            <Button type="submit">Search</Button>
+            <Button type="submit" className="w-full sm:w-auto">Search</Button>
           </form>
         </CardContent>
       </Card>
@@ -175,58 +263,71 @@ const OrganizationCourseLectures = ({ course, onBack }: OrganizationCourseLectur
       <div className="space-y-4">
         {lectures.map((lecture) => (
           <Card key={lecture.lectureId} className="hover:shadow-lg transition-shadow">
-            <CardHeader>
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <CardTitle className="text-lg">{lecture.title}</CardTitle>
-                  <CardDescription className="mt-2">
+            <CardHeader className="pb-3">
+              <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <CardTitle className="text-base sm:text-lg line-clamp-2">{lecture.title}</CardTitle>
+                  <CardDescription className="mt-2 line-clamp-3">
                     {lecture.description}
                   </CardDescription>
                 </div>
-                <Badge variant={lecture.isPublic ? "default" : "secondary"}>
+                <Badge variant={lecture.isPublic ? "default" : "secondary"} className="w-fit flex-shrink-0">
                   {lecture.isPublic ? 'Public' : 'Private'}
                 </Badge>
               </div>
             </CardHeader>
             
-            <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+            <CardContent className="pt-0">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4 mb-4">
                 <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Calendar className="h-4 w-4" />
-                  {formatDateTime(lecture.timeStart)}
+                  <Calendar className="h-4 w-4 flex-shrink-0" />
+                  <span className="truncate">{formatDateTime(lecture.timeStart)}</span>
                 </div>
                 
                 <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Clock className="h-4 w-4" />
-                  {getDuration(lecture.timeStart, lecture.timeEnd)}
+                  <Clock className="h-4 w-4 flex-shrink-0" />
+                  <span>{getDuration(lecture.timeStart, lecture.timeEnd)}</span>
                 </div>
                 
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   {lecture.mode === 'online' ? (
-                    <><Monitor className="h-4 w-4" /> Online</>
+                    <><Monitor className="h-4 w-4 flex-shrink-0" /> <span>Online</span></>
                   ) : (
-                    <><MapPin className="h-4 w-4" /> {lecture.venue}</>
+                    <><MapPin className="h-4 w-4 flex-shrink-0" /> <span className="truncate">{lecture.venue}</span></>
                   )}
                 </div>
                 
                 <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <FileText className="h-4 w-4" />
-                  {lecture.documentCount} documents
+                  <FileText className="h-4 w-4 flex-shrink-0" />
+                  <span>{lecture.documentCount} documents</span>
                 </div>
               </div>
 
-              {/* Documents */}
+              {/* View Documents Button */}
               {lecture.documents && lecture.documents.length > 0 && (
-                <div className="space-y-2">
+                <div className="mb-4">
+                  <Button 
+                    variant="outline" 
+                    onClick={() => handleViewDocuments(lecture.lectureId)}
+                    className="flex items-center gap-2"
+                  >
+                    <Eye className="h-4 w-4" />
+                    View Documents
+                  </Button>
+                </div>
+              )}
+
+              {/* Documents - Show only when selected */}
+              {selectedLectureDocuments === lecture.lectureId && lecture.documents && lecture.documents.length > 0 && (
+                <div className="space-y-2 mb-4">
                   <h4 className="font-medium text-sm">Documents:</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
                     {lecture.documents.map((doc: LectureDocument) => (
-                      <div key={doc.documentationId} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-800 rounded">
-                        <div className="flex-1">
-                          <p className="text-sm font-medium">{doc.title}</p>
-                          <p className="text-xs text-gray-600">{doc.description}</p>
+                      <div key={doc.documentationId} className="flex items-center justify-between p-2 bg-muted rounded gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium truncate">{doc.title}</p>
                         </div>
-                        <Button size="sm" variant="outline" asChild>
+                        <Button size="sm" variant="outline" asChild className="flex-shrink-0">
                           <a href={doc.docUrl} target="_blank" rel="noopener noreferrer">
                             <ExternalLink className="h-3 w-3" />
                           </a>
@@ -237,27 +338,41 @@ const OrganizationCourseLectures = ({ course, onBack }: OrganizationCourseLectur
                 </div>
               )}
 
-              {/* Live Link */}
-              {lecture.liveLink && (
-                <div className="mt-4 pt-4 border-t">
+              {/* Action Buttons */}
+              <div className="mt-4 pt-4 border-t space-y-2">
+                {/* Live Link */}
+                {lecture.liveLink && (
                   <Button asChild className="w-full">
                     <a href={lecture.liveLink} target="_blank" rel="noopener noreferrer">
-                      Join Live Session ({lecture.liveMode})
+                      <span className="hidden sm:inline">Join Live Session ({lecture.liveMode})</span>
+                      <span className="sm:hidden">Join Live ({lecture.liveMode})</span>
                     </a>
                   </Button>
-                </div>
-              )}
+                )}
 
-              {/* Recording */}
-              {lecture.recordingUrl && (
-                <div className="mt-2">
+                {/* Recording */}
+                {lecture.recordingUrl && (
                   <Button variant="outline" asChild className="w-full">
                     <a href={lecture.recordingUrl} target="_blank" rel="noopener noreferrer">
-                      View Recording
+                      <span className="hidden sm:inline">View Recording</span>
+                      <span className="sm:hidden">Recording</span>
                     </a>
                   </Button>
-                </div>
-              )}
+                )}
+
+                {/* Update Button - Only for PRESIDENT, ADMIN, MODERATOR */}
+                {canUpdateLectures && (
+                  <Button 
+                    variant="outline" 
+                    onClick={() => handleUpdateLecture(lecture)}
+                    className="w-full flex items-center gap-2"
+                  >
+                    <Edit className="h-4 w-4" />
+                    <span className="hidden sm:inline">Update Lecture</span>
+                    <span className="sm:hidden">Update</span>
+                  </Button>
+                )}
+              </div>
             </CardContent>
           </Card>
         ))}

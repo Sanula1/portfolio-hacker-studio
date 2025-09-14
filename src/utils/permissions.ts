@@ -57,6 +57,7 @@ export type Permission =
   | 'create-homework'
   | 'edit-homework'
   | 'delete-homework'
+  | 'view-homework-submissions'
   | 'view-exams'
   | 'create-exam'
   | 'edit-exam'
@@ -79,7 +80,6 @@ export type Permission =
 const rolePermissions: Record<UserRole, Permission[]> = {
   Student: [
     'view-dashboard',
-    'view-attendance',
     'view-grades',
     'view-lectures',
     'view-homework',
@@ -132,6 +132,7 @@ const rolePermissions: Record<UserRole, Permission[]> = {
     'create-homework',
     'edit-homework',
     'delete-homework',
+    'view-homework-submissions',
     'view-exams',
     'create-exam',
     'edit-exam',
@@ -210,6 +211,7 @@ const rolePermissions: Record<UserRole, Permission[]> = {
     'create-homework',
     'edit-homework',
     'delete-homework',
+    'view-homework-submissions',
     'view-exams',
     'create-exam',
     'edit-exam',
@@ -280,6 +282,7 @@ const rolePermissions: Record<UserRole, Permission[]> = {
     'create-homework',
     'edit-homework',
     'delete-homework',
+    'view-homework-submissions',
     'view-exams',
     'create-exam',
     'edit-exam',
@@ -335,6 +338,7 @@ export class AccessControl {
       '/lectures': 'view-lectures',
       '/gallery': 'view-gallery',
       '/homework': 'view-homework',
+      '/homework-submissions': 'view-homework-submissions',
       '/exams': 'view-exams',
       '/results': 'view-results',
       '/profile': 'view-profile',

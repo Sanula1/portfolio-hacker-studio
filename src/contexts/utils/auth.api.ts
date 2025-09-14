@@ -2,7 +2,20 @@
 import { LoginCredentials, ApiResponse, User } from '../types/auth.types';
 
 export const getBaseUrl = (): string => {
-  return import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
+  // First check localStorage for user-configured URL  
+  const storedUrl = localStorage.getItem('baseUrl');
+  if (storedUrl) {
+    return storedUrl;
+  }
+  
+  // Then check environment variable
+  const envUrl = import.meta.env.VITE_API_BASE_URL;
+  if (envUrl) {
+    return envUrl;
+  }
+  
+  // Return empty string to force user configuration - no hardcoded localhost
+  return '';
 };
 
 export const getBaseUrl2 = (): string => {
@@ -14,6 +27,23 @@ export const getBaseUrl2 = (): string => {
   
   // Then check environment variable
   const envUrl = import.meta.env.VITE_API_BASE_URL_2;
+  if (envUrl) {
+    return envUrl;
+  }
+  
+  // Return empty string to force user configuration
+  return '';
+};
+
+export const getAttendanceUrl = (): string => {
+  // First check localStorage for user-configured URL
+  const storedUrl = localStorage.getItem('attendanceUrl');
+  if (storedUrl) {
+    return storedUrl;
+  }
+  
+  // Then check environment variable
+  const envUrl = import.meta.env.VITE_ATTENDANCE_BASE_URL;
   if (envUrl) {
     return envUrl;
   }

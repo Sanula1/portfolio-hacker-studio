@@ -85,8 +85,13 @@ const OrganizationLogin = ({ onLogin, onBack }: OrganizationLoginProps) => {
     try {
       const loginResponse = await organizationApi.loginToOrganization({ email, password });
       
-      // Store organization access token
-      localStorage.setItem('org_access_token', loginResponse.access_token);
+      // Store organization access token - organization API returns 'accessToken'
+      if (loginResponse.accessToken) {
+        localStorage.setItem('org_access_token', loginResponse.accessToken);
+        console.log('Organization access token stored successfully');
+      } else {
+        console.error('No access token received from organization login response');
+      }
       
       if (onLogin) {
         onLogin(loginResponse);
@@ -127,8 +132,8 @@ const OrganizationLogin = ({ onLogin, onBack }: OrganizationLoginProps) => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 px-4 py-8">
+      <Card className="w-full max-w-md mx-4">
         <CardHeader className="text-center">
           <div className="flex items-center justify-between mb-4">
             {onBack && (
@@ -142,11 +147,11 @@ const OrganizationLogin = ({ onLogin, onBack }: OrganizationLoginProps) => {
               </Button>
             )}
             <div className="flex items-center justify-center flex-1">
-              <Building2 className="h-12 w-12 text-blue-600" />
+              <Building2 className="h-10 w-10 sm:h-12 sm:w-12 text-blue-600" />
             </div>
           </div>
-          <CardTitle className="text-2xl font-bold">Organization Login</CardTitle>
-          <CardDescription>
+          <CardTitle className="text-xl sm:text-2xl font-bold">Organization Login</CardTitle>
+          <CardDescription className="text-sm sm:text-base">
             Sign in to access your organization's portal
           </CardDescription>
         </CardHeader>
@@ -219,7 +224,7 @@ const OrganizationLogin = ({ onLogin, onBack }: OrganizationLoginProps) => {
                   <Input
                     id="baseUrl2"
                     type="text"
-                    placeholder="https://your-org-api.com or http://localhost:3001"
+                    placeholder="https://your-org-api.com or https://your-backend-url.com"
                     value={baseUrl2}
                     onChange={(e) => setBaseUrl2(e.target.value)}
                     required

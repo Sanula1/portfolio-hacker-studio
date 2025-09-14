@@ -75,5 +75,53 @@ export type {
   InstituteClassResponse 
 } from './instituteClasses.api';
 
+// Institute Payments API
+export { institutePaymentsApi } from './institutePayments.api';
+export type { 
+  InstitutePayment, 
+  PaymentSubmission, 
+  InstitutePaymentsResponse, 
+  StudentPaymentsResponse, 
+  PaymentSubmissionsResponse, 
+  MySubmissionsResponse 
+} from './institutePayments.api';
+
+// Subject Payments API
+export { subjectPaymentsApi } from './subjectPayments.api';
+export type { 
+  SubjectPayment, 
+  SubjectPaymentSubmission,
+  SubjectPaymentsResponse, 
+  SubjectSubmissionsResponse 
+} from './subjectPayments.api';
+
+// Enrollment API
+export { enrollmentApi } from './enrollment.api';
+export type { 
+  SelfEnrollRequest,
+  SelfEnrollResponse,
+  TeacherAssignRequest,
+  TeacherAssignResponse,
+  EnrollmentSettingsRequest,
+  EnrollmentSettingsResponse,
+  ApiError as EnrollmentApiError
+} from './enrollment.api';
+
+// Exam Results API
+export { examResultsApi } from './examResults.api';
+export type { 
+  ExamResult,
+  ExamResultsQueryParams,
+  ExamResultsResponse
+} from './examResults.api';
+
+// Student Attendance API
+export { studentAttendanceApi } from './studentAttendance.api';
+export type { 
+  StudentAttendanceRecord,
+  StudentAttendanceResponse,
+  StudentAttendanceParams
+} from './studentAttendance.api';
+
 // Re-export auth API utilities
 export { getBaseUrl, getApiHeaders } from '@/contexts/utils/auth.api';

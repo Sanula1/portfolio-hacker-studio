@@ -109,12 +109,26 @@ class ApiClient {
     const url = `${baseUrl}${endpoint}`;
     
     console.log('POST Request:', url, data);
-    console.log('Request Headers:', this.getHeaders());
+    
+    const headers = this.getHeaders();
+    let body: any;
+    
+    // Handle FormData differently - don't stringify it and don't set Content-Type
+    if (data instanceof FormData) {
+      body = data;
+      // Remove Content-Type header to let browser set it with boundary
+      delete headers['Content-Type'];
+      console.log('FormData detected, removed Content-Type header');
+    } else {
+      body = data ? JSON.stringify(data) : undefined;
+    }
+    
+    console.log('Request Headers:', headers);
     
     const response = await fetch(url, {
       method: 'POST',
-      headers: this.getHeaders(),
-      body: data ? JSON.stringify(data) : undefined
+      headers,
+      body
     });
 
     return this.handleResponse<T>(response);

@@ -92,6 +92,7 @@ const OrganizationLectures = ({ organizationId, courseId }: OrganizationLectures
   if (showCreateForm) {
     return (
       <CreateOrganizationLectureForm
+        courseId={courseId || ''}
         onSuccess={handleCreateSuccess}
         onCancel={handleCreateCancel}
       />

@@ -37,6 +37,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [selectedSubject, setSelectedSubjectState] = useState<Subject | null>(null);
   const [selectedChild, setSelectedChildState] = useState<Child | null>(null);
   const [selectedOrganization, setSelectedOrganizationState] = useState<Organization | null>(null);
+  const [selectedInstituteType, setSelectedInstituteType] = useState<string | null>(null);
+  const [selectedClassGrade, setSelectedClassGrade] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   // Public variables for current IDs - no localStorage sync
@@ -71,7 +73,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         name: institute.name || 'Unknown Institute',
         code: institute.code || '',
         description: `${institute.address || ''}, ${institute.city || ''}`.trim() || 'No description available',
-        isActive: institute.isActive !== undefined ? institute.isActive : true
+        isActive: institute.isActive !== undefined ? institute.isActive : true,
+        type: institute.type
       }));
 
       console.log('Mapped institutes:', institutes);
@@ -144,6 +147,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setSelectedSubjectState(null);
     setSelectedChildState(null);
     setSelectedOrganizationState(null);
+    setSelectedInstituteType(null);
+    setSelectedClassGrade(null);
     
     setCurrentInstituteId(null);
     setCurrentClassId(null);
@@ -161,10 +166,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const setSelectedInstitute = (institute: Institute | null) => {
     setSelectedInstituteState(institute);
     setCurrentInstituteId(institute?.id || null);
+    setSelectedInstituteType(institute?.type || null);
     
     // Clear dependent selections
     setSelectedClassState(null);
     setSelectedSubjectState(null);
+    setSelectedClassGrade(null);
     setCurrentClassId(null);
     setCurrentSubjectId(null);
   };
@@ -172,6 +179,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const setSelectedClass = (classData: Class | null) => {
     setSelectedClassState(classData);
     setCurrentClassId(classData?.id || null);
+    setSelectedClassGrade(classData?.grade ?? null);
     
     // Clear dependent selections
     setSelectedSubjectState(null);
@@ -242,6 +250,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     selectedSubject,
     selectedChild,
     selectedOrganization,
+    selectedInstituteType,
+    selectedClassGrade,
     currentInstituteId,
     currentClassId,
     currentSubjectId,

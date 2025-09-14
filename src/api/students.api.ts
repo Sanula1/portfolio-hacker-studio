@@ -62,9 +62,25 @@ export interface Student {
   };
 }
 
+export interface AssignParentData {
+  parentUserId: string;
+  parentType: 'father' | 'mother' | 'guardian';
+}
+
+export interface AssignParentResponse {
+  success: boolean;
+  message: string;
+  timestamp: string;
+}
+
 export const studentsApi = {
   create: async (data: StudentCreateData): Promise<Student> => {
     const response = await apiClient.post('/students', data);
+    return response.data;
+  },
+  
+  assignParent: async (studentId: string, data: AssignParentData): Promise<AssignParentResponse> => {
+    const response = await apiClient.patch(`/students/${studentId}/assign-parent`, data);
     return response.data;
   }
 };

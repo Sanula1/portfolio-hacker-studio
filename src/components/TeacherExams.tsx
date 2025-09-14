@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { RefreshCw, FileText, Plus, Search, Filter, Calendar, Clock, ExternalLink, MapPin } from 'lucide-react';
+import { RefreshCw, FileText, Plus, Search, Filter, Calendar, Clock, ExternalLink, MapPin, BarChart3 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { getBaseUrl } from '@/contexts/utils/auth.api';
@@ -12,6 +12,9 @@ import { DataCardView } from '@/components/ui/data-card-view';
 import DataTable from '@/components/ui/data-table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import CreateExamForm from '@/components/forms/CreateExamForm';
+import CreateResultsForm from '@/components/forms/CreateResultsForm';
+import { UpdateExamForm } from '@/components/forms/UpdateExamForm';
+import { ExamResultsDialog } from '@/components/ExamResultsDialog';
 
 interface TeacherExam {
   id: string;
@@ -61,6 +64,10 @@ const TeacherExams = () => {
   const [dataLoaded, setDataLoaded] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isCreateResultsDialogOpen, setIsCreateResultsDialogOpen] = useState(false);
+  const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
+  const [selectedExam, setSelectedExam] = useState<TeacherExam | null>(null);
+  const [isExamResultsDialogOpen, setIsExamResultsDialogOpen] = useState(false);
   
   // Filter states
   const [searchTerm, setSearchTerm] = useState('');
@@ -209,6 +216,27 @@ const TeacherExams = () => {
     }
   };
 
+  const handleCreateResults = () => {
+    console.log('Create results clicked');
+    setIsCreateResultsDialogOpen(true);
+  };
+
+  const handleViewExam = (exam: TeacherExam) => {
+    setSelectedExam(exam);
+    setIsExamResultsDialogOpen(true);
+  };
+
+  const handleEditExam = (exam: TeacherExam) => {
+    setSelectedExam(exam);
+    setIsUpdateDialogOpen(true);
+  };
+
+  const handleUpdateExam = () => {
+    setIsUpdateDialogOpen(false);
+    setSelectedExam(null);
+    fetchExams(); // Refresh the list
+  };
+
   const formatDuration = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
@@ -301,6 +329,43 @@ const TeacherExams = () => {
           {value.toUpperCase()}
         </Badge>
       )
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      render: (value: any, row: TeacherExam) => (
+        <div className="flex items-center gap-2">
+          {row.examLink && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => window.open(row.examLink, '_blank')}
+              className="flex items-center gap-1"
+            >
+              <ExternalLink className="h-3 w-3" />
+              Exam Link
+            </Button>
+          )}
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handleViewExam(row)}
+            className="flex items-center gap-1"
+          >
+            <FileText className="h-3 w-3" />
+            View
+          </Button>
+          <Button
+            size="sm"
+            variant="default"
+            onClick={() => handleEditExam(row)}
+            className="flex items-center gap-1"
+          >
+            <FileText className="h-3 w-3" />
+            Edit
+          </Button>
+        </div>
+      )
     }
   ];
 
@@ -392,6 +457,14 @@ const TeacherExams = () => {
             <FileText className="h-4 w-4" />
             {exams.length} My Exams
           </Badge>
+          <Button 
+            onClick={handleCreateResults}
+            variant="outline"
+            className="flex items-center gap-2"
+          >
+            <BarChart3 className="h-4 w-4" />
+            Create Results
+          </Button>
           <Button 
             onClick={() => setIsCreateDialogOpen(true)}
             className="bg-blue-600 hover:bg-blue-700"
@@ -542,6 +615,48 @@ const TeacherExams = () => {
           />
         </DialogContent>
       </Dialog>
+
+      {/* Create Results Dialog */}
+      <Dialog open={isCreateResultsDialogOpen} onOpenChange={setIsCreateResultsDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Create Results</DialogTitle>
+          </DialogHeader>
+          <CreateResultsForm
+            onClose={() => setIsCreateResultsDialogOpen(false)}
+            onSuccess={() => {
+              setIsCreateResultsDialogOpen(false);
+              fetchExams();
+            }}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Update Exam Dialog */}
+      <Dialog open={isUpdateDialogOpen} onOpenChange={setIsUpdateDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Update Exam</DialogTitle>
+          </DialogHeader>
+          {selectedExam && (
+            <UpdateExamForm
+              exam={selectedExam}
+              onClose={() => setIsUpdateDialogOpen(false)}
+              onSuccess={handleUpdateExam}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Exam Results Dialog */}
+      <ExamResultsDialog
+        isOpen={isExamResultsDialogOpen}
+        onClose={() => {
+          setIsExamResultsDialogOpen(false);
+          setSelectedExam(null);
+        }}
+        exam={selectedExam}
+      />
     </div>
   );
 };

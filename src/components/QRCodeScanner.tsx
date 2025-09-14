@@ -8,19 +8,16 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Camera, QrCode, UserCheck, CheckCircle, MapPin, Monitor, Users, X, RefreshCw } from 'lucide-react';
-import QrScanner from 'qr-scanner';
+import jsQR from 'jsqr';
+import { getAttendanceUrl, getBaseUrl } from '@/contexts/utils/auth.api';
 
 interface MarkAttendanceRequest {
   instituteId: string;
   classId?: string;
   subjectId?: string;
   studentId: string;
-  status: "PRESENT" | "ABSENT" | "LATE" | "EARLY_DEPARTURE";
-  location: {
-    address: string;
-    latitude: number;
-    longitude: number;
-  };
+  status: "PRESENT" | "ABSENT" | "LATE" | "EXCUSED";
+  location: string;
 }
 
 interface StudentData {
@@ -57,14 +54,16 @@ const QRCodeScanner = () => {
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [location, setLocation] = useState<{ latitude: number; longitude: number; address: string } | null>(null);
   const [locationLoading, setLocationLoading] = useState(false);
-  const [status, setStatus] = useState<"PRESENT" | "ABSENT" | "LATE" | "EARLY_DEPARTURE">('PRESENT');
+  const [status, setStatus] = useState<"PRESENT" | "ABSENT" | "LATE" | "EXCUSED">('PRESENT');
   const [attendanceNotification, setAttendanceNotification] = useState<AttendanceNotification | null>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const qrScannerRef = useRef<QrScanner | null>(null);
+  const animationRef = useRef<number | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
 
-  // Check if user has permission - now includes Teacher role
-  const hasPermission = user?.role === 'InstituteAdmin' || user?.role === 'AttendanceMarker' || user?.role === 'Teacher';
+  // Check if user has permission - InstituteAdmin only for attendance marking
+  const hasPermission = user?.role === 'InstituteAdmin';
 
   useEffect(() => {
     if (attendanceNotification) {
@@ -79,11 +78,7 @@ const QRCodeScanner = () => {
     fetchLocation();
 
     return () => {
-      if (qrScannerRef.current) {
-        qrScannerRef.current.stop();
-        qrScannerRef.current.destroy();
-        qrScannerRef.current = null;
-      }
+      stopCamera();
     };
   }, [selectedInstitute, selectedClass, selectedSubject]);
 
@@ -170,14 +165,6 @@ const QRCodeScanner = () => {
     return 'desktop';
   };
 
-  const getAttendanceUrl = () => {
-    const attendanceUrl = localStorage.getItem('attendanceUrl') || 
-                          localStorage.getItem('baseUrl2') || 
-                          localStorage.getItem('baseUrl') || '';
-    console.log('Retrieved attendance URL from localStorage:', attendanceUrl);
-    return attendanceUrl;
-  };
-
   const getApiHeaders = () => {
     const token = localStorage.getItem('access_token') || 
                   localStorage.getItem('token') || 
@@ -195,85 +182,92 @@ const QRCodeScanner = () => {
     return headers;
   };
 
+  const scanQRCode = () => {
+    if (!videoRef.current || !canvasRef.current) return;
+
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    const context = canvas.getContext('2d', { willReadFrequently: true });
+    
+    if (!context || video.readyState !== video.HAVE_ENOUGH_DATA) {
+      animationRef.current = requestAnimationFrame(scanQRCode);
+      return;
+    }
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+    const code = jsQR(imageData.data, imageData.width, imageData.height);
+
+    if (code && code.data.trim()) {
+      console.log('🎯 QR Code detected:', code.data);
+      handleMarkAttendance(code.data.trim());
+      return; // Stop scanning temporarily after detection
+    }
+
+    // Continue scanning
+    animationRef.current = requestAnimationFrame(scanQRCode);
+  };
+
   const startCamera = async () => {
     try {
       console.log('Starting camera...');
       setCameraError(null);
       
-      if (!videoRef.current) {
-        throw new Error('Video element not found');
+      if (!videoRef.current || !canvasRef.current) {
+        throw new Error('Video or canvas element not found');
       }
 
-      if (qrScannerRef.current) {
-        console.log('Stopping existing scanner...');
-        qrScannerRef.current.stop();
-        qrScannerRef.current.destroy();
-        qrScannerRef.current = null;
+      // Stop any existing stream
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
       }
 
-      const hasCamera = await QrScanner.hasCamera();
-      console.log('Camera available:', hasCamera);
-      
-      if (!hasCamera) {
-        throw new Error('No camera found on this device');
+      // Stop any existing animation
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+        animationRef.current = null;
       }
 
-      console.log('Initializing QR Scanner...');
-
-      videoRef.current.style.display = 'block';
-      videoRef.current.style.width = '100%';
-      videoRef.current.style.height = '100%';
-      videoRef.current.style.objectFit = 'cover';
-
-      qrScannerRef.current = new QrScanner(
-        videoRef.current,
-        (result) => {
-          console.log('QR Code detected:', result.data);
-          setStudentId(result.data);
-          
-          setTimeout(() => {
-            handleMarkAttendance(result.data);
-          }, 500);
-        },
-        {
-          returnDetailedScanResult: true,
-          preferredCamera: 'environment',
-          highlightScanRegion: true,
-          highlightCodeOutline: true,
-          maxScansPerSecond: 5,
-          calculateScanRegion: (video) => {
-            const smallerDimension = Math.min(video.videoWidth, video.videoHeight);
-            const scanRegionSize = Math.round(0.6 * smallerDimension);
-            return {
-              x: Math.round((video.videoWidth - scanRegionSize) / 2),
-              y: Math.round((video.videoHeight - scanRegionSize) / 2),
-              width: scanRegionSize,
-              height: scanRegionSize,
-            };
-          },
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          facingMode: 'environment',
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
         }
-      );
-
-      console.log('Starting QR scanner...');
-      await qrScannerRef.current.start();
-      
-      await new Promise<void>((resolve, reject) => {
-        const checkVideo = () => {
-          if (videoRef.current && videoRef.current.videoWidth > 0 && videoRef.current.readyState >= 2) {
-            console.log('Video ready and playing:', {
-              width: videoRef.current.videoWidth,
-              height: videoRef.current.videoHeight,
-              readyState: videoRef.current.readyState
-            });
-            resolve();
-          } else {
-            setTimeout(checkVideo, 100);
-          }
-        };
-        
-        setTimeout(() => reject(new Error('Video failed to load')), 10000);
-        checkVideo();
       });
+
+      streamRef.current = stream;
+      videoRef.current.srcObject = stream;
+
+      // Wait for video to be ready
+      await new Promise<void>((resolve, reject) => {
+        const video = videoRef.current!;
+        
+        const onLoadedMetadata = () => {
+          video.removeEventListener('loadedmetadata', onLoadedMetadata);
+          console.log('Video metadata loaded:', {
+            width: video.videoWidth,
+            height: video.videoHeight
+          });
+          resolve();
+        };
+
+        video.addEventListener('loadedmetadata', onLoadedMetadata);
+        
+        setTimeout(() => {
+          video.removeEventListener('loadedmetadata', onLoadedMetadata);
+          reject(new Error('Video failed to load metadata'));
+        }, 10000);
+      });
+
+      await videoRef.current.play();
+      
+      // Start QR scanning loop
+      scanQRCode();
 
       setIsScanning(true);
       setCameraError(null);
@@ -313,13 +307,22 @@ const QRCodeScanner = () => {
   const stopCamera = () => {
     try {
       console.log('Stopping camera...');
-      if (qrScannerRef.current) {
-        qrScannerRef.current.stop();
-        qrScannerRef.current.destroy();
-        qrScannerRef.current = null;
+      
+      // Stop animation frame
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+        animationRef.current = null;
       }
       
+      // Stop media stream
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+        streamRef.current = null;
+      }
+      
+      // Clear video source
       if (videoRef.current) {
+        videoRef.current.srcObject = null;
         videoRef.current.style.display = 'none';
       }
       
@@ -332,7 +335,16 @@ const QRCodeScanner = () => {
   };
 
   const handleMarkAttendance = async (studentIdValue: string) => {
+    console.log('=== HANDLE QR ATTENDANCE START ===');
+    console.log('Scanned Student ID:', studentIdValue);
+    console.log('Current Institute ID:', currentInstituteId);
+    console.log('Selected Institute:', selectedInstitute?.name);
+    console.log('Current Location:', location);
+    console.log('Selected Status:', status);
+    console.log('=====================================');
+
     if (!studentIdValue.trim() || !currentInstituteId) {
+      console.log('❌ VALIDATION FAILED: Missing student ID or institute information');
       toast({
         title: "Missing Information",
         description: "Please ensure student ID and institute are selected",
@@ -342,6 +354,7 @@ const QRCodeScanner = () => {
     }
 
     if (!location) {
+      console.log('❌ VALIDATION FAILED: Location not available');
       toast({
         title: "Location Required",
         description: "Please allow location access to mark attendance",
@@ -351,10 +364,16 @@ const QRCodeScanner = () => {
     }
 
     try {
-      const attendanceBaseUrl = getAttendanceUrl();
+      let attendanceBaseUrl = getAttendanceUrl();
       if (!attendanceBaseUrl) {
-        throw new Error('Attendance URL not configured. Please set the attendance URL in settings.');
+        // Use main API URL as fallback
+        attendanceBaseUrl = getBaseUrl();
+        if (!attendanceBaseUrl) {
+          throw new Error('No API URL configured. Please set the API URL in settings.');
+        }
       }
+
+      console.log('Using attendance URL:', attendanceBaseUrl);
 
       const headers = getApiHeaders();
       
@@ -362,17 +381,15 @@ const QRCodeScanner = () => {
         instituteId: currentInstituteId,
         studentId: studentIdValue.trim(),
         status: status,
-        location: {
-          address: location.address,
-          latitude: location.latitude,
-          longitude: location.longitude
-        }
+        location: location.address
       };
 
+      // Only include classId if it has a valid value
       if (currentClassId) {
         requestBody.classId = currentClassId;
       }
 
+      // Only include subjectId if it has a valid value
       if (currentSubjectId) {
         requestBody.subjectId = currentSubjectId;
       }
@@ -380,9 +397,12 @@ const QRCodeScanner = () => {
       const baseUrl = attendanceBaseUrl.endsWith('/') ? attendanceBaseUrl.slice(0, -1) : attendanceBaseUrl;
       const fullApiUrl = `${baseUrl}/api/attendance/mark`;
       
-      console.log('Marking attendance with request:', requestBody);
-      console.log('Calling attendance API at:', fullApiUrl);
-      console.log('Using headers:', headers);
+      console.log('=== PREPARING QR ATTENDANCE REQUEST ===');
+      console.log('API Endpoint:', fullApiUrl);
+      console.log('Request Body:', JSON.stringify(requestBody, null, 2));
+      console.log('Request Headers:', headers);
+      console.log('About to make API call...');
+      console.log('=========================================');
 
       const response = await fetch(fullApiUrl, {
         method: 'POST',
@@ -390,27 +410,57 @@ const QRCodeScanner = () => {
         body: JSON.stringify(requestBody)
       });
 
+      console.log('=== QR ATTENDANCE API RESPONSE ===');
       console.log('Response status:', response.status);
       console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+      console.log('================================');
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Attendance API error response:', errorText);
+        console.error('=== QR ATTENDANCE API ERROR ===');
+        console.error('Status Code:', response.status);
+        console.error('Status Text:', response.statusText);
+        console.error('Error Response:', errorText);
+        console.error('Original Request:', JSON.stringify(requestBody, null, 2));
+        console.error('=============================');
         throw new Error(`Failed to mark attendance: ${response.status} - ${errorText}`);
       }
 
       const result: MarkAttendanceResponse = await response.json();
-      console.log('Attendance marked successfully:', result);
+      console.log('=== QR ATTENDANCE SUCCESS ===');
+      console.log('API Call Completed Successfully');
+      console.log('Result:', JSON.stringify(result, null, 2));
+      console.log('===========================');
 
       if (result.success && result.data?.student) {
         setMarkedCount(prev => prev + 1);
-        setStudentId('');
+        setStudentId(result.data.student.id); // Set the actual student ID from response
         
         setAttendanceNotification({
           student: result.data.student,
           status: status,
           timestamp: new Date()
         });
+
+        // Briefly pause scanning to prevent duplicate scans
+        if (isScanning && videoRef.current && canvasRef.current) {
+          console.log('⏸️ Pausing scanner to prevent duplicates...');
+          try {
+            // Stop current scanning
+            if (animationRef.current) {
+              cancelAnimationFrame(animationRef.current);
+              animationRef.current = null;
+            }
+            setTimeout(() => {
+              if (isScanning && videoRef.current && canvasRef.current) {
+                console.log('▶️ Resuming scanner...');
+                scanQRCode();
+              }
+            }, 2000);
+          } catch (e) {
+            console.error('Error pausing scanner:', e);
+          }
+        }
 
         setTimeout(() => {
           inputRef.current?.focus();
@@ -462,7 +512,7 @@ const QRCodeScanner = () => {
               Access Denied
             </h3>
             <p className="text-gray-600 dark:text-gray-400 text-sm sm:text-base">
-              You don't have permission to mark attendance. This feature is only available for Institute Admins, Teachers, and Attendance Markers.
+              You don't have permission to mark attendance. This feature is only available for Institute Admins.
             </p>
           </CardContent>
         </Card>
@@ -610,18 +660,22 @@ const QRCodeScanner = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Camera Preview Area */}
-              <div className="relative aspect-square bg-gray-100 dark:bg-gray-800 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 overflow-hidden">
-                <video
-                  ref={videoRef}
-                  className="w-full h-full object-cover"
-                  autoPlay
-                  playsInline
-                  muted
-                  style={{ 
-                    display: isScanning ? 'block' : 'none'
-                  }}
-                />
-                {!isScanning && (
+               <div className="relative aspect-square bg-gray-100 dark:bg-gray-800 rounded-lg border-2 border-dashed border-gray-300 dark:border-gray-600 overflow-hidden">
+                 <video
+                   ref={videoRef}
+                   className="w-full h-full object-cover"
+                   autoPlay
+                   playsInline
+                   muted
+                   style={{ 
+                     display: isScanning ? 'block' : 'none'
+                   }}
+                 />
+                 <canvas
+                   ref={canvasRef}
+                   className="hidden"
+                 />
+                 {!isScanning && (
                   <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6">
                     <Camera className="h-16 w-16 text-gray-400 mb-4" />
                     <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-2">
@@ -690,7 +744,7 @@ const QRCodeScanner = () => {
               {/* Attendance Status */}
               <div className="space-y-2">
                 <label className="text-sm font-medium">Attendance Status</label>
-                <Select value={status} onValueChange={(value: "PRESENT" | "ABSENT" | "LATE" | "EARLY_DEPARTURE") => setStatus(value)}>
+                <Select value={status} onValueChange={(value: "PRESENT" | "ABSENT" | "LATE" | "EXCUSED") => setStatus(value)}>
                   <SelectTrigger className="h-10">
                     <SelectValue />
                   </SelectTrigger>
@@ -698,7 +752,7 @@ const QRCodeScanner = () => {
                     <SelectItem value="PRESENT">Present</SelectItem>
                     <SelectItem value="ABSENT">Absent</SelectItem>
                     <SelectItem value="LATE">Late</SelectItem>
-                    <SelectItem value="EARLY_DEPARTURE">Early Departure</SelectItem>
+                    <SelectItem value="EXCUSED">Excused</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
