@@ -4,9 +4,12 @@ import { lectureApi, Lecture } from '@/api/lecture.api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Video, Calendar, Clock, Users, MapPin, ExternalLink } from 'lucide-react';
+import { Dialog, DialogContent, DialogTrigger } from '@/components/ui/dialog';
+import { Video, Calendar, Clock, Users, MapPin, ExternalLink, Plus, Edit } from 'lucide-react';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
+import CreateInstituteLectureForm from '@/components/forms/CreateInstituteLectureForm';
+import UpdateInstituteLectureForm from '@/components/forms/UpdateInstituteLectureForm';
 
 const InstituteLectures = () => {
   const { selectedInstitute, user } = useAuth();
@@ -14,6 +17,9 @@ const InstituteLectures = () => {
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showUpdateDialog, setShowUpdateDialog] = useState(false);
+  const [selectedLecture, setSelectedLecture] = useState<Lecture | null>(null);
 
   const fetchLectures = async (pageNum: number = 1) => {
     if (!selectedInstitute?.id) {
@@ -90,6 +96,24 @@ const InstituteLectures = () => {
     }
   };
 
+  const handleCreateSuccess = async () => {
+    setShowCreateDialog(false);
+    await fetchLectures(page);
+  };
+
+  const handleUpdateSuccess = async () => {
+    setShowUpdateDialog(false);
+    setSelectedLecture(null);
+    await fetchLectures(page);
+  };
+
+  const handleUpdateClick = (lecture: Lecture) => {
+    setSelectedLecture(lecture);
+    setShowUpdateDialog(true);
+  };
+
+  const isInstituteAdmin = user?.role === 'InstituteAdmin';
+
   if (!selectedInstitute) {
     return (
       <div className="p-6">
@@ -132,9 +156,27 @@ const InstituteLectures = () => {
             View all lectures available in {selectedInstitute.name}
           </p>
         </div>
-        <Button onClick={() => fetchLectures(page)} disabled={loading}>
-          {loading ? 'Loading...' : 'Refresh Lectures'}
-        </Button>
+        <div className="flex gap-2">
+          {isInstituteAdmin && (
+            <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+              <DialogTrigger asChild>
+                <Button className="gap-2">
+                  <Plus className="h-4 w-4" />
+                  Create Lecture
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                <CreateInstituteLectureForm
+                  onClose={() => setShowCreateDialog(false)}
+                  onSuccess={handleCreateSuccess}
+                />
+              </DialogContent>
+            </Dialog>
+          )}
+          <Button onClick={() => fetchLectures(page)} disabled={loading}>
+            {loading ? 'Loading...' : 'Refresh Lectures'}
+          </Button>
+        </div>
       </div>
 
       {loading && lectures.length === 0 ? (
@@ -214,6 +256,17 @@ const InstituteLectures = () => {
                         View Recording
                       </Button>
                     )}
+                    {isInstituteAdmin && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleUpdateClick(lecture)}
+                        className="gap-2"
+                      >
+                        <Edit className="h-4 w-4" />
+                        Update
+                      </Button>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -244,6 +297,22 @@ const InstituteLectures = () => {
             </div>
           )}
         </>
+      )}
+
+      {/* Update Dialog */}
+      {selectedLecture && (
+        <Dialog open={showUpdateDialog} onOpenChange={setShowUpdateDialog}>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <UpdateInstituteLectureForm
+              lecture={selectedLecture}
+              onClose={() => {
+                setShowUpdateDialog(false);
+                setSelectedLecture(null);
+              }}
+              onSuccess={handleUpdateSuccess}
+            />
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );

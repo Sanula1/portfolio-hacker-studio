@@ -92,6 +92,16 @@ class LectureApi {
     return cachedApiClient.post<Lecture>(endpoint, data);
   }
 
+  async createInstituteLecture(data: LectureCreateData): Promise<Lecture> {
+    console.log('Creating institute lecture:', data);
+    return cachedApiClient.post<Lecture>('/institute-lectures', data);
+  }
+
+  async updateInstituteLecture(id: string, data: Partial<LectureCreateData>): Promise<Lecture> {
+    console.log('Updating institute lecture:', id, data);
+    return cachedApiClient.patch<Lecture>(`/institute-lectures/${id}`, data);
+  }
+
   async updateLecture(id: string, data: Partial<LectureCreateData>): Promise<Lecture> {
     console.log('Updating lecture:', id, data);
     return cachedApiClient.patch<Lecture>(`/institute-class-subject-lectures/${id}`, data);
