@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { getAttendanceUrl } from '@/contexts/utils/auth.api';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -98,7 +99,7 @@ const FreeLectures = () => {
     setError(null);
 
     try {
-      const baseUrl = import.meta.env.VITE_ATTENDANCE_BACKEND_URL || 'http://localhost:3003';
+      const baseUrl = getAttendanceUrl() || 'http://localhost:3003';
       
       // Use the standard lecture API endpoint with proper parameters
       const params = new URLSearchParams({
