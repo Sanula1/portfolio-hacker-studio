@@ -101,17 +101,9 @@ const FreeLectures = () => {
     try {
       const baseUrl = getAttendanceUrl() || 'http://localhost:3003';
       
-      // Use the standard lecture API endpoint with proper parameters
-      const params = new URLSearchParams({
-        instituteId: selectedInstitute?.id || '',
-        classId: selectedClass?.id || '',
-        subjectId: selectedSubject.id,
-        page: '1',
-        limit: '50' // Get more lectures to group properly
-      });
-
+      // Use the structured lectures API endpoint
       const response = await fetch(
-        `${baseUrl}/institute-class-subject-lectures?${params}`,
+        `${baseUrl}/api/structured-lectures/subject/${selectedSubject.id}/grade/${selectedClassGrade}?page=1&limit=10`,
         {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
@@ -126,69 +118,17 @@ const FreeLectures = () => {
 
       const data = await response.json();
       
-      if (data.success !== false) {
-        // Transform the lecture data to match the expected format
-        const lecturesArray = Array.isArray(data.data) ? data.data : data;
-        
-        // Transform API lectures to our Lecture interface
-        const transformedLectures: Lecture[] = lecturesArray.map((lecture: any, index: number) => ({
-          _id: lecture.id || `lecture-${index}`,
-          id: lecture.id,
-          subjectId: lecture.subjectId || selectedSubject.id,
-          grade: selectedClassGrade,
-          title: lecture.title || 'Untitled Lecture',
-          description: lecture.description || 'No description available',
-          lessonNumber: Math.floor(index / 3) + 1, // Group every 3 lectures into a lesson
-          lectureNumber: (index % 3) + 1,
-          provider: lecture.instructor || lecture.instructorId || 'Unknown Instructor',
-          lectureLink: lecture.meetingLink || lecture.lectureLink || '#',
-          meetingLink: lecture.meetingLink,
-          documents: [], // No documents in standard API for now
-          isActive: lecture.isActive !== false,
-          createdBy: lecture.instructorId || lecture.createdBy || 'unknown',
-          updatedBy: lecture.instructorId || lecture.updatedBy || 'unknown',
-          createdAt: lecture.createdAt || new Date().toISOString(),
-          updatedAt: lecture.updatedAt || new Date().toISOString(),
-          status: lecture.status,
-          instructorId: lecture.instructorId,
-          instructor: lecture.instructor
+      if (data.success && data.data) {
+        // The API already returns structured lessons with lectures
+        const lessonsWithExpansion = data.data.map((lesson: Lesson) => ({
+          ...lesson,
+          isExpanded: false
         }));
         
-        // Group lectures by lesson number
-        const lessonsMap = new Map<number, Lecture[]>();
-        transformedLectures.forEach(lecture => {
-          const lessonNum = lecture.lessonNumber;
-          if (!lessonsMap.has(lessonNum)) {
-            lessonsMap.set(lessonNum, []);
-          }
-          lessonsMap.get(lessonNum)!.push(lecture);
-        });
-        
-        // Convert to Lesson array and sort lectures within each lesson
-        const groupedLectures: Lesson[] = Array.from(lessonsMap.entries())
-          .map(([lessonNumber, lectures]) => ({
-            lessonNumber,
-            lessonName: `Lesson ${lessonNumber}: ${selectedSubject.name}`,
-            lectures: lectures.sort((a, b) => a.lectureNumber - b.lectureNumber),
-            isExpanded: false
-          }))
-          .sort((a, b) => a.lessonNumber - b.lessonNumber);
-        
-        setLectures(groupedLectures);
-        
-        // Calculate statistics
-        const totalLectures = transformedLectures.length;
-        const activeLectures = transformedLectures.filter(l => l.isActive).length;
-        
-        setSubjectInfo({
-          subjectId: selectedSubject.id,
-          grade: selectedClassGrade,
-          totalLectures,
-          totalLessons: groupedLectures.length,
-          activeLectures
-        });
+        setLectures(lessonsWithExpansion);
+        setSubjectInfo(data.subjectInfo);
       } else {
-        setError('Failed to load free lectures');
+        setError(data.message || 'Failed to load free lectures');
       }
     } catch (err) {
       console.error('Error fetching free lectures:', err);
