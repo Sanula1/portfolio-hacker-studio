@@ -6,7 +6,6 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { Building, Users, CheckCircle, RefreshCw, MapPin, Mail, Phone } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { getBaseUrl } from '@/contexts/utils/auth.api';
 
 interface InstituteApiResponse {
   id: string;
@@ -23,90 +22,44 @@ interface InstituteApiResponse {
   imageUrl: string;
 }
 
-interface InstituteSelectorProps {
-  useChildId?: boolean;
-}
-
-const InstituteSelector = ({ useChildId = false }: InstituteSelectorProps) => {
-  const { user, setSelectedInstitute, selectedChild } = useAuth();
+const InstituteSelector = () => {
+  const { user, setSelectedInstitute } = useAuth();
   const { toast } = useToast();
   const [institutes, setInstitutes] = useState<InstituteApiResponse[]>([]);
 
   const handleLoadInstitutes = async () => {
-    // For Parent role, use the selected child's ID instead of the parent's ID
-    const userId = useChildId && selectedChild ? selectedChild.id : user?.id;
-    
-    if (!userId) {
+    if (!user?.id) {
       toast({
         title: "Error",
-        description: useChildId ? "No child selected" : "No user ID available",
+        description: "No user ID available",
         variant: "destructive",
       });
       return;
     }
 
     try {
-      console.log('Loading institutes for user ID:', userId, useChildId ? '(child)' : '(user)');
-      const baseUrl = getBaseUrl();
-
-      // Try multiple possible endpoints to support different backends
-      const endpoints = useChildId
-        ? [`/children/${userId}/institutes`, `/users/${userId}/institutes`]
-        : [`/users/${userId}/institutes`];
-
-      let result: InstituteApiResponse[] | null = null;
-      let lastErr: any = null;
-
-      for (const ep of endpoints) {
-        try {
-          console.log('Trying endpoint:', ep);
-          const res = await fetch(`${baseUrl}${ep}`, {
-            method: 'GET',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-              'ngrok-skip-browser-warning': 'true'
-            }
-          });
-
-          if (!res.ok) {
-            console.warn(`Endpoint ${ep} returned ${res.status}`);
-            lastErr = new Error(`HTTP error! status: ${res.status}`);
-            continue;
-          }
-
-          const contentType = res.headers.get('content-type') || '';
-          if (!contentType.includes('application/json')) {
-            const textResponse = await res.text();
-            console.warn(`Endpoint ${ep} non-JSON response:`, textResponse);
-            lastErr = new Error('Server returned non-JSON response');
-            continue;
-          }
-
-          const data = await res.json();
-          if (Array.isArray(data)) {
-            result = data;
-            console.log('Successful endpoint:', ep);
-            break;
-          }
-          if (data?.data && Array.isArray(data.data)) {
-            result = data.data;
-            console.log('Successful endpoint (wrapped):', ep);
-            break;
-          }
-
-          console.warn(`Endpoint ${ep} returned unexpected response shape`);
-          lastErr = new Error('Unexpected response shape');
-        } catch (e) {
-          console.error(`Error calling ${ep}:`, e);
-          lastErr = e;
+      console.log('Loading user institutes...');
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'}/users/${user.id}/institutes`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+          'ngrok-skip-browser-warning': 'true'
         }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      if (!result) {
-        throw lastErr || new Error('No valid endpoint available for institutes');
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const textResponse = await response.text();
+        console.error('Non-JSON response received:', textResponse);
+        throw new Error('Server returned non-JSON response');
       }
 
+      const result: InstituteApiResponse[] = await response.json();
       console.log('Institutes API Response:', result);
       
       // Filter out any invalid institute data
@@ -147,8 +100,7 @@ const InstituteSelector = ({ useChildId = false }: InstituteSelectorProps) => {
       name: institute.name,
       code: institute.id, // Using id as code since it's not in the API response
       description: `${institute.address || ''}, ${institute.city || ''}`.trim(),
-      isActive: institute.isActive,
-      type: institute.type
+      isActive: institute.isActive
     };
     setSelectedInstitute(selectedInstitute);
     

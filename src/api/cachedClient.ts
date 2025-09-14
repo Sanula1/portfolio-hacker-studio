@@ -119,13 +119,6 @@ class CachedApiClient {
     params?: Record<string, any>, 
     ttl: number = 30
   ): Promise<T> {
-    // Refresh base URL in case it was updated
-    this.baseUrl = this.useBaseUrl2 ? getBaseUrl2() : getBaseUrl();
-    
-    if (!this.baseUrl) {
-      throw new Error('Backend URL not configured. Please set the backend URL in the login form.');
-    }
-    
     const url = new URL(`${this.baseUrl}${endpoint}`);
     
     if (params) {
@@ -218,13 +211,6 @@ class CachedApiClient {
   }
 
   async post<T = any>(endpoint: string, data?: any): Promise<T> {
-    // Refresh base URL in case it was updated
-    this.baseUrl = this.useBaseUrl2 ? getBaseUrl2() : getBaseUrl();
-    
-    if (!this.baseUrl) {
-      throw new Error('Backend URL not configured. Please set the backend URL in the login form.');
-    }
-    
     const url = `${this.baseUrl}${endpoint}`;
     
     console.log('POST Request:', url, data);
@@ -250,13 +236,6 @@ class CachedApiClient {
   }
 
   async put<T = any>(endpoint: string, data?: any): Promise<T> {
-    // Refresh base URL in case it was updated
-    this.baseUrl = this.useBaseUrl2 ? getBaseUrl2() : getBaseUrl();
-    
-    if (!this.baseUrl) {
-      throw new Error('Backend URL not configured. Please set the backend URL in the login form.');
-    }
-    
     const url = `${this.baseUrl}${endpoint}`;
     
     console.log('PUT Request:', url, data);
@@ -282,13 +261,6 @@ class CachedApiClient {
   }
 
   async patch<T = any>(endpoint: string, data?: any): Promise<T> {
-    // Refresh base URL in case it was updated
-    this.baseUrl = this.useBaseUrl2 ? getBaseUrl2() : getBaseUrl();
-    
-    if (!this.baseUrl) {
-      throw new Error('Backend URL not configured. Please set the backend URL in the login form.');
-    }
-    
     const url = `${this.baseUrl}${endpoint}`;
     
     console.log('PATCH Request:', url, data);
@@ -314,13 +286,6 @@ class CachedApiClient {
   }
 
   async delete<T = any>(endpoint: string): Promise<T> {
-    // Refresh base URL in case it was updated
-    this.baseUrl = this.useBaseUrl2 ? getBaseUrl2() : getBaseUrl();
-    
-    if (!this.baseUrl) {
-      throw new Error('Backend URL not configured. Please set the backend URL in the login form.');
-    }
-    
     const url = `${this.baseUrl}${endpoint}`;
     
     console.log('DELETE Request:', url);

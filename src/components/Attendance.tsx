@@ -1,305 +1,310 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { RefreshCw, Users, MapPin, Calendar, Clock } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { RefreshCw, Search, Filter, Calendar, User, Clock, CheckCircle, MapPin } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import DataTable from '@/components/ui/data-table';
-import { instituteStudentsApi, StudentAttendanceRecord, StudentAttendanceResponse } from '@/api/instituteStudents.api';
-import { childAttendanceApi, ChildAttendanceRecord } from '@/api/childAttendance.api';
-import AttendanceFilters, { AttendanceFilterParams } from '@/components/AttendanceFilters';
+
+interface AttendanceRecord {
+  instituteId: string;
+  classId: string | null;
+  subjectId: string | null;
+  studentId: string;
+  date: string;
+  timestamp: number;
+  status: 'PRESENT' | 'ABSENT' | 'LATE';
+  studentName: string;
+  location: string;
+  remarks: string;
+  markedBy: string;
+  PK: string;
+  SK: string;
+}
+
+interface AttendanceResponse {
+  records: AttendanceRecord[];
+  totalRecords: number;
+  scannedRecords: number;
+  uniqueStudents: number;
+  pagination: {
+    hasMore: boolean;
+    limit: number;
+  };
+  queryPattern: string;
+  queryType: string;
+  filters: {
+    instituteId: string;
+    classId?: string;
+    subjectId?: string;
+    studentId?: string;
+  };
+}
 
 const Attendance = () => {
   const { selectedInstitute, selectedClass, selectedSubject, currentInstituteId, currentClassId, currentSubjectId, user } = useAuth();
   const { toast } = useToast();
   
-  const [studentAttendanceRecords, setStudentAttendanceRecords] = useState<StudentAttendanceRecord[]>([]);
-  const [childAttendanceRecords, setChildAttendanceRecords] = useState<ChildAttendanceRecord[]>([]);
+  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([]);
+  const [filteredRecords, setFilteredRecords] = useState<AttendanceRecord[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [dataLoaded, setDataLoaded] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalItems, setTotalItems] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(5);
-  const [filters, setFilters] = useState<AttendanceFilterParams>({});
+  
+  // Filter states
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [startDate, setStartDate] = useState('2025-08-12');
+  const [endDate, setEndDate] = useState('2025-08-13');
+  const [sortOrder, setSortOrder] = useState<string>('descending');
 
-  // Check permissions and get view type based on role and context
-  const getPermissionInfo = () => {
-    const userRole = user?.userType;
+  const getAttendanceUrl = () => {
+    // Check multiple possible keys for attendance URL - prioritize attendanceUrl
+    const attendanceUrl = localStorage.getItem('attendanceUrl') || 
+                          localStorage.getItem('baseUrl2') || 
+                          localStorage.getItem('baseUrl') || '';
+    console.log('Retrieved attendance URL for viewing:', attendanceUrl);
+    return attendanceUrl;
+  };
+
+  // Check permissions based on role and context
+  const getPermissionAndEndpoint = () => {
+    const userRole = user?.role;
+    const attendanceBaseUrl = getAttendanceUrl();
     
-    // Student - No permission to view attendance
-    if (userRole === 'STUDENT') {
+    if (!attendanceBaseUrl) {
       return {
         hasPermission: false,
-        title: 'Attendance Access Restricted',
-        viewType: 'none',
-        description: 'Attendance viewing is not available for students'
+        endpoint: '',
+        title: 'Attendance Records',
+        error: 'Attendance URL not configured'
       };
     }
+
+    // Remove trailing slash from base URL
+    const baseUrl = attendanceBaseUrl.endsWith('/') ? attendanceBaseUrl.slice(0, -1) : attendanceBaseUrl;
     
-    // 1. InstituteAdmin only - Institute level attendance (Institute only selected)
-    if (userRole === 'INSTITUTE_ADMIN' && currentInstituteId && !currentClassId) {
+    // 1. SystemAdmin/InstituteAdmin - Institute attendance
+    if ((userRole === 'SystemAdmin' || userRole === 'InstituteAdmin') && currentInstituteId) {
       return {
         hasPermission: true,
-        title: 'Institute Student Attendance Overview',
-        viewType: 'institute',
-        description: 'View all students attendance records for the selected institute'
+        endpoint: `${baseUrl}/api/attendance/institute/${currentInstituteId}`,
+        title: 'Institute Attendance Records'
       };
     }
     
-    // 2. InstituteAdmin and Teacher - Class attendance (Institute + Class selected)
-    if ((userRole === 'INSTITUTE_ADMIN' || userRole === 'TEACHER') && 
-        currentInstituteId && currentClassId && !currentSubjectId) {
+    // 2. SystemAdmin/InstituteAdmin/Teacher - Class attendance
+    if ((userRole === 'SystemAdmin' || userRole === 'InstituteAdmin' || userRole === 'Teacher') && 
+        currentInstituteId && currentClassId) {
       return {
         hasPermission: true,
-        title: 'Class Student Attendance Overview',
-        viewType: 'class',
-        description: 'View student attendance records for the selected class'
+        endpoint: `${baseUrl}/api/attendance/class/${currentInstituteId}/${currentClassId}`,
+        title: 'Class Attendance Records'
       };
     }
     
-    // 3. InstituteAdmin and Teacher - Subject attendance (Institute + Class + Subject selected)
-    if ((userRole === 'INSTITUTE_ADMIN' || userRole === 'TEACHER') && 
+    // 3. SystemAdmin/InstituteAdmin/Teacher - Subject attendance
+    if ((userRole === 'SystemAdmin' || userRole === 'InstituteAdmin' || userRole === 'Teacher') && 
         currentInstituteId && currentClassId && currentSubjectId) {
       return {
         hasPermission: true,
-        title: 'Subject Student Attendance Overview',
-        viewType: 'subject',
-        description: 'View student attendance records for the selected subject'
+        endpoint: `${baseUrl}/api/attendance/subject/${currentInstituteId}/${currentClassId}/${currentSubjectId}`,
+        title: 'Subject Attendance Records'
+      };
+    }
+    
+    // 4. Student - Their own attendance
+    if (userRole === 'Student' && currentInstituteId && user?.id) {
+      return {
+        hasPermission: true,
+        endpoint: `${baseUrl}/api/attendance/student/${currentInstituteId}/${user.id}`,
+        title: 'My Attendance Records'
+      };
+    }
+
+    // 5. AttendanceMarker - Institute attendance (they can view what they marked)
+    if (userRole === 'AttendanceMarker' && currentInstituteId) {
+      return {
+        hasPermission: true,
+        endpoint: `${baseUrl}/api/attendance/institute/${currentInstituteId}`,
+        title: 'Marked Attendance Records'
       };
     }
     
     return {
       hasPermission: false,
-      title: 'Student Attendance Records',
-      viewType: 'none',
-      description: 'Select the required context to view attendance records'
+      endpoint: '',
+      title: 'Attendance Records'
     };
   };
 
-  const { hasPermission, title, viewType, description } = getPermissionInfo();
+  const { hasPermission, endpoint, title } = getPermissionAndEndpoint();
 
-  const handleFiltersChange = (newFilters: AttendanceFilterParams) => {
-    setFilters(newFilters);
+  const getApiHeaders = () => {
+    const token = localStorage.getItem('access_token') || 
+                  localStorage.getItem('token') || 
+                  localStorage.getItem('authToken');
+    
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'ngrok-skip-browser-warning': 'true'
+    };
+
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    return headers;
   };
 
-  const handleApplyFilters = () => {
-    console.log('Applying filters:', filters);
-    setCurrentPage(1);
-    // Always reload data when filters are applied
-    loadStudentAttendanceData();
-  };
-
-  const handleClearFilters = () => {
-    const clearedFilters = {};
-    setFilters(clearedFilters);
-    setCurrentPage(1);
-    // Automatically reload data when filters are cleared
-    setTimeout(() => {
-      loadStudentAttendanceData();
-    }, 100);
-  };
-
-  const loadStudentAttendanceData = async () => {
+  const loadAttendanceData = async () => {
     if (!hasPermission) {
       toast({
         title: "Access Denied",
-        description: "You don't have permission to view attendance records or required selections are missing.",
+        description: "You don't have permission to view attendance records or attendance URL is not configured.",
         variant: "destructive"
       });
       return;
     }
 
     setIsLoading(true);
-    console.log('Loading attendance data for view type:', viewType);
-    console.log('Active filters:', filters);
+    console.log('Loading attendance data from API:', endpoint);
     
     try {
-      if (viewType === 'student' && user?.id) {
-        // Load student's own attendance with filters
-        const requestParams = {
-          studentId: user.id,
-          startDate: filters.startDate || '2025-09-01',
-          endDate: filters.endDate || '2025-09-07',
-          page: currentPage,
-          limit: itemsPerPage,
-          ...(filters.status && { status: filters.status }),
-          ...(filters.markingMethod && { markingMethod: filters.markingMethod }),
-          ...(filters.searchTerm && { search: filters.searchTerm })
-        };
-
-        console.log('Child attendance request params:', requestParams);
-        const result = await childAttendanceApi.getChildAttendance(requestParams);
-
-        console.log('Child attendance data loaded successfully:', result);
-        
-        // Apply client-side filtering for student name if provided
-        let filteredData = result.data || [];
-        if (filters.studentName) {
-          filteredData = filteredData.filter(record => 
-            record.studentName?.toLowerCase().includes(filters.studentName!.toLowerCase())
-          );
-        }
-        if (filters.searchTerm) {
-          filteredData = filteredData.filter(record => 
-            record.studentName?.toLowerCase().includes(filters.searchTerm!.toLowerCase()) ||
-            record.instituteName?.toLowerCase().includes(filters.searchTerm!.toLowerCase()) ||
-            record.className?.toLowerCase().includes(filters.searchTerm!.toLowerCase()) ||
-            record.subjectName?.toLowerCase().includes(filters.searchTerm!.toLowerCase())
-          );
-        }
-        
-        setChildAttendanceRecords(filteredData);
-        setTotalItems(filteredData.length);
-        setTotalPages(Math.ceil(filteredData.length / itemsPerPage));
-        setDataLoaded(true);
-        
-        toast({
-          title: "Data Loaded",
-          description: `Successfully loaded ${filteredData.length} attendance records.`
-        });
-      } else {
-        // Admin/Teacher views
-        if (!currentInstituteId) {
-          toast({
-            title: "Missing Selection",
-            description: "Please select an institute to view attendance records.",
-            variant: "destructive"
-          });
-          return;
-        }
-
-        let result: StudentAttendanceResponse;
-        
-        const params = {
-          page: currentPage,
-          limit: itemsPerPage,
-          ...(filters.startDate && { startDate: filters.startDate }),
-          ...(filters.endDate && { endDate: filters.endDate }),
-          ...(filters.status && { status: filters.status }),
-          ...(filters.markingMethod && { markingMethod: filters.markingMethod }),
-          ...(filters.searchTerm && { search: filters.searchTerm })
-        };
-
-        console.log('API request params with filters:', params);
-
-        // Call appropriate API based on view type
-        if (viewType === 'institute') {
-          result = await instituteStudentsApi.getInstituteStudentAttendance(currentInstituteId, params);
-        } else if (viewType === 'class' && currentClassId) {
-          result = await instituteStudentsApi.getClassStudentAttendance(currentInstituteId, currentClassId, params);
-        } else if (viewType === 'subject' && currentClassId && currentSubjectId) {
-          result = await instituteStudentsApi.getSubjectStudentAttendance(currentInstituteId, currentClassId, currentSubjectId, params);
-        } else {
-          throw new Error('Invalid view configuration');
-        }
-
-        console.log('Student attendance data loaded successfully:', result);
-        
-        // Apply client-side filtering for additional filters not handled by API
-        let filteredData = result.data || [];
-        if (filters.studentName) {
-          filteredData = filteredData.filter(record => 
-            record.studentName?.toLowerCase().includes(filters.studentName!.toLowerCase())
-          );
-        }
-        
-        // Apply sorting if specified
-        if (filters.sortBy) {
-          filteredData.sort((a, b) => {
-            let aValue: any, bValue: any;
-            
-            switch (filters.sortBy) {
-              case 'studentName':
-                aValue = a.studentName || '';
-                bValue = b.studentName || '';
-                break;
-              case 'lastAttendanceDate':
-                aValue = new Date(a.lastAttendanceDate);
-                bValue = new Date(b.lastAttendanceDate);
-                break;
-              case 'attendanceCount':
-                aValue = a.attendanceCount || 0;
-                bValue = b.attendanceCount || 0;
-                break;
-              default:
-                return 0;
-            }
-            
-            if (filters.sortOrder === 'asc') {
-              return aValue > bValue ? 1 : -1;
-            } else {
-              return aValue < bValue ? 1 : -1;
-            }
-          });
-        }
-        
-        setStudentAttendanceRecords(filteredData);
-        setTotalItems(result.pagination.totalRecords || filteredData.length);
-        setTotalPages(result.pagination.totalPages || Math.ceil(filteredData.length / itemsPerPage));
-        setDataLoaded(true);
-        
-        toast({
-          title: "Data Loaded",
-          description: `Successfully loaded ${filteredData.length} student attendance records.`
-        });
+      const headers = getApiHeaders();
+      
+      // Build query parameters
+      const params = new URLSearchParams({
+        limit: '50', // Increased limit for better data visibility
+        startDate,
+        endDate
+      });
+      
+      if (statusFilter !== 'all') {
+        params.append('status', statusFilter);
       }
+      
+      const fullUrl = `${endpoint}?${params.toString()}`;
+      console.log('Full attendance API URL:', fullUrl);
+      console.log('Request headers:', headers);
+      
+      const response = await fetch(fullUrl, {
+        method: 'GET',
+        headers
+      });
+
+      console.log('Attendance API response status:', response.status);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Failed to fetch attendance data:', response.status, errorText);
+        throw new Error(`Failed to fetch attendance data: ${response.status} - ${errorText}`);
+      }
+
+      const result: AttendanceResponse = await response.json();
+      console.log('Attendance data loaded successfully:', result);
+      
+      setAttendanceRecords(result.records || []);
+      setFilteredRecords(result.records || []);
+      setDataLoaded(true);
+      
+      toast({
+        title: "Data Loaded",
+        description: `Successfully loaded ${result.records?.length || 0} attendance records.`
+      });
     } catch (error) {
       console.error('Failed to load attendance data:', error);
-      
-      // Check if it's a configuration error
-      const errorMessage = error instanceof Error ? error.message : "Failed to load attendance data from server.";
-      
-      if (errorMessage.includes('No API base URL configured')) {
-        toast({
-          title: "Configuration Required",
-          description: "Please configure your API settings in Settings page first.",
-          variant: "destructive"
-        });
-      } else if (errorMessage.includes('ngrok') || errorMessage.includes('browser warning')) {
-        toast({
-          title: "Ngrok Configuration Issue",
-          description: "The ngrok tunnel is showing a browser warning. Visit the ngrok URL in a browser first to accept the warning.",
-          variant: "destructive"
-        });
-      } else if (errorMessage.includes('HTML instead of JSON')) {
-        toast({
-          title: "API Configuration Error",
-          description: "The server is returning HTML instead of JSON. Check your API endpoint configuration.",
-          variant: "destructive"
-        });
-      } else {
-        toast({
-          title: "Load Failed",
-          description: errorMessage,
-          variant: "destructive"
-        });
-      }
+      toast({
+        title: "Load Failed",
+        description: error instanceof Error ? error.message : "Failed to load attendance data from server.",
+        variant: "destructive"
+      });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-    // Always reload data with current filters when page changes
-    loadStudentAttendanceData();
-  };
+  // Apply filters and sorting
+  useEffect(() => {
+    let filtered = attendanceRecords;
 
-  const handleItemsPerPageChange = (items: number) => {
-    setItemsPerPage(items);
-    setCurrentPage(1);
-    // Always reload data with current filters when items per page changes
-    loadStudentAttendanceData();
-  };
+    // Apply search filter
+    if (searchTerm) {
+      filtered = filtered.filter(record =>
+        record.studentId.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        record.studentName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        record.status.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        record.location.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
+    // Apply sorting
+    filtered.sort((a, b) => {
+      const dateA = new Date(a.date);
+      const dateB = new Date(b.date);
+      return sortOrder === 'ascending' ? dateA.getTime() - dateB.getTime() : dateB.getTime() - dateA.getTime();
     });
+
+    setFilteredRecords(filtered);
+  }, [attendanceRecords, searchTerm, sortOrder]);
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'PRESENT':
+        return 'bg-green-100 text-green-800';
+      case 'ABSENT':
+        return 'bg-red-100 text-red-800';
+      case 'LATE':
+        return 'bg-yellow-100 text-yellow-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getCurrentSelection = () => {
+    const selections = [];
+    if (selectedInstitute) selections.push(`Institute: ${selectedInstitute.name}`);
+    if (selectedClass) selections.push(`Class: ${selectedClass.name}`);
+    if (selectedSubject) selections.push(`Subject: ${selectedSubject.name}`);
+    return selections.join(', ');
+  };
+
+  const parseLocation = (location: string) => {
+    try {
+      const parsed = JSON.parse(location);
+      return parsed.address || location;
+    } catch {
+      return location;
+    }
+  };
+
+  const getLocationCoordinates = (location: string) => {
+    try {
+      const parsed = JSON.parse(location);
+      if (parsed.latitude && parsed.longitude) {
+        return { lat: parsed.latitude, lng: parsed.longitude };
+      }
+    } catch {
+      // Return null if parsing fails
+    }
+    return null;
+  };
+
+  const handleViewLocation = (location: string) => {
+    const coords = getLocationCoordinates(location);
+    if (coords) {
+      const url = `https://www.google.com/maps?q=${coords.lat},${coords.lng}`;
+      window.open(url, '_blank');
+    } else {
+      toast({
+        title: "Location Not Available",
+        description: "No coordinates available for this location.",
+        variant: "destructive"
+      });
+    }
   };
 
   const formatTime = (dateString: string) => {
@@ -310,208 +315,80 @@ const Attendance = () => {
     });
   };
 
-  const getCurrentSelection = () => {
-    if (viewType === 'student') {
-      const selections = [];
-      if (selectedInstitute) selections.push(`Institute: ${selectedInstitute.name}`);
-      return selections.join(', ') || 'No Institute Selected';
-    }
-    
-    const selections = [];
-    if (selectedInstitute) selections.push(`Institute: ${selectedInstitute.name}`);
-    if (selectedClass) selections.push(`Class: ${selectedClass.name}`);
-    if (selectedSubject) selections.push(`Subject: ${selectedSubject.name}`);
-    return selections.join(', ');
-  };
-
-  // Define columns for attendance data table
-  const getColumns = () => {
-    if (viewType === 'student') {
-      // Student view - show their attendance records
-      return [
-        {
-          key: 'attendanceId',
-          header: 'Attendance ID',
-          render: (value: string) => (
-            <span className="font-mono text-xs text-muted-foreground">{value}</span>
-          )
-        },
-        {
-          key: 'instituteName',
-          header: 'Institute',
-          render: (value: string) => (
-            <span className="font-medium text-foreground">{value}</span>
-          )
-        },
-        {
-          key: 'className',
-          header: 'Class',
-          render: (value: string) => (
-            <span className="text-muted-foreground">{value || '-'}</span>
-          )
-        },
-        {
-          key: 'subjectName',
-          header: 'Subject',
-          render: (value: string) => (
-            <span className="text-muted-foreground">{value || '-'}</span>
-          )
-        },
-        {
-          key: 'status',
-          header: 'Status',
-          render: (value: string) => (
-            <Badge
-              variant={value === 'present' ? 'default' : value === 'absent' ? 'destructive' : 'secondary'}
-            >
-              {value?.charAt(0).toUpperCase() + value?.slice(1) || 'Unknown'}
-            </Badge>
-          )
-        },
-        {
-          key: 'markedAt',
-          header: 'Marked At',
-          render: (value: string) => (
-            <div className="space-y-1">
-              <div className="text-sm text-muted-foreground">{formatDate(value)}</div>
-              <div className="text-xs text-muted-foreground">{formatTime(value)}</div>
-            </div>
-          )
-        },
-        {
-          key: 'markedBy',
-          header: 'Marked By',
-          render: (value: string) => (
-            <span className="text-sm text-muted-foreground">{value || 'System'}</span>
-          )
-        },
-        {
-          key: 'markingMethod',
-          header: 'Method',
-          render: (value: string) => (
-            <Badge variant="outline">
-              {value?.toUpperCase() || 'UNKNOWN'}
-            </Badge>
-          )
-        },
-        {
-          key: 'address',
-          header: 'Address',
-          render: (value: string) => (
-            <span className="text-sm text-muted-foreground">{value || 'N/A'}</span>
-          )
-        }
-      ];
-    }
-
-    // Admin/Teacher views
-    const baseColumns = [
-      {
-        key: 'studentId',
-        header: 'Student ID',
-        render: (value: string) => (
-          <span className="font-medium text-foreground">{value}</span>
-        )
-      },
-      {
-        key: 'studentName',
-        header: 'Student Name',
-        render: (value: string) => (
-          <span className="font-medium text-foreground">{value}</span>
-        )
-      },
-      {
-        key: 'studentEmail',
-        header: 'Email',
-        render: (value: any, row: any) => (
-          <span className="text-muted-foreground">{row.studentDetails?.email || '-'}</span>
-        )
-      },
-      {
-        key: 'studentPhone',
-        header: 'Phone',
-        render: (value: any, row: any) => (
-          <span className="text-muted-foreground">{row.studentDetails?.phoneNumber || '-'}</span>
-        )
-      }
-    ];
-
-    // Add class name column if we're viewing institute level
-    if (viewType === 'institute' || viewType === 'subject') {
-      baseColumns.push({
-        key: 'className',
-        header: 'Class',
-        render: (value: string) => (
-          <span className="text-muted-foreground">{value || '-'}</span>
-        )
-      });
-    }
-
-    // Add subject name column if we're viewing class level
-    if (viewType === 'class') {
-      baseColumns.push({
-        key: 'subjectName',
-        header: 'Subject',
-        render: (value: string) => (
-          <span className="text-muted-foreground">{value || '-'}</span>
-        )
-      });
-    }
-
-    // Add attendance info columns
-    baseColumns.push(
-      {
-        key: 'attendanceCount',
-        header: 'Total Attendance',
-        render: (value: string | number) => (
-          <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
-            {value} days
+  // Mobile Card Component
+  const AttendanceCard = ({ record }: { record: AttendanceRecord }) => (
+    <Card className="hover:shadow-md transition-shadow duration-200">
+      <CardHeader className="pb-3">
+        <div className="flex justify-between items-start">
+          <CardTitle className="text-lg font-semibold text-gray-900 dark:text-white">
+            {record.studentName || `Student ID: ${record.studentId}`}
+          </CardTitle>
+          <Badge className={getStatusColor(record.status)}>
+            {record.status}
           </Badge>
-        )
-      },
-      {
-        key: 'lastAttendanceDate',
-        header: 'Last Attendance',
-        render: (value: string) => (
-          <div className="space-y-1">
-            <div className="text-sm text-muted-foreground">{formatDate(value)}</div>
-            <div className="text-xs text-muted-foreground">{formatTime(value)}</div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+          <div className="flex items-center gap-2">
+            <User className="h-4 w-4 text-blue-600" />
+            <span>ID: {record.studentId}</span>
           </div>
-        )
-      },
-      {
-        key: 'studentLocation',
-        header: 'Location',
-        render: (value: any, row: any) => (
-          <div className="text-sm text-muted-foreground">
-            <div>{row.studentDetails?.city || '-'}</div>
-            <div className="text-xs">{row.studentDetails?.district || ''}</div>
+          <div className="flex items-center gap-2">
+            <Clock className="h-4 w-4 text-blue-600" />
+            <span>Time: {formatTime(record.date)}</span>
           </div>
-        )
-      }
-    );
-
-    return baseColumns;
-  };
+          <div className="flex items-center gap-2">
+            <MapPin className="h-4 w-4 text-blue-600" />
+            <span>Location: {parseLocation(record.location) || 'Not specified'}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <CheckCircle className="h-4 w-4 text-blue-600" />
+            <span>Marked By: {record.markedBy}</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-blue-600" />
+            <span className="text-xs text-gray-500">
+              {new Date(record.date).toLocaleDateString()}
+            </span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span>Remarks: {record.remarks || 'No remarks'}</span>
+          </div>
+        </div>
+        {getLocationCoordinates(record.location) && (
+          <div className="pt-2">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => handleViewLocation(record.location)}
+              className="w-full"
+            >
+              <MapPin className="h-4 w-4 mr-2" />
+              View Location
+            </Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
 
   if (!hasPermission) {
     return (
       <div className="container mx-auto p-6">
         <Card>
           <CardContent className="text-center py-12">
-            <h3 className="text-lg font-medium text-foreground mb-2">
-              Access Denied or Missing Selection
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+              Access Denied or Configuration Missing
             </h3>
-            <p className="text-muted-foreground mb-4">
-              Please select the required context to view attendance records:
+            <p className="text-gray-600 dark:text-gray-400">
+              You don't have permission to view attendance records, haven't selected the required context, or the attendance URL is not configured.
             </p>
-            <div className="space-y-2 text-sm text-muted-foreground">
-              <p><strong>Institute Admin:</strong> Select Institute only for institute-level attendance</p>
-              <p><strong>Institute Admin/Teacher:</strong> Select Institute + Class for class-level attendance</p>
-              <p><strong>Institute Admin/Teacher:</strong> Select Institute + Class + Subject for subject-level attendance</p>
-            </div>
-            <div className="mt-4 text-sm text-muted-foreground">
+            <div className="mt-4 text-sm text-gray-500">
               Current Selection: {getCurrentSelection() || 'None'}
+            </div>
+            <div className="mt-2 text-sm text-gray-500">
+              Attendance URL: {getAttendanceUrl() || 'Not configured'}
             </div>
           </CardContent>
         </Card>
@@ -523,41 +400,19 @@ const Attendance = () => {
     return (
       <div className="container mx-auto p-6 space-y-6">
         <div className="text-center py-12">
-          <h1 className="text-3xl font-bold text-foreground mb-2">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
             {title}
           </h1>
-          
-          <div className="bg-muted/50 rounded-lg p-4 mb-6">
-            <div className="flex items-center gap-2 mb-2">
-              <MapPin className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium text-muted-foreground">Current Selection:</span>
-            </div>
-            <p className="text-foreground font-medium">{getCurrentSelection()}</p>
-          </div>
-          
-          <div className="bg-muted/30 rounded-lg p-4 mb-6">
-            <div className="flex items-center gap-2 mb-2">
-              <Users className="h-4 w-4 text-primary" />
-              <span className="text-sm font-medium text-foreground">View Type:</span>
-            </div>
-            <p className="text-muted-foreground text-sm">{description}</p>
-          </div>
-
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
-            <div className="flex items-center gap-2 mb-2">
-              <Users className="h-4 w-4 text-amber-600" />
-              <span className="text-sm font-medium text-amber-800">API Configuration</span>
-            </div>
-            <p className="text-amber-700 text-sm">
-              If you get a 404 error, please configure your API Base URL in Settings. 
-              For local development, use http://localhost:3000
-            </p>
-          </div>
-          
+          <p className="text-gray-600 dark:text-gray-400 mb-4">
+            Current Selection: {getCurrentSelection()}
+          </p>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">
+            View and manage attendance records
+          </p>
           <Button 
-            onClick={loadStudentAttendanceData} 
+            onClick={loadAttendanceData} 
             disabled={isLoading}
-            className="bg-primary hover:bg-primary/90"
+            className="bg-blue-600 hover:bg-blue-700"
           >
             {isLoading ? (
               <>
@@ -567,7 +422,7 @@ const Attendance = () => {
             ) : (
               <>
                 <RefreshCw className="h-4 w-4 mr-2" />
-                View Attendance
+                Load Attendance Data
               </>
             )}
           </Button>
@@ -581,21 +436,18 @@ const Attendance = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
             {title}
           </h1>
-          <div className="flex items-center gap-2 mt-2">
-            <MapPin className="h-4 w-4 text-muted-foreground" />
-            <p className="text-muted-foreground">
-              Current Selection: {getCurrentSelection()}
-            </p>
-          </div>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">
+            Current Selection: {getCurrentSelection()}
+          </p>
         </div>
         <Button 
-          onClick={loadStudentAttendanceData} 
+          onClick={loadAttendanceData} 
           disabled={isLoading}
           variant="outline"
-          className="shrink-0"
+          size="sm"
         >
           {isLoading ? (
             <>
@@ -605,80 +457,168 @@ const Attendance = () => {
           ) : (
             <>
               <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh Data
+              Refresh
             </>
           )}
         </Button>
       </div>
 
-      {/* Filters Section */}
-      <AttendanceFilters
-        filters={filters}
-        onFiltersChange={handleFiltersChange}
-        onApplyFilters={handleApplyFilters}
-        onClearFilters={handleClearFilters}
-      />
+      {/* Filters */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Filter className="h-5 w-5" />
+            Filters
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+              <Input
+                placeholder="Search records..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Status Filter */}
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger>
+                <SelectValue placeholder="All Statuses" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Statuses</SelectItem>
+                <SelectItem value="PRESENT">Present</SelectItem>
+                <SelectItem value="ABSENT">Absent</SelectItem>
+                <SelectItem value="LATE">Late</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Start Date */}
+            <Input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+            />
+
+            {/* End Date */}
+            <Input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+            />
+
+            {/* Sort Order */}
+            <Select value={sortOrder} onValueChange={setSortOrder}>
+              <SelectTrigger>
+                <SelectValue placeholder="Date" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="descending">Newest First</SelectItem>
+                <SelectItem value="ascending">Oldest First</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Records Summary */}
+      <div className="flex justify-between items-center">
+        <p className="text-sm text-gray-600 dark:text-gray-400">
+          Showing {filteredRecords.length} of {attendanceRecords.length} records
+        </p>
+      </div>
+
+      {/* Desktop Table View */}
+      <div className="hidden md:block">
         <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="p-2 bg-primary/10 rounded-lg">
-                <Users className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Total Students</p>
-                <p className="text-2xl font-bold text-foreground">{totalItems}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="p-2 bg-primary/10 rounded-lg">
-                <Calendar className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">View Type</p>
-                <p className="text-lg font-medium text-foreground capitalize">{viewType} Level</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="p-2 bg-primary/10 rounded-lg">
-                <Clock className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Current Page</p>
-                <p className="text-lg font-medium text-foreground">{currentPage} of {totalPages}</p>
-              </div>
-            </div>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Time</TableHead>
+                  <TableHead>Student ID</TableHead>
+                  <TableHead>Student Name</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Location</TableHead>
+                  <TableHead>Remarks</TableHead>
+                  <TableHead>Marked By</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredRecords.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={9} className="text-center py-12">
+                      <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                        No attendance records found
+                      </h3>
+                      <p className="text-gray-600 dark:text-gray-400">
+                        No attendance records are available for the current selection.
+                      </p>
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  filteredRecords.map((record, index) => (
+                    <TableRow key={index}>
+                      <TableCell>{new Date(record.date).toLocaleDateString()}</TableCell>
+                      <TableCell>{formatTime(record.date)}</TableCell>
+                      <TableCell className="font-medium">{record.studentId}</TableCell>
+                      <TableCell>{record.studentName || 'N/A'}</TableCell>
+                      <TableCell>
+                        <Badge className={getStatusColor(record.status)}>
+                          {record.status}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>{parseLocation(record.location) || 'Not specified'}</TableCell>
+                      <TableCell>{record.remarks || '-'}</TableCell>
+                      <TableCell>{record.markedBy}</TableCell>
+                      <TableCell>
+                        {getLocationCoordinates(record.location) && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleViewLocation(record.location)}
+                          >
+                            <MapPin className="h-4 w-4 mr-1" />
+                            View
+                          </Button>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
           </CardContent>
         </Card>
       </div>
 
-      {/* Data Table */}
-      <DataTable
-        title=""
-        data={viewType === 'student' ? childAttendanceRecords : studentAttendanceRecords}
-        columns={getColumns()}
-        allowAdd={false}
-        allowEdit={false}
-        allowDelete={false}
-        currentPage={currentPage}
-        totalItems={totalItems}
-        totalPages={totalPages}
-        onPageChange={handlePageChange}
-        onItemsPerPageChange={handleItemsPerPageChange}
-        itemsPerPage={itemsPerPage}
-      />
+      {/* Mobile Cards View */}
+      <div className="md:hidden">
+        {filteredRecords.length === 0 ? (
+          <Card>
+            <CardContent className="text-center py-12">
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+                No attendance records found
+              </h3>
+              <p className="text-gray-600 dark:text-gray-400">
+                No attendance records are available for the current selection.
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-4">
+            {filteredRecords.map((record, index) => (
+              <AttendanceCard key={index} record={record} />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

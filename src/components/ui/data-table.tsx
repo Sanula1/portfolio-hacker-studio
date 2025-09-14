@@ -1,7 +1,7 @@
 import React from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Search, Plus, Edit, Trash2, Eye, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Upload } from 'lucide-react';
+import { Search, Plus, Edit, Trash2, Eye, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -46,8 +46,6 @@ interface DataTableProps {
   totalPages?: number;
   onPageChange?: (page: number) => void;
   onItemsPerPageChange?: (itemsPerPage: number) => void;
-  // Section-specific props for InstituteAdmin
-  sectionType?: 'lectures' | 'homework' | 'exams';
 }
 
 const DataTable = ({
@@ -69,8 +67,7 @@ const DataTable = ({
   totalItems = 0,
   totalPages = 1,
   onPageChange,
-  onItemsPerPageChange,
-  sectionType
+  onItemsPerPageChange
 }: DataTableProps) => {
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = React.useState('');
@@ -92,21 +89,11 @@ const DataTable = ({
   const displayTotalPages = isServerSidePagination ? totalPages : clientTotalPages;
 
   // Simplified permission check - if onAdd is provided, show the button
-  const canAdd = allowAdd && onAdd && (user?.role === 'SUPER_ADMIN' || user?.role === 'INSTITUTE_ADMIN' || user?.role === 'Teacher' || !user?.role);
-  const canEdit = allowEdit && onEdit && (user?.role !== 'Student');
-  const canDelete = allowDelete && onDelete && (user?.role === 'SUPER_ADMIN' || user?.role === 'INSTITUTE_ADMIN' || user?.role === 'Teacher');
+  const canAdd = allowAdd && onAdd && (user?.role === 'SUPER_ADMIN' || user?.role === 'INSTITUTE_ADMIN' || !user?.role);
+  const canEdit = allowEdit && (user?.role !== 'STUDENT');
+  const canDelete = allowDelete && (user?.role === 'SUPER_ADMIN' || user?.role === 'INSTITUTE_ADMIN');
 
-  const hasActions = (canEdit && onEdit) || (canDelete && onDelete) || onView || onExport || customActions.length > 0;
-  
-  console.log('DataTable Debug:', {
-    userRole: user?.role,
-    allowEdit,
-    canEdit,
-    onEdit: !!onEdit,
-    onView: !!onView,
-    hasActions,
-    customActionsLength: customActions.length
-  });
+  const hasActions = canEdit || canDelete || onView || onExport || customActions.length > 0;
 
   const goToFirstPage = () => {
     if (onPageChange) {
@@ -183,8 +170,8 @@ const DataTable = ({
                     {column.header}
                   </th>
                 ))}
-                {(onEdit || onView || onDelete || onExport || customActions.length > 0) && (
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider min-w-[200px] border-l border-gray-200 dark:border-gray-600">
+                {hasActions && (
+                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider min-w-[150px] border-l border-gray-200 dark:border-gray-600">
                     Actions
                   </th>
                 )}
@@ -211,73 +198,67 @@ const DataTable = ({
                         </div>
                       </td>
                     ))}
-                    {(onEdit || onView || onDelete || onExport || customActions.length > 0) && (
-                      <td className="px-2 py-3 text-center min-w-[200px] border-l border-gray-200 dark:border-gray-700">
+                    {hasActions && (
+                      <td className="px-2 py-3 text-center min-w-[150px] border-l border-gray-200 dark:border-gray-700">
                         <div className="flex justify-center items-center gap-1 flex-wrap">
-                          {onEdit && user?.role === 'InstituteAdmin' && (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => onEdit(row)}
-                              title={sectionType === 'lectures' ? 'Edit Lectures' : sectionType === 'homework' ? 'Edit Homework' : 'Edit Exam'}
-                              className="h-8 px-3 text-xs mr-1"
-                            >
-                              <Edit className="h-3 w-3 mr-1" />
-                              {sectionType === 'lectures' ? 'Edit Lectures' : sectionType === 'homework' ? 'Edit Homework' : 'Edit Exam'}
-                            </Button>
-                          )}
-                          {onView && user?.role === 'InstituteAdmin' && sectionType !== 'lectures' && (
+                          {onView && (
                             <Button
                               variant="outline"
                               size="sm"
                               onClick={() => onView(row)}
-                              title={sectionType === 'homework' ? 'View Submissions' : 'View Results'}
-                              className="h-8 px-3 text-xs"
+                              title="View"
+                              className="h-8 w-8 p-0"
                             >
-                              <Eye className="h-3 w-3 mr-1" />
-                              {sectionType === 'homework' ? 'View Submissions' : 'View Results'}
+                              <Eye className="h-3 w-3" />
                             </Button>
                           )}
-                          {/* Student-specific actions */}
-                          {user?.role === 'Student' && sectionType === 'homework' && onEdit && (
+                          {canEdit && onEdit && (
                             <Button
                               variant="outline"
                               size="sm"
                               onClick={() => onEdit(row)}
-                              title="Submit"
-                              className="h-8 px-3 text-xs"
+                              title="Edit"
+                              className="h-8 w-8 p-0"
                             >
-                              <Upload className="h-3 w-3 mr-1" />
-                              Submit
+                              <Edit className="h-3 w-3" />
                             </Button>
                           )}
-                           {user?.role === 'Student' && sectionType === 'exams' && onView && (
+                          {onExport && (
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => onView(row)}
-                              title="View Results"
-                              className="h-8 px-3 text-xs"
+                              onClick={() => onExport(row)}
+                              title="Export"
+                              className="h-8 px-2 text-xs"
                             >
-                              <Eye className="h-3 w-3 mr-1" />
-                              View Results
+                              Export
                             </Button>
                           )}
-                          
-                          {/* Custom Actions */}
-                          {customActions.map((action, actionIndex) => (
+                          {customActions
+                            .filter(action => !action.condition || action.condition(row))
+                            .map((action, actionIndex) => (
                             <Button
                               key={actionIndex}
                               variant={action.variant || "outline"}
                               size="sm"
                               onClick={() => action.action(row)}
                               title={action.label}
-                              className="h-8 px-3 text-xs"
+                              className="h-8 px-2 text-xs"
                             >
-                              {action.icon && <span className="mr-1">{action.icon}</span>}
-                              {action.label}
+                              {action.icon || action.label}
                             </Button>
                           ))}
+                          {canDelete && onDelete && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => onDelete(row)}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-50 h-8 w-8 p-0"
+                              title="Delete"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </Button>
+                          )}
                         </div>
                       </td>
                     )}
@@ -286,7 +267,7 @@ const DataTable = ({
               ) : (
                 <tr>
                   <td 
-                    colSpan={columns.length + ((onEdit || onView || onDelete || onExport || customActions.length > 0) ? 1 : 0)} 
+                    colSpan={columns.length + (hasActions ? 1 : 0)} 
                     className="px-4 py-12 text-center text-gray-500 dark:text-gray-400"
                   >
                     <div className="flex flex-col items-center space-y-2">

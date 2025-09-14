@@ -48,7 +48,7 @@ const AssignSubjectToClassForm: React.FC<AssignSubjectToClassFormProps> = ({
   onSuccess,
   onCancel
 }) => {
-  const { currentInstituteId, user, selectedInstitute, selectedInstituteType } = useAuth();
+  const { currentInstituteId, user } = useAuth();
   const { toast } = useToast();
   
   const [selectedClassId, setSelectedClassId] = useState('');
@@ -91,11 +91,7 @@ const AssignSubjectToClassForm: React.FC<AssignSubjectToClassFormProps> = ({
       const baseUrl = getBaseUrl();
       const headers = getApiHeaders();
       
-      const params = new URLSearchParams({ npage: '1', limit: '10' });
-      if (selectedInstituteType) {
-        params.set('instituteType', selectedInstituteType);
-      }
-      const url = `${baseUrl}/subjects?${params.toString()}`;
+      const url = `${baseUrl}/subjects`;
       const response = await fetch(url, {
         method: 'GET',
         headers
@@ -134,45 +130,18 @@ const AssignSubjectToClassForm: React.FC<AssignSubjectToClassFormProps> = ({
       const baseUrl = getBaseUrl();
       const headers = getApiHeaders();
       
-      let url: string;
-      let classData: any[] = [];
+      const url = `${baseUrl}/institute-classes?instituteId=${currentInstituteId}`;
+      const response = await fetch(url, {
+        method: 'GET',
+        headers
+      });
       
-      // Use teacher-specific API for Teachers only
-      if (user?.role === 'Teacher' && user?.id) {
-        url = `${baseUrl}/institute-class-subjects/institute/${currentInstituteId}/teacher/${user.id}?page=1&limit=10`;
-        const response = await fetch(url, {
-          method: 'GET',
-          headers
-        });
-        
-        if (!response.ok) {
-          throw new Error(`Failed to fetch teacher classes: ${response.status}`);
-        }
-        
-        const result = await response.json();
-        // Extract unique classes from teacher's class-subject assignments
-        const uniqueClasses = new Map();
-        result.forEach((item: any) => {
-          if (item.class && !uniqueClasses.has(item.class.id)) {
-            uniqueClasses.set(item.class.id, item.class);
-          }
-        });
-        classData = Array.from(uniqueClasses.values());
-      } else {
-        // Use regular API for other roles
-        url = `${baseUrl}/institute-classes?instituteId=${currentInstituteId}`;
-        const response = await fetch(url, {
-          method: 'GET',
-          headers
-        });
-        
-        if (!response.ok) {
-          throw new Error(`Failed to fetch classes: ${response.status}`);
-        }
-        
-        const result = await response.json();
-        classData = result.data || [];
+      if (!response.ok) {
+        throw new Error(`Failed to fetch classes: ${response.status}`);
       }
+      
+      const result = await response.json();
+      const classData = result.data || [];
       
       const mappedClasses = classData.map((cls: any) => ({
         id: cls.id,

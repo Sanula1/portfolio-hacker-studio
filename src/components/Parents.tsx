@@ -1,352 +1,411 @@
 import React, { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { 
   Users, 
+  Plus, 
   RefreshCw, 
-  Search, 
-  Plus,
+  Edit, 
+  Trash2, 
+  Phone, 
+  Mail, 
+  MapPin, 
+  Calendar,
   AlertTriangle,
-  User,
-  MapPin,
-  Phone
+  UserPlus,
+  Search,
+  Baby
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { AccessControl } from '@/utils/permissions';
 import { type UserRole } from '@/contexts/types/auth.types';
 import { useToast } from '@/hooks/use-toast';
-import { parentsApi, type InstituteParent, type InstituteParentsResponse } from '@/api/parents.api';
-import { useApiRequest } from '@/hooks/useApiRequest';
+import { cachedApiClient } from '@/api/cachedClient';
 import CreateParentForm from '@/components/forms/CreateParentForm';
+import AssignParentForm from '@/components/forms/AssignParentForm';
+
+interface Parent {
+  id: string;
+  userId: string;
+  emergencyContact: string;
+  occupation: string;
+  workAddress: string;
+  user: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    phone: string;
+    dateOfBirth: string;
+    gender: string;
+    addressLine1: string;
+    addressLine2: string;
+    city: string;
+    district: string;
+    province: string;
+    postalCode: string;
+    country: string;
+    imageUrl: string;
+    isActive: boolean;
+  };
+  children?: Child[];
+}
+
+interface Child {
+  id: string;
+  userId: string;
+  studentId: string;
+  emergencyContact: string;
+  medicalConditions: string;
+  allergies: string;
+  bloodGroup: string;
+  user: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    email: string;
+    imageUrl: string;
+    dateOfBirth: string;
+    gender: string;
+    userType: string;
+  };
+}
 
 const Parents = () => {
-  const { user, selectedInstitute } = useAuth();
+  const { user, currentInstituteId } = useAuth();
   const { toast } = useToast();
-  const [parents, setParents] = useState<InstituteParent[]>([]);
-  const [filteredParents, setFilteredParents] = useState<InstituteParent[]>([]);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [parents, setParents] = useState<Parent[]>([]);
+  const [filteredParents, setFilteredParents] = useState<Parent[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [meta, setMeta] = useState({
-    total: 0,
-    page: 1,
-    limit: 10,
-    totalPages: 0
-  });
+  const [showAssignDialog, setShowAssignDialog] = useState(false);
+  const [selectedParent, setSelectedParent] = useState<Parent | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
 
   const userRole = (user?.role || 'Student') as UserRole;
-  const canViewParents = userRole === 'InstituteAdmin';
-  const canCreateParents = userRole === 'InstituteAdmin';
+  const canEdit = AccessControl.hasPermission(userRole, 'edit-parent');
+  const canDelete = AccessControl.hasPermission(userRole, 'delete-parent');
+  const canCreate = userRole === 'InstituteAdmin';
 
-  // API request hook
-  const { 
-    execute: fetchInstituteParents, 
-    loading 
-  } = useApiRequest(parentsApi.getInstituteParents);
+  const getApiHeaders = () => {
+    const token = localStorage.getItem('access_token');
+    return {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${token}`,
+      'ngrok-skip-browser-warning': 'true'
+    };
+  };
 
   const loadParents = async () => {
-    if (!selectedInstitute) {
-      toast({
-        title: "Selection Required",
-        description: "Please select an institute",
-        variant: "destructive",
-      });
+    if (!currentInstituteId) {
+      setError('Please select an institute first');
       return;
     }
 
+    setLoading(true);
+    setError(null);
+
     try {
-      console.log('Fetching parents for institute:', selectedInstitute.id);
-      const response: InstituteParentsResponse = await fetchInstituteParents(selectedInstitute.id);
-      console.log('API Response:', response);
-      console.log('Parents data:', response.data);
-      console.log('Meta data:', response.meta);
+      console.log('Loading parents for institute:', currentInstituteId);
+      
+      const data = await cachedApiClient.get<Parent[]>(
+        `/institutes/${currentInstituteId}/parents`,
+        {
+          headers: getApiHeaders()
+        },
+        {
+          ttl: 30,
+          forceRefresh: false
+        }
+      );
 
-      setParents(response.data || []);
-      setFilteredParents(response.data || []);
-      // Add fallback for meta to prevent undefined errors
-      setMeta(response.meta || { total: 0, page: 1, limit: 10, totalPages: 0 });
-
-      console.log('State updated - parents:', response.data?.length || 0);
-
-      toast({
-        title: "Success",
-        description: `Loaded ${response.data?.length || 0} parents`,
-      });
-    } catch (error) {
-      console.error('Error loading parents:', error);
+      console.log('Parents loaded successfully:', data);
+      setParents(data || []);
+      setFilteredParents(data || []);
+    } catch (err) {
+      console.error('Error loading parents:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load parents';
+      setError(errorMessage);
       toast({
         title: "Error",
-        description: "Failed to load parents",
+        description: `Failed to load parents: ${errorMessage}`,
         variant: "destructive",
       });
+    } finally {
+      setLoading(false);
     }
   };
 
-  // Remove useEffect - only load data on button click
+  useEffect(() => {
+    loadParents();
+  }, [currentInstituteId]);
 
   const handleSearch = (term: string) => {
-    const trimmed = term.trim();
-    setSearchTerm(trimmed);
-    if (trimmed) {
+    setSearchTerm(term);
+    if (term) {
       const filtered = parents.filter(parent =>
-        parent.name.toLowerCase().includes(trimmed.toLowerCase()) ||
-        (parent.addressLine2?.toLowerCase().includes(trimmed.toLowerCase()))
+        parent.user.firstName.toLowerCase().includes(term.toLowerCase()) ||
+        parent.user.lastName.toLowerCase().includes(term.toLowerCase()) ||
+        parent.user.email.toLowerCase().includes(term.toLowerCase()) ||
+        parent.user.phone.includes(term)
       );
       setFilteredParents(filtered);
     } else {
       setFilteredParents(parents);
     }
   };
+
+  const handleDelete = async (parentId: string) => {
+    if (!currentInstituteId) {
+      setError('Please select an institute first');
+      return;
+    }
+
+    if (!window.confirm('Are you sure you want to delete this parent?')) {
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      await cachedApiClient.delete(`/institutes/${currentInstituteId}/parents/${parentId}`);
+
+      setParents(prev => prev.filter(parent => parent.id !== parentId));
+      setFilteredParents(prev => prev.filter(parent => parent.id !== parentId));
+      toast({
+        title: "Success",
+        description: "Parent deleted successfully",
+      });
+    } catch (err) {
+      console.error('Error deleting parent:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to delete parent';
+      setError(errorMessage);
+      toast({
+        title: "Error",
+        description: `Failed to delete parent: ${errorMessage}`,
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleCreateParentSubmit = (data: any) => {
+    // Add the parent to the local state
+    const newParent = {
+      id: Date.now().toString(), // Temporary ID
+      userId: data.user?.id || Date.now().toString(),
+      emergencyContact: data.emergencyContact || '',
+      occupation: data.occupation || '',
+      workAddress: data.workAddress || '',
+      user: {
+        id: data.user?.id || Date.now().toString(),
+        firstName: data.user?.firstName || '',
+        lastName: data.user?.lastName || '',
+        email: data.user?.email || '',
+        phone: data.user?.phone || '',
+        dateOfBirth: data.user?.dateOfBirth || '',
+        gender: data.user?.gender || '',
+        addressLine1: data.user?.addressLine1 || '',
+        addressLine2: data.user?.addressLine2 || '',
+        city: data.user?.city || '',
+        district: data.user?.district || '',
+        province: data.user?.province || '',
+        postalCode: data.user?.postalCode || '',
+        country: data.user?.country || '',
+        imageUrl: data.user?.imageUrl || '',
+        isActive: data.user?.isActive ?? true,
+      }
+    };
+
+    setParents(prev => [...prev, newParent]);
+    setFilteredParents(prev => [...prev, newParent]);
+    setShowCreateDialog(false);
     toast({
       title: "Success",
       description: "Parent created successfully",
     });
-    setShowCreateDialog(false);
-    loadParents(); // Refresh the list
   };
 
-  // Access control check
-  if (!canViewParents) {
-    return (
-      <div className="flex flex-col items-center justify-center h-64 text-center">
-        <AlertTriangle className="w-16 h-16 text-destructive mb-4" />
-        <h3 className="text-lg font-semibold mb-2">Access Denied</h3>
-        <p className="text-muted-foreground">
-          You don't have permission to view parents. Only Institute Admins can access this section.
-        </p>
-      </div>
-    );
-  }
-
-  // Selection requirement check
-  if (!selectedInstitute) {
-    return (
-      <div className="flex flex-col items-center justify-center h-64 text-center">
-        <Users className="w-16 h-16 text-muted-foreground mb-4" />
-        <h3 className="text-lg font-semibold mb-2">Selection Required</h3>
-        <p className="text-muted-foreground">
-          Please select an institute to view parents.
-        </p>
-      </div>
-    );
-  }
+  const handleAssignParentSubmit = (data: any) => {
+    loadParents();
+    setShowAssignDialog(false);
+    toast({
+      title: "Success",
+      description: "Parent assigned successfully",
+    });
+  };
 
   return (
-    <div className="container mx-auto p-4 md:p-6 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-        <div className="space-y-1">
-          <h1 className="text-2xl md:text-3xl font-bold flex items-center gap-2">
-            <Users className="w-6 h-6 md:w-8 md:h-8" />
-            Institute Parents
-          </h1>
-          <div className="text-sm md:text-base text-muted-foreground">
-            <p>Institute: <span className="font-medium">{selectedInstitute.name}</span></p>
+    <div className="container mx-auto p-6">
+      <div className="flex flex-col space-y-6">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+              <Users className="w-8 h-8" />
+              Parents Management
+            </h1>
+            <p className="text-gray-600 dark:text-gray-400 mt-1">
+              Manage parent information and their children
+            </p>
           </div>
-        </div>
-        
-        <div className="flex flex-col sm:flex-row gap-2 w-full lg:w-auto">
-          <Button
-            onClick={loadParents}
-            disabled={loading}
-            variant="outline"
-            size="sm"
-            className="w-full sm:w-auto"
-          >
-            <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-            Refresh
-          </Button>
           
-          {canCreateParents && (
-            <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-              <DialogTrigger asChild>
-                <Button size="sm" className="w-full sm:w-auto">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Create Parent
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle>Create New Parent</DialogTitle>
-                  <DialogDescription>
-                    Add a new parent to the institute
-                  </DialogDescription>
-                </DialogHeader>
-                <CreateParentForm 
-                  onSubmit={handleCreateParentSubmit}
-                  onCancel={() => setShowCreateDialog(false)}
-                />
-              </DialogContent>
-            </Dialog>
-          )}
-        </div>
-      </div>
+          <div className="flex gap-2">
+            <Button
+              onClick={loadParents}
+              disabled={loading || !currentInstituteId}
+              variant="outline"
+              size="sm"
+            >
+              <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+            
+            {canCreate && (
+              <>
+                <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
+                  <DialogTrigger asChild>
+                    <Button size="sm">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Create Parent
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle>Create New Parent</DialogTitle>
+                      <DialogDescription>
+                        Add a new parent to the system
+                      </DialogDescription>
+                    </DialogHeader>
+                    <CreateParentForm 
+                      onSubmit={handleCreateParentSubmit}
+                      onCancel={() => setShowCreateDialog(false)}
+                    />
+                  </DialogContent>
+                </Dialog>
 
-      {/* Search Bar */}
-      <div className="relative max-w-md">
-        <Input
-          type="text"
-          placeholder="Search parents..."
-          value={searchTerm}
-          onChange={(e) => handleSearch(e.target.value)}
-          className="pl-10"
-        />
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-      </div>
-
-      {/* Stats Card */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base md:text-lg">Parent Statistics</CardTitle>
-        </CardHeader>
-        <CardContent className="pt-0">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-            <div>
-              <div className="text-xl md:text-2xl font-bold">{meta?.total || 0}</div>
-              <div className="text-xs md:text-sm text-muted-foreground">Total Parents</div>
-            </div>
-            <div>
-              <div className="text-xl md:text-2xl font-bold">{filteredParents.length}</div>
-              <div className="text-xs md:text-sm text-muted-foreground">Filtered Results</div>
-            </div>
-            <div>
-              <div className="text-xl md:text-2xl font-bold">{meta?.page || 1}</div>
-              <div className="text-xs md:text-sm text-muted-foreground">Current Page</div>
-            </div>
-            <div>
-              <div className="text-xl md:text-2xl font-bold">{meta?.totalPages || 0}</div>
-              <div className="text-xs md:text-sm text-muted-foreground">Total Pages</div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Loading State */}
-      {loading && (
-        <div className="flex justify-center items-center py-8">
-          <RefreshCw className="w-6 h-6 animate-spin mr-2" />
-          <span>Loading parents...</span>
-        </div>
-      )}
-
-      {/* Parents Table */}
-      {!loading && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base md:text-lg">
-              Parents List ({filteredParents.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="mb-4">
-              <p className="text-sm text-muted-foreground">
-                Debug: {parents.length} parents loaded, {filteredParents.length} filtered
-              </p>
-            </div>
-            {filteredParents.length > 0 ? (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-12"></TableHead>
-                      <TableHead className="min-w-[120px]">ID</TableHead>
-                      <TableHead className="min-w-[150px]">Name</TableHead>
-                      <TableHead className="min-w-[140px] hidden sm:table-cell">Phone</TableHead>
-                      <TableHead className="min-w-[200px] hidden md:table-cell">Address</TableHead>
-                      <TableHead className="min-w-[120px] hidden lg:table-cell">Institute ID</TableHead>
-                      <TableHead className="w-20 text-center">Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredParents.map((parent) => (
-                      <TableRow key={parent.id}>
-                        <TableCell>
-                          <Avatar className="h-8 w-8 md:h-10 md:w-10">
-                            <AvatarImage 
-                              src={parent.imageUrl} 
-                              alt={parent.name}
-                            />
-                            <AvatarFallback>
-                              <User className="h-4 w-4" />
-                            </AvatarFallback>
-                          </Avatar>
-                        </TableCell>
-                        <TableCell>
-                          <div className="font-medium text-sm">
-                            {parent.id}
-                          </div>
-                        </TableCell>
-                         <TableCell>
-                           <div className="space-y-1">
-                             <div className="font-medium text-sm md:text-base">
-                               {parent.name}
-                             </div>
-                             <div className="sm:hidden text-xs text-muted-foreground space-y-1">
-                               {parent.phoneNumber && (
-                                 <div className="flex items-center gap-1">
-                                   <Phone className="h-3 w-3" />
-                                   {parent.phoneNumber}
-                                 </div>
-                               )}
-                               {parent.addressLine2 && (
-                                 <div className="flex items-center gap-1">
-                                   <MapPin className="h-3 w-3" />
-                                   {parent.addressLine2}
-                                 </div>
-                               )}
-                             </div>
-                           </div>
-                         </TableCell>
-                         <TableCell className="hidden sm:table-cell">
-                           <div className="text-sm flex items-center gap-2">
-                             <Phone className="h-4 w-4 text-muted-foreground" />
-                             {parent.phoneNumber || 'Not specified'}
-                           </div>
-                         </TableCell>
-                        <TableCell className="hidden md:table-cell">
-                          <div className="text-sm flex items-center gap-2">
-                            <MapPin className="h-4 w-4 text-muted-foreground" />
-                            {parent.addressLine2 || 'Not specified'}
-                          </div>
-                        </TableCell>
-                        <TableCell className="hidden lg:table-cell">
-                          <div className="text-sm">
-                            {parent.userIdByInstitute || 'Not assigned'}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Badge 
-                            variant={parent.verifiedBy ? "default" : "secondary"}
-                            className="text-xs"
-                          >
-                            {parent.verifiedBy ? 'Verified' : 'Unverified'}
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No Parents Found</h3>
-                <p className="text-muted-foreground">
-                  {searchTerm 
-                    ? `No parents match "${searchTerm}"`
-                    : 'No parents found for this institute'
-                  }
-                </p>
-              </div>
+                <Dialog open={showAssignDialog} onOpenChange={setShowAssignDialog}>
+                  <DialogTrigger asChild>
+                    <Button size="sm" variant="outline">
+                      <UserPlus className="w-4 h-4 mr-2" />
+                      Assign Parent
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                      <DialogTitle>Assign Parent to Child</DialogTitle>
+                      <DialogDescription>
+                        Link an existing parent to a student
+                      </DialogDescription>
+                    </DialogHeader>
+                    <AssignParentForm 
+                      onSubmit={handleAssignParentSubmit}
+                      onCancel={() => setShowAssignDialog(false)}
+                    />
+                  </DialogContent>
+                </Dialog>
+              </>
             )}
-          </CardContent>
-        </Card>
-      )}
+          </div>
+        </div>
+
+        {/* Search Bar */}
+        <div className="relative">
+          <Input
+            type="text"
+            placeholder="Search parents..."
+            value={searchTerm}
+            onChange={(e) => handleSearch(e.target.value)}
+            className="pl-10"
+          />
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-500" />
+        </div>
+
+        {/* Error Handling */}
+        {error && (
+          <div className="rounded-md border border-red-500 bg-red-50 p-4 text-red-700">
+            <AlertTriangle className="mr-2 h-5 w-5 inline-block align-middle" />
+            <strong className="font-bold">Error:</strong> {error}
+          </div>
+        )}
+
+        {/* Loading State */}
+        {loading && (
+          <div className="text-center">
+            Loading parents...
+          </div>
+        )}
+
+        {/* Content Display */}
+        {!loading && !error && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredParents.map(parent => (
+              <Card key={parent.id} className="bg-white dark:bg-gray-800 shadow-md rounded-md overflow-hidden">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">{parent.user.firstName} {parent.user.lastName}</CardTitle>
+                  <div className="flex gap-2">
+                    {canEdit && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => {
+                          setSelectedParent(parent);
+                          setShowCreateDialog(true);
+                        }}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                    )}
+                    {canDelete && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDelete(parent.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-1 text-sm">
+                    <p className="text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                      <Mail className="h-4 w-4" />
+                      {parent.user.email}
+                    </p>
+                    <p className="text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                      <Phone className="h-4 w-4" />
+                      {parent.user.phone}
+                    </p>
+                    <p className="text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                      <MapPin className="h-4 w-4" />
+                      {parent.user.addressLine1}, {parent.user.city}, {parent.user.country}
+                    </p>
+                    <p className="text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                      <Calendar className="h-4 w-4" />
+                      {new Date(parent.user.dateOfBirth).toLocaleDateString()}
+                    </p>
+                    <p className="text-gray-500 dark:text-gray-400 flex items-center gap-2">
+                      <Baby className="h-4 w-4" />
+                      {parent.emergencyContact}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

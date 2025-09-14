@@ -22,8 +22,8 @@ const AttendanceMarking = ({ onNavigate }: AttendanceMarkingProps) => {
   const { selectedInstitute, selectedSubject, user } = useAuth();
   const [selectedMethod, setSelectedMethod] = useState<string | null>(null);
 
-  // Check if user has permission to mark attendance - Institute Admin only
-  const hasPermission = user?.userType === 'INSTITUTE_ADMIN';
+  // Check if user has permission to mark attendance - now includes Teacher role
+  const hasPermission = user?.role === 'InstituteAdmin' || user?.role === 'AttendanceMarker' || user?.role === 'Teacher';
 
   const attendanceMethods = [
     {
@@ -106,7 +106,7 @@ const AttendanceMarking = ({ onNavigate }: AttendanceMarkingProps) => {
             Mark Attendance
           </h1>
           <p className="text-red-600 dark:text-red-400">
-            Access Denied: This feature is only available for Institute Admins.
+            Access Denied: This feature is only available for Institute Admins, Teachers, and Attendance Markers.
           </p>
         </div>
 
@@ -116,7 +116,7 @@ const AttendanceMarking = ({ onNavigate }: AttendanceMarkingProps) => {
               Insufficient Permissions
             </h3>
             <p className="text-red-600 dark:text-red-400">
-              You need to be an Institute Admin to access attendance marking features.
+              You need to be an Institute Admin, Teacher, or Attendance Marker to access attendance marking features.
             </p>
           </CardContent>
         </Card>

@@ -33,7 +33,6 @@ export interface Institute {
   name: string;
   code: string;
   description: string;
-  type?: string;
   isActive: boolean;
 }
 
@@ -51,15 +50,6 @@ export interface Subject {
   name: string;
   code: string;
   description: string;
-  category?: string;
-  creditHours?: number;
-  isActive?: boolean;
-  subjectType?: string;
-  basketCategory?: string;
-  instituteType?: string;
-  imgUrl?: string;
-  createdAt?: string;
-  updatedAt?: string;
 }
 
 export interface Child {
@@ -82,20 +72,6 @@ export interface Child {
   };
 }
 
-export interface Organization {
-  id: string;
-  name: string;
-  code: string;
-  description?: string;
-  address?: string;
-  phone?: string;
-  email?: string;
-  isActive: boolean;
-  createdAt: string;
-  updatedAt: string;
-  userRole?: string; // User's role in this organization
-}
-
 export interface LoginCredentials {
   email: string;
   password?: string;
@@ -107,21 +83,20 @@ export interface AuthContextType {
   selectedClass: Class | null;
   selectedSubject: Subject | null;
   selectedChild: Child | null;
-  selectedOrganization: Organization | null;
-  selectedInstituteType: string | null;
-  selectedClassGrade: number | null;
   currentInstituteId: string | null;
   currentClassId: string | null;
   currentSubjectId: string | null;
   currentChildId: string | null;
-  currentOrganizationId: string | null;
+  isOrganizationLoggedIn: boolean;
+  organizationUser: any | null;
   login: (credentials: LoginCredentials) => Promise<void>;
   logout: () => void;
   setSelectedInstitute: (institute: Institute | null) => void;
   setSelectedClass: (classData: Class | null) => void;
   setSelectedSubject: (subject: Subject | null) => void;
   setSelectedChild: (child: Child | null) => void;
-  setSelectedOrganization: (organization: Organization | null) => void;
+  setOrganizationUser: (orgUser: any) => void;
+  clearOrganizationLogin: () => void;
   loadUserInstitutes: () => Promise<Institute[]>;
   refreshUserData?: (forceRefresh?: boolean) => Promise<void>;
   validateUserToken?: () => Promise<void>;

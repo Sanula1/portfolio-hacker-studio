@@ -21,10 +21,7 @@ const subjectSchema = z.object({
   category: z.string().min(1, 'Category is required'),
   creditHours: z.number().min(1, 'Credit hours must be at least 1'),
   basketCategory: z.string().min(1, 'Basket category is required'),
-  subjectType: z.string().min(1, 'Subject type is required'),
-  instituteType: z.string().min(1, 'Institute type is required'),
-  isActive: z.boolean().default(true),
-  image: z.any().optional()
+  isActive: z.boolean().default(true)
 });
 
 type SubjectFormData = z.infer<typeof subjectSchema>;
@@ -38,7 +35,6 @@ interface CreateSubjectFormProps {
 const CreateSubjectForm = ({ onSubmit, onCancel, initialData }: CreateSubjectFormProps) => {
   const isEditing = !!initialData;
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const { selectedInstitute, currentInstituteId, user } = useAuth();
   
   // Check if user has permission (only SuperAdmin and InstituteAdmin)
@@ -54,8 +50,6 @@ const CreateSubjectForm = ({ onSubmit, onCancel, initialData }: CreateSubjectFor
       category: initialData?.category || '',
       creditHours: initialData?.creditHours || 1,
       basketCategory: initialData?.basketCategory || 'COMMON',
-      subjectType: initialData?.subjectType || 'MAIN',
-      instituteType: initialData?.instituteType || 'school',
       isActive: initialData?.isActive ?? true
     }
   });
@@ -82,13 +76,6 @@ const CreateSubjectForm = ({ onSubmit, onCancel, initialData }: CreateSubjectFor
     return headers;
   };
 
-  const handleImageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setSelectedImage(file);
-    }
-  };
-
   const handleSubmit = async (data: SubjectFormData) => {
     if (!selectedInstitute || !currentInstituteId) {
       toast.error('Please select an institute first');
@@ -103,36 +90,22 @@ const CreateSubjectForm = ({ onSubmit, onCancel, initialData }: CreateSubjectFor
     setIsLoading(true);
     
     try {
-      if (!isEditing) {
-        // Use direct API call for creating subjects with FormData for image upload
-        const baseUrl = getBaseUrl();
-        const token = getAuthToken();
-        
-        const formData = new FormData();
-        formData.append('code', data.code);
-        formData.append('name', data.name);
-        formData.append('description', data.description);
-        formData.append('category', data.category);
-        formData.append('creditHours', data.creditHours.toString());
-        formData.append('isActive', data.isActive.toString());
-        formData.append('subjectType', data.subjectType);
-        formData.append('instituteType', data.instituteType);
-        formData.append('instituteId', currentInstituteId);
-        formData.append('basketCategory', data.basketCategory);
-        
-        if (selectedImage) {
-          formData.append('image', selectedImage);
-        }
+      const requestBody = {
+        ...data,
+        instituteId: currentInstituteId
+      };
 
-        console.log('Submitting subject data with FormData');
+      console.log('Submitting subject data:', requestBody);
+      
+      if (!isEditing) {
+        // Use direct API call for creating subjects
+        const baseUrl = getBaseUrl();
+        const headers = getApiHeaders();
         
         const response = await fetch(`${baseUrl}/subjects`, {
           method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'ngrok-skip-browser-warning': 'true'
-          },
-          body: formData
+          headers,
+          body: JSON.stringify(requestBody)
         });
         
         if (!response.ok) {
@@ -268,53 +241,6 @@ const CreateSubjectForm = ({ onSubmit, onCancel, initialData }: CreateSubjectFor
               
               <FormField
                 control={form.control}
-                name="subjectType"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Subject Type</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select subject type" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="MAIN">Main Subject</SelectItem>
-                        <SelectItem value="OPTIONAL">Optional Subject</SelectItem>
-                        <SelectItem value="EXTRA">Extra Curricular</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="instituteType"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Institute Type</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select institute type" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="school">School</SelectItem>
-                        <SelectItem value="university">University</SelectItem>
-                        <SelectItem value="college">College</SelectItem>
-                        <SelectItem value="institute">Institute</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
                 name="creditHours"
                 render={({ field }) => (
                   <FormItem>
@@ -346,21 +272,6 @@ const CreateSubjectForm = ({ onSubmit, onCancel, initialData }: CreateSubjectFor
                 </FormItem>
               )}
             />
-            
-            <div className="space-y-2">
-              <FormLabel>Subject Image (Optional)</FormLabel>
-              <Input
-                type="file"
-                accept="image/*"
-                onChange={handleImageChange}
-                className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
-              />
-              {selectedImage && (
-                <p className="text-sm text-muted-foreground">
-                  Selected: {selectedImage.name}
-                </p>
-              )}
-            </div>
             
             <FormField
               control={form.control}

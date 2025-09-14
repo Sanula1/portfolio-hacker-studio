@@ -21,7 +21,6 @@ export interface ParentCreateData {
     country?: string;
     imageUrl?: string;
     isActive?: boolean;
-    userType: string; // Add missing userType field
   };
   occupation: string;
   workplace?: string;
@@ -55,49 +54,9 @@ export interface Parent {
   };
 }
 
-export interface InstituteParent {
-  id: string;
-  name: string;
-  addressLine1?: string;
-  addressLine2?: string;
-  phoneNumber?: string;
-  imageUrl?: string;
-  dateOfBirth?: string;
-  userIdByInstitute: string | null;
-  verifiedBy: string | null;
-}
-
-export interface InstituteParentsResponse {
-  data: InstituteParent[];
-  meta: {
-    total: number;
-    page: number;
-    limit: number;
-    totalPages: number;
-  };
-}
-
-export interface ParentsResponse {
-  data: Parent[];
-  meta: {
-    total: number;
-    page: number;
-    limit: number;
-    totalPages: number;
-  };
-}
-
 export const parentsApi = {
   create: async (data: ParentCreateData): Promise<Parent> => {
     const response = await apiClient.post('/parents', data);
     return response.data;
-  },
-  
-  getInstituteParents: async (instituteId: string): Promise<InstituteParentsResponse> => {
-    const response = await apiClient.get(`/institute-users/institute/${instituteId}/users/PARENT`);
-    console.log('Raw response from API client:', response);
-    // Return the response directly since apiClient.handleResponse already parses the JSON
-    return response;
-  },
-  
+  }
 };

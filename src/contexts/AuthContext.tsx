@@ -6,7 +6,6 @@ import {
   Class, 
   Subject, 
   Child, 
-  Organization,
   LoginCredentials, 
   AuthContextType 
 } from './types/auth.types';
@@ -36,17 +35,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [selectedClass, setSelectedClassState] = useState<Class | null>(null);
   const [selectedSubject, setSelectedSubjectState] = useState<Subject | null>(null);
   const [selectedChild, setSelectedChildState] = useState<Child | null>(null);
-  const [selectedOrganization, setSelectedOrganizationState] = useState<Organization | null>(null);
-  const [selectedInstituteType, setSelectedInstituteType] = useState<string | null>(null);
-  const [selectedClassGrade, setSelectedClassGrade] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [isOrganizationLoggedIn, setIsOrganizationLoggedIn] = useState(false);
+  const [organizationUser, setOrganizationUserState] = useState<any | null>(null);
 
   // Public variables for current IDs - no localStorage sync
   const [currentInstituteId, setCurrentInstituteId] = useState<string | null>(null);
   const [currentClassId, setCurrentClassId] = useState<string | null>(null);
   const [currentSubjectId, setCurrentSubjectId] = useState<string | null>(null);
   const [currentChildId, setCurrentChildId] = useState<string | null>(null);
-  const [currentOrganizationId, setCurrentOrganizationId] = useState<string | null>(null);
 
   const fetchUserInstitutes = async (userId: string, forceRefresh = false): Promise<Institute[]> => {
     try {
@@ -73,8 +70,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         name: institute.name || 'Unknown Institute',
         code: institute.code || '',
         description: `${institute.address || ''}, ${institute.city || ''}`.trim() || 'No description available',
-        isActive: institute.isActive !== undefined ? institute.isActive : true,
-        type: institute.type
+        isActive: institute.isActive !== undefined ? institute.isActive : true
       }));
 
       console.log('Mapped institutes:', institutes);
@@ -146,15 +142,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setSelectedClassState(null);
     setSelectedSubjectState(null);
     setSelectedChildState(null);
-    setSelectedOrganizationState(null);
-    setSelectedInstituteType(null);
-    setSelectedClassGrade(null);
     
     setCurrentInstituteId(null);
     setCurrentClassId(null);
     setCurrentSubjectId(null);
     setCurrentChildId(null);
-    setCurrentOrganizationId(null);
+    
+    // Clear organization state
+    clearOrganizationLogin();
     
     // Clear all cache and pending requests
     apiCache.clearAllCache();
@@ -166,12 +161,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const setSelectedInstitute = (institute: Institute | null) => {
     setSelectedInstituteState(institute);
     setCurrentInstituteId(institute?.id || null);
-    setSelectedInstituteType(institute?.type || null);
     
     // Clear dependent selections
     setSelectedClassState(null);
     setSelectedSubjectState(null);
-    setSelectedClassGrade(null);
     setCurrentClassId(null);
     setCurrentSubjectId(null);
   };
@@ -179,7 +172,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const setSelectedClass = (classData: Class | null) => {
     setSelectedClassState(classData);
     setCurrentClassId(classData?.id || null);
-    setSelectedClassGrade(classData?.grade ?? null);
     
     // Clear dependent selections
     setSelectedSubjectState(null);
@@ -196,9 +188,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setCurrentChildId(child?.id || null);
   };
 
-  const setSelectedOrganization = (organization: Organization | null) => {
-    setSelectedOrganizationState(organization);
-    setCurrentOrganizationId(organization?.id || null);
+  const setOrganizationUser = (orgUser: any) => {
+    setOrganizationUserState(orgUser);
+    setIsOrganizationLoggedIn(true);
+  };
+
+  const clearOrganizationLogin = () => {
+    setOrganizationUserState(null);
+    setIsOrganizationLoggedIn(false);
+    localStorage.removeItem('org_access_token');
+    localStorage.removeItem('org_refresh_token');
   };
 
   // Method to refresh user data from backend - only called manually
@@ -249,21 +248,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     selectedClass,
     selectedSubject,
     selectedChild,
-    selectedOrganization,
-    selectedInstituteType,
-    selectedClassGrade,
     currentInstituteId,
     currentClassId,
     currentSubjectId,
     currentChildId,
-    currentOrganizationId,
+    isOrganizationLoggedIn,
+    organizationUser,
     login,
     logout,
     setSelectedInstitute,
     setSelectedClass,
     setSelectedSubject,
     setSelectedChild,
-    setSelectedOrganization,
+    setOrganizationUser,
+    clearOrganizationLogin,
     loadUserInstitutes,
     refreshUserData,
     validateUserToken,

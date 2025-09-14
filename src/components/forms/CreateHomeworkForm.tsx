@@ -18,25 +18,6 @@ const CreateHomeworkForm = ({ onClose, onSuccess }: CreateHomeworkFormProps) => 
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
 
-  // Check if user has permission to create homework - InstituteAdmin and Teachers
-  const canCreate = user?.role === 'InstituteAdmin' || user?.role === 'Teacher';
-
-  // Handle access denial in useEffect to avoid side effects during render
-  React.useEffect(() => {
-    if (!canCreate) {
-      toast({
-        title: "Access Denied",
-        description: "You don't have permission to create homework. This feature is only available for Institute Admins and Teachers.",
-        variant: "destructive"
-      });
-      onClose();
-    }
-  }, [canCreate]);
-
-  if (!canCreate) {
-    return null;
-  }
-
   const [formData, setFormData] = useState({
     title: '',
     description: '',

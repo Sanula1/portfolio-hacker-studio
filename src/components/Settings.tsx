@@ -5,11 +5,9 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Separator } from '@/components/ui/separator';
 import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Switch } from '@/components/ui/switch';
 import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/hooks/use-toast';
 import { 
   Moon, 
   Sun, 
@@ -23,9 +21,7 @@ import {
   UserCircle,
   Mail,
   Phone,
-  MapPin,
-  Link,
-  Save
+  MapPin
 } from 'lucide-react';
 
 interface ThemeOption {
@@ -50,18 +46,11 @@ interface MockUser {
 
 const Settings = () => {
   const { user } = useAuth();
-  const { toast } = useToast();
   const [viewMode, setViewMode] = useState<'card' | 'table'>(() => {
     return (localStorage.getItem('viewMode') as 'card' | 'table') || 'card';
   });
   const [currentTheme, setCurrentTheme] = useState<'light' | 'dark' | 'system'>(() => {
     return (localStorage.getItem('theme') as 'light' | 'dark' | 'system') || 'light';
-  });
-  const [attendanceUrl, setAttendanceUrl] = useState(() => {
-    return localStorage.getItem('attendanceUrl') || '';
-  });
-  const [apiBaseUrl, setApiBaseUrl] = useState(() => {
-    return localStorage.getItem('baseUrl') || '';
   });
 
   const themeOptions: ThemeOption[] = [
@@ -156,46 +145,6 @@ const Settings = () => {
   const handleViewModeChange = (mode: 'card' | 'table') => {
     setViewMode(mode);
     localStorage.setItem('viewMode', mode);
-  };
-
-  const handleAttendanceUrlSave = () => {
-    localStorage.setItem('attendanceUrl', attendanceUrl);
-    toast({
-      title: "Settings Saved",
-      description: "Attendance backend URL has been updated successfully.",
-    });
-  };
-
-  const handleApiBaseUrlSave = () => {
-    // Ensure URL format is correct
-    let formattedUrl = apiBaseUrl;
-    if (formattedUrl && !formattedUrl.startsWith('http')) {
-      formattedUrl = `http://${formattedUrl}`;
-    }
-    
-    // Remove trailing slash
-    if (formattedUrl.endsWith('/')) {
-      formattedUrl = formattedUrl.slice(0, -1);
-    }
-    
-    localStorage.setItem('baseUrl', formattedUrl);
-    setApiBaseUrl(formattedUrl);
-    
-    toast({
-      title: "Settings Saved", 
-      description: "API base URL has been updated successfully.",
-    });
-  };
-
-  const handleQuickSetPort3000 = () => {
-    const url = 'http://localhost:3000';
-    setApiBaseUrl(url);
-    localStorage.setItem('baseUrl', url);
-    
-    toast({
-      title: "Quick Setup",
-      description: "API base URL set to localhost:3000",
-    });
   };
 
   // Initialize theme on component mount
@@ -397,85 +346,6 @@ const Settings = () => {
                 Content will be displayed in {viewMode === 'card' ? 'organized card format' : 'structured table format'} across the application.
               </p>
             </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Backend Configuration */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center space-x-2">
-            <Link className="h-5 w-5" />
-            <CardTitle>Backend Configuration</CardTitle>
-          </div>
-          <CardDescription>
-            Configure backend service URLs and connection settings
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          {/* API Base URL Configuration */}
-          <div className="space-y-4">
-            <div>
-              <Label className="text-base font-medium">API Base URL</Label>
-              <p className="text-sm text-muted-foreground mt-1">
-                Configure the main API endpoint for all services
-              </p>
-            </div>
-            <div className="flex space-x-2">
-              <Input
-                type="url"
-                placeholder="http://localhost:3000"
-                value={apiBaseUrl}
-                onChange={(e) => setApiBaseUrl(e.target.value)}
-                className="flex-1"
-              />
-              <Button onClick={handleApiBaseUrlSave} variant="outline">
-                <Save className="h-4 w-4 mr-2" />
-                Save
-              </Button>
-              <Button onClick={handleQuickSetPort3000} variant="secondary">
-                Port 3000
-              </Button>
-            </div>
-            {apiBaseUrl && (
-              <div className="bg-muted/50 p-3 rounded-lg">
-                <p className="text-sm text-muted-foreground">
-                  <strong>Current API URL:</strong> {apiBaseUrl}
-                </p>
-              </div>
-            )}
-          </div>
-
-          <Separator />
-
-          {/* Attendance URL Configuration */}
-          <div className="space-y-4">
-            <div>
-              <Label className="text-base font-medium">Attendance Backend URL</Label>
-              <p className="text-sm text-muted-foreground mt-1">
-                Enter the backend URL for attendance services (optional - uses API Base URL if empty)
-              </p>
-            </div>
-            <div className="flex space-x-2">
-              <Input
-                type="url"
-                placeholder="Leave empty to use API Base URL"
-                value={attendanceUrl}
-                onChange={(e) => setAttendanceUrl(e.target.value)}
-                className="flex-1"
-              />
-              <Button onClick={handleAttendanceUrlSave} variant="outline">
-                <Save className="h-4 w-4 mr-2" />
-                Save
-              </Button>
-            </div>
-            {attendanceUrl && (
-              <div className="bg-muted/50 p-3 rounded-lg">
-                <p className="text-sm text-muted-foreground">
-                  <strong>Current Attendance URL:</strong> {attendanceUrl}
-                </p>
-              </div>
-            )}
           </div>
         </CardContent>
       </Card>

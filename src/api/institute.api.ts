@@ -13,7 +13,6 @@ export interface Institute {
   state?: string;
   country?: string;
   pinCode?: string;
-  type?: string;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;

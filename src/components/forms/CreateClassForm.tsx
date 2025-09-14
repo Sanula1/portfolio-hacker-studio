@@ -120,102 +120,100 @@ const CreateClassForm = ({ onSubmit, onCancel }: CreateClassFormProps) => {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-3 p-1">
-      {/* Compact: All in one section for mobile, two columns for larger screens */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-        {/* Basic Info - Compact */}
-        <Card className="lg:col-span-2">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Basic Information</CardTitle>
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Basic Information</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <div>
-                <Label htmlFor="name" className="text-xs">Class Name</Label>
-                <Input
-                  id="name"
-                  placeholder="Grade 10 Science - A"
-                  value={formData.name}
-                  onChange={(e) => handleInputChange('name', e.target.value)}
-                  className="h-8 text-sm"
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="code" className="text-xs">Class Code</Label>
-                <Input
-                  id="code"
-                  placeholder="G10SA"
-                  value={formData.code}
-                  onChange={(e) => handleInputChange('code', e.target.value)}
-                  className="h-8 text-sm"
-                  required
-                />
-              </div>
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="name">Class Name</Label>
+              <Input
+                id="name"
+                placeholder="Grade 10 Science - A"
+                value={formData.name}
+                onChange={(e) => handleInputChange('name', e.target.value)}
+                required
+              />
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <div>
-                <Label htmlFor="academicYear" className="text-xs">Academic Year</Label>
-                <Input
-                  id="academicYear"
-                  placeholder="2025/2026"
-                  value={formData.academicYear}
-                  onChange={(e) => handleInputChange('academicYear', e.target.value)}
-                  className="h-8 text-sm"
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="specialty" className="text-xs">Specialty</Label>
-                <Input
-                  id="specialty"
-                  placeholder="Science Stream"
-                  value={formData.specialty}
-                  onChange={(e) => handleInputChange('specialty', e.target.value)}
-                  className="h-8 text-sm"
-                  required
-                />
-              </div>
+            <div>
+              <Label htmlFor="code">Class Code</Label>
+              <Input
+                id="code"
+                placeholder="G10SA"
+                value={formData.code}
+                onChange={(e) => handleInputChange('code', e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="academicYear">Academic Year</Label>
+              <Input
+                id="academicYear"
+                placeholder="2025/2026"
+                value={formData.academicYear}
+                onChange={(e) => handleInputChange('academicYear', e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="specialty">Specialty</Label>
+              <Input
+                id="specialty"
+                placeholder="Science Stream"
+                value={formData.specialty}
+                onChange={(e) => handleInputChange('specialty', e.target.value)}
+                required
+              />
             </div>
           </CardContent>
         </Card>
 
-        {/* Details - Compact */}
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Details</CardTitle>
+          <CardHeader>
+            <CardTitle>Class Details</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2">
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Label htmlFor="level" className="text-xs">Level</Label>
-                <Input
-                  id="level"
-                  type="number"
-                  min="1"
-                  max="13"
-                  value={formData.level}
-                  onChange={(e) => handleInputChange('level', parseInt(e.target.value))}
-                  className="h-8 text-sm"
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="grade" className="text-xs">Grade</Label>
-                <Input
-                  id="grade"
-                  type="number"
-                  min="1"
-                  max="13"
-                  value={formData.grade}
-                  onChange={(e) => handleInputChange('grade', parseInt(e.target.value))}
-                  className="h-8 text-sm"
-                  required
-                />
-              </div>
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="level">Level</Label>
+              <Input
+                id="level"
+                type="number"
+                min="1"
+                max="13"
+                value={formData.level}
+                onChange={(e) => handleInputChange('level', parseInt(e.target.value))}
+                required
+              />
             </div>
             <div>
-              <Label htmlFor="capacity" className="text-xs">Capacity</Label>
+              <Label htmlFor="grade">Grade</Label>
+              <Input
+                id="grade"
+                type="number"
+                min="1"
+                max="13"
+                value={formData.grade}
+                onChange={(e) => handleInputChange('grade', parseInt(e.target.value))}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="classType">Class Type</Label>
+              <Select value={formData.classType} onValueChange={(value) => handleInputChange('classType', value)}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select class type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="REGULAR">Regular</SelectItem>
+                  <SelectItem value="ADVANCED">Advanced</SelectItem>
+                  <SelectItem value="REMEDIAL">Remedial</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="capacity">Capacity</Label>
               <Input
                 id="capacity"
                 type="number"
@@ -223,156 +221,116 @@ const CreateClassForm = ({ onSubmit, onCancel }: CreateClassFormProps) => {
                 max="100"
                 value={formData.capacity}
                 onChange={(e) => handleInputChange('capacity', parseInt(e.target.value))}
-                className="h-8 text-sm"
                 required
               />
-            </div>
-            <div>
-              <Label htmlFor="classType" className="text-xs">Type</Label>
-              <Select value={formData.classType} onValueChange={(value) => handleInputChange('classType', value)}>
-                <SelectTrigger className="h-8 text-sm">
-                  <SelectValue placeholder="Select type" />
-                </SelectTrigger>
-                <SelectContent className="bg-background border z-50">
-                  <SelectItem value="REGULAR">Regular</SelectItem>
-                  <SelectItem value="ADVANCED">Advanced</SelectItem>
-                  <SelectItem value="REMEDIAL">Remedial</SelectItem>
-                </SelectContent>
-              </Select>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Schedule & Enrollment - Combined */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Schedule</CardTitle>
+          <CardHeader>
+            <CardTitle>Schedule</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2">
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Label htmlFor="startDate" className="text-xs">Start Date</Label>
-                <Input
-                  id="startDate"
-                  type="date"
-                  value={formData.startDate}
-                  onChange={(e) => handleInputChange('startDate', e.target.value)}
-                  className="h-8 text-sm"
-                  required
-                />
-              </div>
-              <div>
-                <Label htmlFor="endDate" className="text-xs">End Date</Label>
-                <Input
-                  id="endDate"
-                  type="date"
-                  value={formData.endDate}
-                  onChange={(e) => handleInputChange('endDate', e.target.value)}
-                  className="h-8 text-sm"
-                  required
-                />
-              </div>
+          <CardContent className="space-y-4">
+            <div>
+              <Label htmlFor="startDate">Start Date</Label>
+              <Input
+                id="startDate"
+                type="date"
+                value={formData.startDate}
+                onChange={(e) => handleInputChange('startDate', e.target.value)}
+                required
+              />
+            </div>
+            <div>
+              <Label htmlFor="endDate">End Date</Label>
+              <Input
+                id="endDate"
+                type="date"
+                value={formData.endDate}
+                onChange={(e) => handleInputChange('endDate', e.target.value)}
+                required
+              />
             </div>
           </CardContent>
         </Card>
 
         <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Enrollment</CardTitle>
+          <CardHeader>
+            <CardTitle>Enrollment Settings</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2">
+          <CardContent className="space-y-4">
             <div>
-              <Label htmlFor="enrollmentCode" className="text-xs">Code</Label>
+              <Label htmlFor="enrollmentCode">Enrollment Code</Label>
               <Input
                 id="enrollmentCode"
                 placeholder="2025"
                 value={formData.enrollmentCode}
                 onChange={(e) => handleInputChange('enrollmentCode', e.target.value)}
-                className="h-8 text-sm"
               />
             </div>
-            <div className="flex items-center justify-between text-xs">
-              <div className="flex items-center space-x-1">
-                <Switch
-                  id="enrollmentEnabled"
-                  checked={formData.enrollmentEnabled}
-                  onCheckedChange={(checked) => handleInputChange('enrollmentEnabled', checked)}
-                />
-                <Label htmlFor="enrollmentEnabled">Enable</Label>
-              </div>
-              <div className="flex items-center space-x-1">
-                <Switch
-                  id="requireTeacherVerification"
-                  checked={formData.requireTeacherVerification}
-                  onCheckedChange={(checked) => handleInputChange('requireTeacherVerification', checked)}
-                />
-                <Label htmlFor="requireTeacherVerification">Verify</Label>
-              </div>
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="enrollmentEnabled"
+                checked={formData.enrollmentEnabled}
+                onCheckedChange={(checked) => handleInputChange('enrollmentEnabled', checked)}
+              />
+              <Label htmlFor="enrollmentEnabled">Enable Enrollment</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="requireTeacherVerification"
+                checked={formData.requireTeacherVerification}
+                onCheckedChange={(checked) => handleInputChange('requireTeacherVerification', checked)}
+              />
+              <Label htmlFor="requireTeacherVerification">Require Teacher Verification</Label>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Additional Info - Compact */}
       <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-medium">Additional Information</CardTitle>
+        <CardHeader>
+          <CardTitle>Additional Information</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-2">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-2">
-            <div>
-              <Label htmlFor="description" className="text-xs">Description</Label>
-              <Textarea
-                id="description"
-                placeholder="Class description..."
-                value={formData.description}
-                onChange={(e) => handleInputChange('description', e.target.value)}
-                className="h-16 text-sm resize-none"
-                rows={2}
-              />
-            </div>
-            <div className="space-y-2">
-              <div>
-                <Label htmlFor="imageUrl" className="text-xs">Image URL</Label>
-                <Input
-                  id="imageUrl"
-                  placeholder="https://example.com/image.jpg"
-                  value={formData.imageUrl}
-                  onChange={(e) => handleInputChange('imageUrl', e.target.value)}
-                  className="h-8 text-sm"
-                />
-              </div>
-              <div className="flex items-center space-x-2">
-                <Switch
-                  id="isActive"
-                  checked={formData.isActive}
-                  onCheckedChange={(checked) => handleInputChange('isActive', checked)}
-                />
-                <Label htmlFor="isActive" className="text-xs">Active Class</Label>
-              </div>
-            </div>
+        <CardContent className="space-y-4">
+          <div>
+            <Label htmlFor="description">Description</Label>
+            <Textarea
+              id="description"
+              placeholder="Grade 10 science class focused on preparing students for O/L exams."
+              value={formData.description}
+              onChange={(e) => handleInputChange('description', e.target.value)}
+            />
+          </div>
+          <div>
+            <Label htmlFor="imageUrl">Image URL</Label>
+            <Input
+              id="imageUrl"
+              placeholder="https://example.com/image.jpg"
+              value={formData.imageUrl}
+              onChange={(e) => handleInputChange('imageUrl', e.target.value)}
+            />
+          </div>
+          <div className="flex items-center space-x-2">
+            <Switch
+              id="isActive"
+              checked={formData.isActive}
+              onCheckedChange={(checked) => handleInputChange('isActive', checked)}
+            />
+            <Label htmlFor="isActive">Active Class</Label>
           </div>
         </CardContent>
       </Card>
 
-      {/* Compact button layout */}
-      <div className="flex justify-end gap-2 pt-1">
-        <Button 
-          type="button" 
-          variant="outline" 
-          onClick={onCancel}
-          className="h-8 px-3 text-sm"
-        >
+      <div className="flex justify-end space-x-4">
+        <Button type="button" variant="outline" onClick={onCancel}>
           Cancel
         </Button>
-        <Button 
-          type="submit" 
-          disabled={isLoading}
-          className="h-8 px-3 text-sm"
-        >
-          {isLoading ? 'Creating...' : 'Create'}
+        <Button type="submit" disabled={isLoading}>
+          {isLoading ? 'Creating...' : 'Create Class'}
         </Button>
       </div>
     </form>

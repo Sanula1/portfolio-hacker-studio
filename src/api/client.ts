@@ -1,4 +1,4 @@
-import { getBaseUrl, getBaseUrl2, getApiHeaders } from '@/contexts/utils/auth.api';
+import { getBaseUrl, getBaseUrl2, getOrgUrl, getApiHeaders } from '@/contexts/utils/auth.api';
 
 export interface ApiResponse<T = any> {
   data?: T;
@@ -109,26 +109,12 @@ class ApiClient {
     const url = `${baseUrl}${endpoint}`;
     
     console.log('POST Request:', url, data);
-    
-    const headers = this.getHeaders();
-    let body: any;
-    
-    // Handle FormData differently - don't stringify it and don't set Content-Type
-    if (data instanceof FormData) {
-      body = data;
-      // Remove Content-Type header to let browser set it with boundary
-      delete headers['Content-Type'];
-      console.log('FormData detected, removed Content-Type header');
-    } else {
-      body = data ? JSON.stringify(data) : undefined;
-    }
-    
-    console.log('Request Headers:', headers);
+    console.log('Request Headers:', this.getHeaders());
     
     const response = await fetch(url, {
       method: 'POST',
-      headers,
-      body
+      headers: this.getHeaders(),
+      body: data ? JSON.stringify(data) : undefined
     });
 
     return this.handleResponse<T>(response);

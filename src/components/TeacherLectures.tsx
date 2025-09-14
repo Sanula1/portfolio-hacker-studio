@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { RefreshCw, Video, Plus, Search, Filter, Calendar, Clock, ExternalLink, MapPin, Users, Edit } from 'lucide-react';
+import { RefreshCw, Video, Plus, Search, Filter, Calendar, Clock, ExternalLink, MapPin, Users } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { getBaseUrl } from '@/contexts/utils/auth.api';
@@ -13,7 +13,6 @@ import { DataCardView } from '@/components/ui/data-card-view';
 import DataTable from '@/components/ui/data-table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import CreateLectureForm from '@/components/forms/CreateLectureForm';
-import UpdateLectureForm from '@/components/forms/UpdateLectureForm';
 
 interface TeacherLecture {
   id: string;
@@ -62,8 +61,6 @@ const TeacherLectures = () => {
   const [dataLoaded, setDataLoaded] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
-  const [selectedLecture, setSelectedLecture] = useState<TeacherLecture | null>(null);
   
   // Filter states
   const [searchTerm, setSearchTerm] = useState('');
@@ -202,17 +199,6 @@ const TeacherLectures = () => {
     }
   };
 
-  const handleEditLecture = (lecture: TeacherLecture) => {
-    setSelectedLecture(lecture);
-    setIsUpdateDialogOpen(true);
-  };
-
-  const handleUpdateLecture = () => {
-    setIsUpdateDialogOpen(false);
-    setSelectedLecture(null);
-    fetchLectures(); // Refresh the list
-  };
-
   // Removed automatic API call - users must click Refresh to load data
 
   const getStatusColor = (status: string) => {
@@ -300,34 +286,6 @@ const TeacherLectures = () => {
         <Badge variant={getStatusColor(value)}>
           {value.toUpperCase()}
         </Badge>
-      )
-    },
-    {
-      key: 'actions',
-      header: 'Actions',
-      render: (value: any, row: TeacherLecture) => (
-        <div className="flex items-center gap-2">
-          {row.recordingUrl && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => window.open(row.recordingUrl, '_blank')}
-              className="flex items-center gap-1"
-            >
-              <Video className="h-3 w-3" />
-              Recording
-            </Button>
-          )}
-          <Button
-            size="sm"
-            variant="default"
-            onClick={() => handleEditLecture(row)}
-            className="flex items-center gap-1"
-          >
-            <Edit className="h-3 w-3" />
-            Edit
-          </Button>
-        </div>
       )
     }
   ];
@@ -567,22 +525,6 @@ const TeacherLectures = () => {
               fetchLectures();
             }}
           />
-        </DialogContent>
-      </Dialog>
-
-      {/* Update Lecture Dialog */}
-      <Dialog open={isUpdateDialogOpen} onOpenChange={setIsUpdateDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Update Lecture</DialogTitle>
-          </DialogHeader>
-          {selectedLecture && (
-            <UpdateLectureForm
-              lecture={selectedLecture}
-              onClose={() => setIsUpdateDialogOpen(false)}
-              onSuccess={handleUpdateLecture}
-            />
-          )}
         </DialogContent>
       </Dialog>
     </div>

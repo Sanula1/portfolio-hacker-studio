@@ -2,20 +2,7 @@
 import { LoginCredentials, ApiResponse, User } from '../types/auth.types';
 
 export const getBaseUrl = (): string => {
-  // First check localStorage for user-configured URL  
-  const storedUrl = localStorage.getItem('baseUrl');
-  if (storedUrl) {
-    return storedUrl;
-  }
-  
-  // Then check environment variable
-  const envUrl = import.meta.env.VITE_API_BASE_URL;
-  if (envUrl) {
-    return envUrl;
-  }
-  
-  // Return empty string to force user configuration - no hardcoded localhost
-  return '';
+  return import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000';
 };
 
 export const getBaseUrl2 = (): string => {
@@ -35,21 +22,21 @@ export const getBaseUrl2 = (): string => {
   return '';
 };
 
-export const getAttendanceUrl = (): string => {
-  // First check localStorage for user-configured URL
-  const storedUrl = localStorage.getItem('attendanceUrl');
+export const getOrgUrl = (): string => {
+  // Prefer environment variable when available
+  const envUrl = import.meta.env.VITE_ORG_BASE_URL;
+  if (envUrl) {
+    return envUrl;
+  }
+
+  // Then check localStorage for user-configured URL
+  const storedUrl = localStorage.getItem('orgUrl');
   if (storedUrl) {
     return storedUrl;
   }
   
-  // Then check environment variable
-  const envUrl = import.meta.env.VITE_ATTENDANCE_BASE_URL;
-  if (envUrl) {
-    return envUrl;
-  }
-  
-  // Return empty string to force user configuration
-  return '';
+  // Return default URL
+  return 'http://localhost:3002';
 };
 
 export const getApiHeaders = (): Record<string, string> => {

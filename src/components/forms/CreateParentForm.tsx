@@ -99,16 +99,6 @@ const CreateParentForm = ({ onSubmit, onCancel, initialData }: CreateParentFormP
       return;
     }
 
-    if (formData.workPhone && formData.workPhone.length < 10) {
-      toast.error('Work phone number must be at least 10 characters');
-      return;
-    }
-
-    if (!formData.addressLine2.trim()) {
-      toast.error('Address Line 2 is required');
-      return;
-    }
-
     setIsLoading(true);
     
     try {
@@ -124,19 +114,18 @@ const CreateParentForm = ({ onSubmit, onCancel, initialData }: CreateParentFormP
           nic: formData.nic,
           birthCertificateNo: formData.birthCertificateNo,
           addressLine1: formData.addressLine1,
-          addressLine2: formData.addressLine2 || 'N/A', // Provide default value if empty
+          addressLine2: formData.addressLine2,
           city: formData.city,
           district: formData.district,
           province: formData.province,
           postalCode: formData.postalCode,
           country: formData.country,
           imageUrl: formData.imageUrl,
-          isActive: formData.isActive,
-          userType: 'PARENT' // Add missing userType field
+          isActive: formData.isActive
         },
         occupation: formData.occupation,
         workplace: formData.workplace,
-        workPhone: formData.workPhone || '0000000000', // Provide default value if empty
+        workPhone: formData.workPhone,
         educationLevel: formData.educationLevel,
         isActive: formData.isActive
       };
@@ -358,13 +347,11 @@ const CreateParentForm = ({ onSubmit, onCancel, initialData }: CreateParentFormP
             </div>
 
             <div>
-              <Label htmlFor="workPhone">Work Phone * (minimum 10 characters)</Label>
+              <Label htmlFor="workPhone">Work Phone</Label>
               <Input
                 id="workPhone"
                 value={formData.workPhone}
                 onChange={(e) => handleInputChange('workPhone', e.target.value)}
-                placeholder="+94771234567"
-                required
               />
             </div>
 
@@ -405,13 +392,11 @@ const CreateParentForm = ({ onSubmit, onCancel, initialData }: CreateParentFormP
               </div>
 
               <div>
-                <Label htmlFor="addressLine2">Address Line 2 *</Label>
+                <Label htmlFor="addressLine2">Address Line 2</Label>
                 <Input
                   id="addressLine2"
                   value={formData.addressLine2}
                   onChange={(e) => handleInputChange('addressLine2', e.target.value)}
-                  placeholder="Required field"
-                  required
                 />
               </div>
 
