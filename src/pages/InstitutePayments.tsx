@@ -4,7 +4,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { CreditCard, ArrowLeft, Download, Search, Eye, Plus } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { institutePaymentsApi, InstitutePaymentsResponse, StudentPaymentsResponse, InstitutePayment } from '@/api/institutePayments.api';
 import { useToast } from '@/hooks/use-toast';
@@ -14,7 +13,6 @@ import SubmitPaymentDialog from '@/components/forms/SubmitPaymentDialog';
 
 const InstitutePayments = () => {
   const { selectedInstitute, user } = useAuth();
-  const navigate = useNavigate();
   const { toast } = useToast();
   const [paymentsData, setPaymentsData] = useState<InstitutePaymentsResponse | StudentPaymentsResponse | null>(null);
   const [loading, setLoading] = useState(false);
@@ -85,7 +83,7 @@ const InstitutePayments = () => {
           <div className="flex items-center space-x-4">
             <Button
               variant="ghost"
-              onClick={() => navigate(-1)}
+              onClick={() => window.history.back()}
               className="flex items-center space-x-2"
             >
               <ArrowLeft className="h-4 w-4" />
@@ -241,7 +239,7 @@ const InstitutePayments = () => {
                             <Button 
                               variant="outline" 
                               size="sm"
-                              onClick={() => navigate(`/payment-submissions/${payment.id}`)}
+                              onClick={() => window.location.href = `/payment-submissions/${payment.id}`}
                               className="flex items-center space-x-1"
                             >
                               <Eye className="h-4 w-4" />
