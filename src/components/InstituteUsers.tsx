@@ -7,12 +7,16 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Eye, RefreshCw, GraduationCap, Users, UserCheck, Plus } from 'lucide-react';
+import { Eye, RefreshCw, GraduationCap, Users, UserCheck, Plus, UserPlus, UserCog } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { instituteApi } from '@/api/institute.api';
+import { studentsApi } from '@/api/students.api';
 import { useApiRequest } from '@/hooks/useApiRequest';
 import CreateUserForm from '@/components/forms/CreateUserForm';
+import AssignUserForm from '@/components/forms/AssignUserForm';
+import AssignParentForm from '@/components/forms/AssignParentForm';
+import CreateInstituteStudentForm from '@/components/forms/CreateInstituteStudentForm';
 
 interface InstituteUserData {
   id: string;
@@ -52,6 +56,11 @@ const InstituteUsers = () => {
   const [selectedUser, setSelectedUser] = useState<InstituteUserData | null>(null);
   const [showUserDialog, setShowUserDialog] = useState(false);
   const [showCreateUserDialog, setShowCreateUserDialog] = useState(false);
+  const [showAssignUserDialog, setShowAssignUserDialog] = useState(false);
+  const [showAssignParentDialog, setShowAssignParentDialog] = useState(false);
+  const [showCreateStudentDialog, setShowCreateStudentDialog] = useState(false);
+  const [selectedStudentForParent, setSelectedStudentForParent] = useState<InstituteUserData | null>(null);
+  const [assignInitialUserId, setAssignInitialUserId] = useState<string | undefined>(undefined);
   const [activeTab, setActiveTab] = useState<UserType>('STUDENT');
   const [loadingStates, setLoadingStates] = useState({
     STUDENT: false,
@@ -116,10 +125,60 @@ const InstituteUsers = () => {
     console.log('User created successfully:', userData);
     setShowCreateUserDialog(false);
     
+    // If API returned assignment-related shape, auto-open Assign dialog with prefilled userId
+    if (userData && typeof userData.success === 'boolean' && userData.user?.id) {
+      setAssignInitialUserId(userData.user.id);
+      setShowAssignUserDialog(true);
+    }
+    
     toast({
       title: "User Created",
       description: "User has been created successfully.",
     });
+  };
+
+  const handleAssignUser = async (assignData: any) => {
+    console.log('User assigned successfully:', assignData);
+    setShowAssignUserDialog(false);
+    
+    toast({
+      title: "User Assigned",
+      description: "User has been assigned to institute successfully.",
+    });
+    
+    // Refresh the current tab data
+    fetchUsersByType(activeTab);
+  };
+
+  const handleAssignParent = (student: InstituteUserData) => {
+    setSelectedStudentForParent(student);
+    setShowAssignParentDialog(true);
+  };
+
+  const handleParentAssignment = async (data: any) => {
+    if (!selectedStudentForParent) return;
+    
+    try {
+      await studentsApi.assignParent(selectedStudentForParent.id, data);
+      
+      toast({
+        title: "Parent Assigned",
+        description: "Parent has been assigned to student successfully.",
+      });
+      
+      setShowAssignParentDialog(false);
+      setSelectedStudentForParent(null);
+      
+      // Refresh students data
+      fetchUsersByType('STUDENT');
+    } catch (error) {
+      console.error('Error assigning parent:', error);
+      toast({
+        title: "Error",
+        description: "Failed to assign parent to student.",
+        variant: "destructive"
+      });
+    }
   };
 
   const getCurrentUsers = () => {
@@ -190,13 +249,23 @@ const InstituteUsers = () => {
             Manage users in your institute
           </p>
         </div>
-        <Button 
-          onClick={() => setShowCreateUserDialog(true)}
-          className="flex items-center gap-2"
-        >
-          <Plus className="h-4 w-4" />
-          Create User
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            onClick={() => setShowAssignUserDialog(true)}
+            variant="outline"
+            className="flex items-center gap-2"
+          >
+            <UserPlus className="h-4 w-4" />
+            Assign User
+          </Button>
+          <Button 
+            onClick={() => setShowCreateUserDialog(true)}
+            className="flex items-center gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            Create User
+          </Button>
+        </div>
       </div>
 
       {/* Tabs for different user types */}
@@ -224,24 +293,34 @@ const InstituteUsers = () => {
                 {students.length} Students
               </Badge>
             </div>
-            <Button 
-              onClick={() => fetchUsersByType('STUDENT')} 
-              disabled={loadingStates.STUDENT}
-              variant="outline"
-              size="sm"
-            >
-              {loadingStates.STUDENT ? (
-                <>
-                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                  Loading...
-                </>
-              ) : (
-                <>
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Load Students
-                </>
-              )}
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button 
+                onClick={() => setShowCreateStudentDialog(true)}
+                className="flex items-center gap-2"
+                size="sm"
+              >
+                <Plus className="h-4 w-4" />
+                Create Student
+              </Button>
+              <Button 
+                onClick={() => fetchUsersByType('STUDENT')} 
+                disabled={loadingStates.STUDENT}
+                variant="outline"
+                size="sm"
+              >
+                {loadingStates.STUDENT ? (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                    Loading...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Load Students
+                  </>
+                )}
+              </Button>
+            </div>
           </div>
         </TabsContent>
 
@@ -334,14 +413,26 @@ const InstituteUsers = () => {
                   <TableCell>{user.email || 'N/A'}</TableCell>
                   <TableCell>{user.phoneNumber || 'N/A'}</TableCell>
                   <TableCell>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleViewUser(user)}
-                    >
-                      <Eye className="h-4 w-4 mr-2" />
-                      View
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleViewUser(user)}
+                      >
+                        <Eye className="h-4 w-4 mr-2" />
+                        View
+                      </Button>
+                      {activeTab === 'STUDENT' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleAssignParent(user)}
+                        >
+                          <UserCog className="h-4 w-4 mr-2" />
+                          Assign Parent
+                        </Button>
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -469,6 +560,51 @@ const InstituteUsers = () => {
           />
         </DialogContent>
       </Dialog>
+
+      {/* Assign User Dialog */}
+      <Dialog open={showAssignUserDialog} onOpenChange={setShowAssignUserDialog}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Assign User to Institute</DialogTitle>
+          </DialogHeader>
+          <AssignUserForm
+            instituteId={currentInstituteId!}
+            onSubmit={handleAssignUser}
+            onCancel={() => setShowAssignUserDialog(false)}
+            initialUserId={assignInitialUserId}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Assign Parent Dialog */}
+      <Dialog open={showAssignParentDialog} onOpenChange={setShowAssignParentDialog}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Assign Parent to Student</DialogTitle>
+          </DialogHeader>
+          {selectedStudentForParent && (
+            <div className="mb-4 p-3 bg-muted rounded-lg">
+              <p className="text-sm text-muted-foreground">Assigning parent to:</p>
+              <p className="font-medium">{selectedStudentForParent.name}</p>
+              <p className="text-sm text-muted-foreground">ID: {selectedStudentForParent.id}</p>
+            </div>
+          )}
+          <AssignParentForm
+            onSubmit={handleParentAssignment}
+            onCancel={() => {
+              setShowAssignParentDialog(false);
+              setSelectedStudentForParent(null);
+            }}
+          />
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Student Dialog */}
+      <CreateInstituteStudentForm
+        isOpen={showCreateStudentDialog}
+        onClose={() => setShowCreateStudentDialog(false)}
+        onSuccess={() => fetchUsersByType('STUDENT')}
+      />
     </div>
   );
 };

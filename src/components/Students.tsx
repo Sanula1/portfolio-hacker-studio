@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Plus, RefreshCw, Users, Search, Filter } from 'lucide-react';
+import { Plus, RefreshCw, Users, Search, Filter, UserPlus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { DataCardView } from '@/components/ui/data-card-view';
@@ -12,23 +12,25 @@ import DataTable from '@/components/ui/data-table';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import CreateStudentForm from '@/components/forms/CreateStudentForm';
+import AssignStudentsDialog from '@/components/forms/AssignStudentsDialog';
+import AssignSubjectStudentsDialog from '@/components/forms/AssignSubjectStudentsDialog';
 import { cachedApiClient } from '@/api/cachedClient';
 import { useApiRequest } from '@/hooks/useApiRequest';
 import { getBaseUrl } from '@/contexts/utils/auth.api';
 
-// Interface for new institute student data
 interface InstituteStudent {
   id: string;
   name: string;
+  email?: string;
   addressLine1?: string;
   addressLine2?: string;
   phoneNumber?: string;
   imageUrl?: string;
   dateOfBirth?: string;
   userIdByInstitute?: string | null;
-  fatherId?: string;
-  motherId?: string;
-  guardianId?: string;
+  fatherId?: string | null;
+  motherId?: string | null;
+  guardianId?: string | null;
 }
 
 interface InstituteStudentsResponse {
@@ -94,6 +96,8 @@ const Students = () => {
   const [loading, setLoading] = useState(false);
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [showAssignDialog, setShowAssignDialog] = useState(false);
+  const [showSubjectAssignDialog, setShowSubjectAssignDialog] = useState(false);
   const [dataLoaded, setDataLoaded] = useState(false);
   
   // Pagination state
@@ -315,13 +319,14 @@ const Students = () => {
   // Columns for both student types
   const studentColumns = [
     {
-      key: 'name',
+      key: 'student',
       header: 'Student',
       render: (value: any, row: Student | InstituteStudent) => {
         // Handle different data structures
         const name = 'user' in row ? `${row.user.firstName} ${row.user.lastName}` : row.name;
-        const email = 'user' in row ? row.user.email : 'N/A';
-        const imageUrl = 'user' in row ? row.user.imageUrl : row.imageUrl;
+        const email = 'user' in row ? row.user.email : (row as InstituteStudent).email || 'N/A';
+        const imageUrl = 'user' in row ? row.user.imageUrl : (row as InstituteStudent).imageUrl;
+        const userIdByInstitute = 'user' in row ? 'N/A' : (row as InstituteStudent).userIdByInstitute || row.id;
         
         return (
           <div className="flex items-center space-x-3">
@@ -333,45 +338,123 @@ const Students = () => {
             </Avatar>
             <div className="min-w-0 flex-1">
               <p className="font-medium truncate">{name}</p>
-              <p className="text-sm text-gray-500 truncate">{email}</p>
+              <p className="text-sm text-muted-foreground truncate">ID: {userIdByInstitute}</p>
             </div>
           </div>
         );
       }
     },
     {
-      key: 'studentId',
-      header: 'Student ID',
+      key: 'contact',
+      header: 'Contact Information',
       render: (value: any, row: Student | InstituteStudent) => {
-        const id = 'user' in row ? row.studentId : row.id;
-        return <Badge variant="outline">{id}</Badge>;
-      }
-    },
-    {
-      key: 'phoneNumber',
-      header: 'Phone',
-      render: (value: any, row: Student | InstituteStudent) => {
-        const phone = 'user' in row ? row.user.phoneNumber : row.phoneNumber;
-        return phone || 'N/A';
-      }
-    },
-    {
-      key: 'emergencyContact',
-      header: 'Emergency Contact',
-      render: (value: any, row: Student | InstituteStudent) => {
-        const emergency = 'user' in row ? row.emergencyContact : 'N/A';
-        return emergency || 'N/A';
-      }
-    },
-    {
-      key: 'status',
-      header: 'Status',
-      render: (value: any, row: Student | InstituteStudent) => {
-        const isActive = 'user' in row ? row.isActive : true;
+        const phone = 'user' in row ? row.user.phoneNumber : (row as InstituteStudent).phoneNumber;
+        const email = 'user' in row ? row.user.email : (row as InstituteStudent).email;
+        
         return (
-          <Badge variant={isActive ? 'default' : 'secondary'}>
-            {isActive ? 'Active' : 'Inactive'}
-          </Badge>
+          <div className="space-y-1">
+            <div className="flex items-center text-sm">
+              <span className="truncate">{email || 'N/A'}</span>
+            </div>
+            <div className="flex items-center text-sm">
+              <span className="truncate">{phone || 'N/A'}</span>
+            </div>
+          </div>
+        );
+      }
+    },
+    {
+      key: 'address',
+      header: 'Address',
+      render: (value: any, row: Student | InstituteStudent) => {
+        if ('user' in row) {
+          return <span className="text-sm text-muted-foreground">N/A</span>;
+        }
+        
+        const student = row as InstituteStudent;
+        return (
+          <div className="space-y-1 text-sm">
+            <p className="truncate">{student.addressLine1 || 'N/A'}</p>
+            {student.addressLine2 && (
+              <p className="text-muted-foreground truncate">{student.addressLine2}</p>
+            )}
+          </div>
+        );
+      }
+    },
+    {
+      key: 'dateOfBirth',
+      header: 'Date of Birth',
+      render: (value: any, row: Student | InstituteStudent) => {
+        const dateOfBirth = 'user' in row ? row.user.dateOfBirth : (row as InstituteStudent).dateOfBirth;
+        
+        return (
+          <div className="text-sm">
+            {dateOfBirth 
+              ? new Date(dateOfBirth).toLocaleDateString('en-US', {
+                  year: 'numeric',
+                  month: 'short',
+                  day: 'numeric'
+                })
+              : 'N/A'
+            }
+          </div>
+        );
+      }
+    },
+    {
+      key: 'guardians',
+      header: 'Parent/Guardian',
+      render: (value: any, row: Student | InstituteStudent) => {
+        if ('user' in row) {
+          // Original Student structure
+          return (
+            <div className="space-y-1">
+              {row.fatherId && (
+                <Badge variant="outline" className="text-xs">
+                  Father: {row.fatherId}
+                </Badge>
+              )}
+              {row.motherId && (
+                <Badge variant="outline" className="text-xs">
+                  Mother: {row.motherId}
+                </Badge>
+              )}
+              {row.guardianId && (
+                <Badge variant="outline" className="text-xs">
+                  Guardian: {row.guardianId}
+                </Badge>
+              )}
+              {!row.fatherId && !row.motherId && !row.guardianId && (
+                <span className="text-sm text-muted-foreground">N/A</span>
+              )}
+            </div>
+          );
+        }
+        
+        // InstituteStudent structure
+        const student = row as InstituteStudent;
+        return (
+          <div className="space-y-1">
+            {student.fatherId && (
+              <Badge variant="outline" className="text-xs">
+                Father: {student.fatherId}
+              </Badge>
+            )}
+            {student.motherId && (
+              <Badge variant="outline" className="text-xs">
+                Mother: {student.motherId}
+              </Badge>
+            )}
+            {student.guardianId && (
+              <Badge variant="outline" className="text-xs">
+                Guardian: {student.guardianId}
+              </Badge>
+            )}
+            {!student.fatherId && !student.motherId && !student.guardianId && (
+              <span className="text-sm text-muted-foreground">N/A</span>
+            )}
+          </div>
         );
       }
     }
@@ -394,8 +477,8 @@ const Students = () => {
     } else {
       // InstituteStudent structure
       name = student.name;
-      email = '';
-      studentId = student.id;
+      email = student.email || '';
+      studentId = student.userIdByInstitute || student.id;
     }
     
     const matchesSearch = !searchTerm || 
@@ -498,6 +581,28 @@ const Students = () => {
             <Users className="h-4 w-4" />
             {totalStudents} Students
           </Badge>
+          {/* Assign User Buttons - Only for InstituteAdmin and Teacher */}
+          {shouldUseInstituteApi() && selectedClass && (user?.role === 'InstituteAdmin' || user?.role === 'Teacher') && (
+            <>
+              {selectedSubject ? (
+                <Button
+                  onClick={() => setShowSubjectAssignDialog(true)}
+                  className="flex items-center gap-2"
+                >
+                  <UserPlus className="h-4 w-4" />
+                  Assign User
+                </Button>
+              ) : (
+                <Button
+                  onClick={() => setShowAssignDialog(true)}
+                  className="flex items-center gap-2"
+                >
+                  <UserPlus className="h-4 w-4" />
+                  Assign User
+                </Button>
+              )}
+            </>
+          )}
           <Button
             variant="outline"
             onClick={() => setShowFilters(!showFilters)}
@@ -658,6 +763,28 @@ const Students = () => {
           onSubmit={handleCreateStudent}
           onCancel={() => setShowCreateForm(false)}
           loading={createStudentRequest.loading}
+        />
+      )}
+
+      {/* Assign Students Dialog - Only for InstituteAdmin and Teacher (Class level) */}
+      {shouldUseInstituteApi() && selectedClass && !selectedSubject && (
+        <AssignStudentsDialog
+          open={showAssignDialog}
+          onOpenChange={setShowAssignDialog}
+          onAssignmentComplete={() => {
+            getLoadFunction()(); // Refresh the students list
+          }}
+        />
+      )}
+
+      {/* Assign Subject Students Dialog - Only for InstituteAdmin and Teacher (Subject level) */}
+      {shouldUseInstituteApi() && selectedClass && selectedSubject && (
+        <AssignSubjectStudentsDialog
+          open={showSubjectAssignDialog}
+          onOpenChange={setShowSubjectAssignDialog}
+          onAssignmentComplete={() => {
+            getLoadFunction()(); // Refresh the students list
+          }}
         />
       )}
     </div>

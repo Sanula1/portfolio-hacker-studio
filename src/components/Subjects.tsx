@@ -23,12 +23,16 @@ interface SubjectData {
   category: string;
   creditHours: number;
   isActive: boolean;
+  subjectType: string;
+  basketCategory: string;
+  instituteType: string | null;
+  imgUrl: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
 const Subjects = () => {
-  const { user, selectedInstitute, selectedClass, selectedSubject, currentInstituteId, currentClassId, currentSubjectId } = useAuth();
+  const { user, selectedInstitute, selectedClass, selectedSubject, selectedInstituteType, currentInstituteId, currentClassId, currentSubjectId } = useAuth();
   const { toast } = useToast();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
@@ -43,8 +47,9 @@ const Subjects = () => {
   const [categoryFilter, setCategoryFilter] = useState('all');
 
   const userRole = (user?.role || 'Student') as UserRole;
-  const canEdit = AccessControl.hasPermission(userRole, 'edit-subject');
-  const canDelete = AccessControl.hasPermission(userRole, 'delete-subject');
+  const isInstituteAdmin = userRole === 'InstituteAdmin';
+  const canEdit = AccessControl.hasPermission(userRole, 'edit-subject') && !isInstituteAdmin;
+  const canDelete = AccessControl.hasPermission(userRole, 'delete-subject') && !isInstituteAdmin;
   const canCreate = userRole === 'InstituteAdmin';
   const canAssignSubjects = userRole === 'InstituteAdmin' || userRole === 'Teacher';
 
@@ -88,8 +93,12 @@ const Subjects = () => {
       const baseUrl = getBaseUrl();
       const headers = getApiHeaders();
       
-      // Use the new API endpoint
-      const url = `${baseUrl}/subjects?isActive=true&instituteId=${currentInstituteId}`;
+      // Use the subjects API endpoint with query parameters
+      const params = new URLSearchParams({ npage: '1', limit: '10' });
+      if (selectedInstituteType) {
+        params.set('instituteType', selectedInstituteType);
+      }
+      const url = `${baseUrl}/subjects?${params.toString()}`;
       console.log('Fetching subjects from:', url);
       
       const response = await fetch(url, {
@@ -104,8 +113,18 @@ const Subjects = () => {
       const result = await response.json();
       console.log('API response:', result);
       
+      // Handle the response structure based on user's provided format
+      let subjectsArray = Array.isArray(result) ? result : result.data || [];
+      
+      // Filter subjects based on institute if needed
+      if (currentInstituteId && selectedInstituteType) {
+        subjectsArray = subjectsArray.filter((subject: SubjectData) => 
+          !subject.instituteType || subject.instituteType === selectedInstituteType
+        );
+      }
+      
       // Filter subjects based on local filters
-      let filteredData = result;
+      let filteredData = subjectsArray;
       
       if (searchTerm) {
         filteredData = filteredData.filter((subject: SubjectData) =>
@@ -149,6 +168,8 @@ const Subjects = () => {
     { key: 'description', header: 'Description' },
     { key: 'category', header: 'Category' },
     { key: 'creditHours', header: 'Credit Hours' },
+    { key: 'subjectType', header: 'Type' },
+    { key: 'basketCategory', header: 'Basket' },
     { 
       key: 'isActive', 
       header: 'Status',
@@ -248,7 +269,7 @@ const Subjects = () => {
     return title;
   };
 
-  const customActions = [
+  const customActions = isInstituteAdmin ? [] : [
     {
       label: 'View',
       action: (subject: any) => handleViewSubject(subject),
@@ -430,12 +451,12 @@ const Subjects = () => {
               title="Subjects"
               data={subjectsData || []}
               columns={subjectsColumns}
-              onEdit={canEdit ? handleEditSubject : undefined}
-              onDelete={canDelete ? handleDeleteSubject : undefined}
-              onView={handleViewSubject}
+              onEdit={!isInstituteAdmin && canEdit ? handleEditSubject : undefined}
+              onDelete={!isInstituteAdmin && canDelete ? handleDeleteSubject : undefined}
+              onView={!isInstituteAdmin ? handleViewSubject : undefined}
               searchPlaceholder="Search subjects..."
-              allowEdit={canEdit}
-              allowDelete={canDelete}
+              allowEdit={!isInstituteAdmin && canEdit}
+              allowDelete={!isInstituteAdmin && canDelete}
             />
           </div>
         </>

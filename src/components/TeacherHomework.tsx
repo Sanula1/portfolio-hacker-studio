@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { RefreshCw, BookOpen, Plus, Search, Filter, Calendar, Clock, FileText } from 'lucide-react';
+import { RefreshCw, BookOpen, Plus, Search, Filter, Calendar, Clock, FileText, Edit, Eye } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { getBaseUrl } from '@/contexts/utils/auth.api';
@@ -13,6 +13,8 @@ import { DataCardView } from '@/components/ui/data-card-view';
 import DataTable from '@/components/ui/data-table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import CreateHomeworkForm from '@/components/forms/CreateHomeworkForm';
+import UpdateHomeworkForm from '@/components/forms/UpdateHomeworkForm';
+import { useNavigate } from 'react-router-dom';
 
 interface TeacherHomework {
   id: string;
@@ -58,6 +60,7 @@ interface HomeworkResponse {
 }
 
 const TeacherHomework = () => {
+  const navigate = useNavigate();
   const { user, selectedInstitute, selectedClass, selectedSubject } = useAuth();
   const { toast } = useToast();
   
@@ -66,6 +69,9 @@ const TeacherHomework = () => {
   const [dataLoaded, setDataLoaded] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
+  
+  const [selectedHomework, setSelectedHomework] = useState<TeacherHomework | null>(null);
   
   // Filter states
   const [searchTerm, setSearchTerm] = useState('');
@@ -198,6 +204,21 @@ const TeacherHomework = () => {
 
   // Removed automatic API call - users must click Refresh to load data
 
+  const handleEditHomework = (homework: TeacherHomework) => {
+    setSelectedHomework(homework);
+    setIsUpdateDialogOpen(true);
+  };
+
+  const handleViewSubmissions = (homework: TeacherHomework) => {
+    navigate(`/homework/${homework.id}/submissions`);
+  };
+
+  const handleUpdateHomework = () => {
+    setIsUpdateDialogOpen(false);
+    setSelectedHomework(null);
+    fetchHomework(); // Refresh the list
+  };
+
   const homeworkColumns = [
     {
       key: 'title',
@@ -250,6 +271,32 @@ const TeacherHomework = () => {
         <Badge variant={value ? 'default' : 'secondary'}>
           {value ? 'Active' : 'Inactive'}
         </Badge>
+      )
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      render: (value: any, row: TeacherHomework) => (
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => handleViewSubmissions(row)}
+            className="flex items-center gap-1"
+          >
+            <Eye className="h-3 w-3" />
+            View
+          </Button>
+          <Button
+            size="sm"
+            variant="default"
+            onClick={() => handleEditHomework(row)}
+            className="flex items-center gap-1"
+          >
+            <Edit className="h-3 w-3" />
+            Edit
+          </Button>
+        </div>
       )
     }
   ];
@@ -479,6 +526,23 @@ const TeacherHomework = () => {
           />
         </DialogContent>
       </Dialog>
+
+      {/* Update Homework Dialog */}
+      <Dialog open={isUpdateDialogOpen} onOpenChange={setIsUpdateDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Update Homework</DialogTitle>
+          </DialogHeader>
+          {selectedHomework && (
+            <UpdateHomeworkForm
+              homework={selectedHomework}
+              onClose={() => setIsUpdateDialogOpen(false)}
+              onSuccess={handleUpdateHomework}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 };

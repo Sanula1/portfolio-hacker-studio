@@ -2,10 +2,9 @@ import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { DataCardView } from '@/components/ui/data-card-view';
 import { useAuth, type UserRole } from '@/contexts/AuthContext';
-import { BookOpen, Clock, CheckCircle, RefreshCw, User, School } from 'lucide-react';
+import { BookOpen, Clock, CheckCircle, RefreshCw, User, School, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { getBaseUrl } from '@/contexts/utils/auth.api';
 import { instituteApi } from '@/api/institute.api';
@@ -17,6 +16,14 @@ interface Subject {
   code: string;
   description?: string;
   category?: string;
+  creditHours?: number;
+  isActive?: boolean;
+  subjectType?: string;
+  basketCategory?: string;
+  instituteType?: string;
+  imgUrl?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 interface StudentSubjectData {
@@ -42,30 +49,29 @@ interface SubjectCardData {
   name: string;
   code: string;
   description: string;
-  className: string;
-  classCode: string;
-  teacherName?: string;
-  isMandatory: boolean;
+  category: string;
+  creditHours: number;
+  isActive: boolean;
+  subjectType: string;
+  basketCategory: string;
+  instituteType: string;
+  imgUrl?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 const SubjectSelector = () => {
-  const { user, selectedInstitute, setSelectedSubject, currentInstituteId, currentClassId } = useAuth();
+  const { user, selectedInstitute, selectedClass, setSelectedSubject, currentInstituteId, currentClassId } = useAuth();
   const { toast } = useToast();
   const [subjectsData, setSubjectsData] = useState<SubjectCardData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [dataLoaded, setDataLoaded] = useState(false);
-
-  // Use API request hook for fetching class subjects (InstituteAdmin)
-  const fetchClassSubjectsRequest = useApiRequest(
-    async () => {
-      if (!currentInstituteId || !currentClassId) {
-        throw new Error('Institute and class must be selected');
-      }
-      const response = await instituteApi.getClassSubjects(currentInstituteId, currentClassId);
-      return response;
-    },
-    { preventDuplicates: true }
-  );
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [pageSize, setPageSize] = useState(10);
 
   const getAuthToken = () => {
     const token = localStorage.getItem('access_token') || 
@@ -89,148 +95,143 @@ const SubjectSelector = () => {
     return headers;
   };
 
-  const fetchSubjectsByRole = async () => {
+  const fetchSubjectsByRole = async (page: number = 1, limit: number = 10) => {
     setIsLoading(true);
-    console.log('Loading subjects data for user role:', user?.role);
+    console.log('Loading subjects data');
     
     try {
       const baseUrl = getBaseUrl();
       const headers = getApiHeaders();
-      let url = '';
-      let classSubjects: any[] = [];
       
-      const userRole = (user?.role || 'Student') as UserRole;
+      let url: string;
       
-      if (userRole === 'Student' && currentInstituteId && currentClassId) {
-        // Use the new student-specific endpoint
-        url = `${baseUrl}/institute-class-subject-students/${currentInstituteId}/student-subjects/class/${currentClassId}/student/${user?.id}?page=1&limit=10`;
-        
-        console.log('Fetching from Student URL:', url);
-        
-        const response = await fetch(url, {
-          method: 'GET',
-          headers
-        });
-
-        if (!response.ok) {
-          throw new Error(`Failed to fetch subjects data: ${response.status}`);
+      // For Institute Admin, use the new class subjects API endpoint
+      if (user.role === 'InstituteAdmin') {
+        if (!currentInstituteId || !currentClassId) {
+          throw new Error('Missing required parameters for institute admin subject fetch');
         }
-
-        const result = await response.json();
-        console.log('Raw Student API response:', result);
-        
-        // Handle student response structure
-        if (Array.isArray(result)) {
-          classSubjects = result;
-        } else if (result.data && Array.isArray(result.data)) {
-          classSubjects = result.data;
-        } else {
-          console.warn('Unexpected response structure:', result);
-          classSubjects = [];
+        url = `${baseUrl}/institutes/${currentInstituteId}/classes/${currentClassId}/subjects?page=${page}&limit=${limit}`;
+      } else if (user.role === 'Teacher') {
+        if (!currentInstituteId || !currentClassId || !user.id) {
+          throw new Error('Missing required parameters for teacher subject fetch');
         }
-
-        // Transform student subject data
-        const transformedSubjects = classSubjects.map((item: StudentSubjectData): SubjectCardData => ({
-          id: item.subject.id,
-          name: item.subject.name,
-          code: item.subject.code,
-          description: item.subject.description || `${item.subject.category || 'General'} Subject`,
-          className: 'Current Class',
-          classCode: '',
-          teacherName: 'Not available',
-          isMandatory: item.subject.category === 'Core'
-        }));
-
-        setSubjectsData(transformedSubjects);
-        setDataLoaded(true);
-        
-        toast({
-          title: "Subjects Loaded",
-          description: `Successfully loaded ${transformedSubjects.length} subjects.`
-        });
-
-      } else if (userRole === 'InstituteAdmin' && currentClassId) {
-        // For InstituteAdmin with class selected: use the existing API endpoint
-        try {
-          const response = await fetchClassSubjectsRequest.execute();
-          console.log('Class subjects API response:', response);
-          
-          if (response.data && Array.isArray(response.data)) {
-            classSubjects = response.data;
-          } else if (Array.isArray(response)) {
-            classSubjects = response;
-          }
-
-          // Transform the data to subject cards
-          const transformedSubjects = await transformToSubjectCards(classSubjects, userRole);
-          
-          console.log('Transformed subjects:', transformedSubjects);
-          setSubjectsData(transformedSubjects);
-          setDataLoaded(true);
-          
-          toast({
-            title: "Subjects Loaded",
-            description: `Successfully loaded ${transformedSubjects.length} subjects.`
-          });
-
-        } catch (error) {
-          console.error('Error with class subjects API:', error);
-          throw error;
+        url = `${baseUrl}/institutes/${currentInstituteId}/classes/${currentClassId}/subjects/teacher/${user.id}?page=${page}&limit=${limit}`;
+      } else if (user.role === 'Student') {
+        if (!currentInstituteId || !currentClassId || !user.id) {
+          throw new Error('Missing required parameters for student subject fetch');
         }
-      } else if (userRole === 'Teacher') {
-        // For teachers: get subjects they teach
-        url = `${baseUrl}/institute-class-subjects/teacher/${user?.id}`;
-      } else if (userRole === 'InstituteAdmin' || userRole === 'AttendanceMarker') {
-        // For institute admin without class: use the general API endpoint
-        url = `${baseUrl}/institute-class-subjects/institute/${currentInstituteId}`;
+        url = `${baseUrl}/institute-class-subject-students/${currentInstituteId}/student-subjects/class/${currentClassId}/student/${user.id}?page=${page}&limit=${limit}`;
       } else {
-        throw new Error('Unsupported user role for subject selection or missing required selections');
+        // For other roles, use the original subjects endpoint
+        url = `${baseUrl}/subjects`;
+      }
+      
+      console.log('Fetching from URL:', url);
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch subjects data: ${response.status}`);
       }
 
-      // For non-Student users, use existing logic
-      if (url && userRole !== 'Student') {
-        console.log('Fetching from URL:', url);
-        
-        const response = await fetch(url, {
-          method: 'GET',
-          headers
-        });
-
-        if (!response.ok) {
-          throw new Error(`Failed to fetch subjects data: ${response.status}`);
+      const result = await response.json();
+      console.log('Raw API response:', result);
+      
+      let subjects: SubjectCardData[] = [];
+      
+      if (user.role === 'InstituteAdmin' || user.role === 'Teacher') {
+        // Handle the new API response format for Institute Admin and Teacher
+        if (result.data && Array.isArray(result.data)) {
+          subjects = result.data.map((item: any) => ({
+            id: item.subject.id,
+            name: item.subject.name,
+            code: item.subject.code,
+            description: item.subject.description || '',
+            category: item.subject.category || '',
+            creditHours: item.subject.creditHours || 0,
+            isActive: item.subject.isActive,
+            subjectType: item.subject.subjectType || '',
+            basketCategory: item.subject.basketCategory || '',
+            instituteType: item.subject.instituteType || '',
+            imgUrl: item.subject.imgUrl,
+            createdAt: item.subject.createdAt,
+            updatedAt: item.subject.updatedAt
+          }));
         }
-
-        const result = await response.json();
-        console.log('Raw API response:', result);
         
-        // Handle different response structures
+        // For Institute Admin and Teacher, use the pagination data from the API response
+        const totalSubjects = result.total || 0;
+        const totalPagesFromApi = result.totalPages || Math.ceil(totalSubjects / limit);
+        
+        setSubjectsData(subjects);
+        setTotalItems(totalSubjects);
+        setTotalPages(totalPagesFromApi);
+        setCurrentPage(result.page || page);
+      } else if (user.role === 'Student') {
+        // Handle the new API response format for students
+        if (result.data && Array.isArray(result.data)) {
+          subjects = result.data.map((item: any) => ({
+            id: item.subject.id,
+            name: item.subject.name,
+            code: item.subject.code,
+            description: item.subject.description || '',
+            category: item.subject.category || '',
+            creditHours: item.subject.creditHours || 0,
+            isActive: item.subject.isActive,
+            subjectType: item.subject.subjectType || '',
+            basketCategory: item.subject.basketCategory || '',
+            instituteType: item.subject.instituteType || '',
+            imgUrl: item.subject.imgUrl,
+            createdAt: item.subject.createdAt,
+            updatedAt: item.subject.updatedAt
+          }));
+        }
+        
+        // For students, use the pagination data from the API response
+        const totalSubjects = result.total || 0;
+        const totalPages = Math.ceil(totalSubjects / limit);
+        
+        setSubjectsData(subjects);
+        setTotalItems(totalSubjects);
+        setTotalPages(totalPages);
+        setCurrentPage(page);
+      } else {
+        // Handle the original response for other roles
         if (Array.isArray(result)) {
-          classSubjects = result;
+          subjects = result;
         } else if (result.data && Array.isArray(result.data)) {
-          classSubjects = result.data;
-        } else {
-          console.warn('Unexpected response structure:', result);
-          classSubjects = [];
+          subjects = result.data;
         }
 
-        // Transform the data to subject cards
-        const transformedSubjects = await transformToSubjectCards(classSubjects, userRole);
+        // Apply pagination for other roles
+        const startIndex = (page - 1) * limit;
+        const endIndex = startIndex + limit;
+        const paginatedSubjects = subjects.slice(startIndex, endIndex);
         
-        console.log('Transformed subjects:', transformedSubjects);
-        setSubjectsData(transformedSubjects);
-        setDataLoaded(true);
-        
-        toast({
-          title: "Subjects Loaded",
-          description: `Successfully loaded ${transformedSubjects.length} subjects.`
-        });
+        const totalSubjects = subjects.length;
+        const totalPages = Math.ceil(totalSubjects / limit);
+
+        setSubjectsData(paginatedSubjects);
+        setTotalItems(totalSubjects);
+        setTotalPages(totalPages);
+        setCurrentPage(page);
       }
+      
+      setDataLoaded(true);
+      
+      toast({
+        title: "Subjects Loaded",
+        description: `Successfully loaded ${subjects.length} subjects.`
+      });
       
     } catch (error) {
       console.error('Failed to load subjects:', error);
       toast({
         title: "Load Failed",
-        description: "Failed to load subjects data.",
+        description: error instanceof Error ? error.message : "Failed to load subjects data.",
         variant: "destructive"
       });
     } finally {
@@ -238,87 +239,22 @@ const SubjectSelector = () => {
     }
   };
 
-  const transformToSubjectCards = async (classSubjects: ClassSubjectData[], userRole: UserRole): Promise<SubjectCardData[]> => {
-    const subjectCards: SubjectCardData[] = [];
-    const baseUrl = getBaseUrl();
-    const headers = getApiHeaders();
-
-    for (const item of classSubjects) {
-      let subjectInfo = item.subject;
-      
-      // If subject info is not in the response or incomplete, fetch it
-      if (!subjectInfo && item.subjectId) {
-        try {
-          const subjectResponse = await fetch(`${baseUrl}/subjects/${item.subjectId}`, {
-            method: 'GET',
-            headers
-          });
-          
-          if (subjectResponse.ok) {
-            const subjectData = await subjectResponse.json();
-            subjectInfo = subjectData.data || subjectData;
-          }
-        } catch (error) {
-          console.error('Error fetching subject details:', error);
-        }
-      }
-
-      if (subjectInfo) {
-        // For InstituteAdmin with class, we have direct subject data
-        let className = 'Unknown Class';
-        let classCode = '';
-        
-        if (selectedInstitute && currentClassId) {
-          // Try to get class name from selected class context
-          try {
-            const classResponse = await fetch(`${baseUrl}/classes/${currentClassId}`, {
-              method: 'GET',
-              headers
-            });
-            
-            if (classResponse.ok) {
-              const classData = await classResponse.json();
-              const classInfo = classData.data || classData;
-              className = classInfo.name || 'Unknown Class';
-              classCode = classInfo.code || '';
-            }
-          } catch (error) {
-            console.error('Error fetching class details:', error);
-          }
-        }
-
-        const teacherName = item.teacherId ? `Teacher ID: ${item.teacherId}` : 'Not assigned';
-
-        subjectCards.push({
-          id: item.subjectId || subjectInfo.id,
-          name: subjectInfo.name,
-          code: subjectInfo.code,
-          description: subjectInfo.description || `${className} - ${className.includes('Grade') ? '' : 'General'}`,
-          className: className,
-          classCode: classCode,
-          teacherName: teacherName,
-          isMandatory: true
-        });
-      }
-    }
-
-    // Remove duplicates based on subject ID
-    const uniqueSubjects = subjectCards.filter((subject, index, self) => 
-      index === self.findIndex(s => s.id === subject.id)
-    );
-
-    return uniqueSubjects;
-  };
 
   const handleSelectSubject = (subject: SubjectCardData) => {
     console.log('Selecting subject:', subject);
     
-    // Set the selected subject in auth context
     setSelectedSubject({
       id: subject.id,
       name: subject.name,
       code: subject.code,
-      description: subject.description
+      description: subject.description,
+      category: subject.category,
+      creditHours: subject.creditHours,
+      isActive: subject.isActive,
+      subjectType: subject.subjectType,
+      basketCategory: subject.basketCategory,
+      instituteType: subject.instituteType,
+      imgUrl: subject.imgUrl
     });
 
     toast({
@@ -327,51 +263,18 @@ const SubjectSelector = () => {
     });
   };
 
-  const tableColumns = [
-    {
-      key: 'name',
-      header: 'Subject Name',
-      render: (value: any, row: SubjectCardData) => (
-        <div>
-          <div className="font-medium">{value}</div>
-          <div className="text-sm text-gray-500">{row.code}</div>
-        </div>
-      )
-    },
-    {
-      key: 'className',
-      header: 'Class',
-      render: (value: any, row: SubjectCardData) => (
-        <div className="text-sm">
-          <div>{value}</div>
-          <div className="text-gray-500">{row.classCode}</div>
-        </div>
-      )
-    },
-    {
-      key: 'teacherName',
-      header: 'Teacher',
-      render: (value: any) => <span className="text-sm">{value || 'Not assigned'}</span>
-    },
-    {
-      key: 'isMandatory',
-      header: 'Type',
-      render: (value: any) => (
-        <Badge variant={value ? 'default' : 'secondary'}>
-          {value ? 'Mandatory' : 'Elective'}
-        </Badge>
-      )
+  const handlePageChange = (newPage: number) => {
+    if (newPage >= 1 && newPage <= totalPages && newPage !== currentPage) {
+      console.log('Changing page from', currentPage, 'to', newPage);
+      fetchSubjectsByRole(newPage, pageSize);
     }
-  ];
+  };
 
-  const customActions = [
-    {
-      label: 'Select',
-      action: (subject: SubjectCardData) => handleSelectSubject(subject),
-      icon: <BookOpen className="h-3 w-3" />,
-      variant: 'default' as const
-    }
-  ];
+  const handlePageSizeChange = (newPageSize: number) => {
+    console.log('Changing page size from', pageSize, 'to', newPageSize);
+    setPageSize(newPageSize);
+    fetchSubjectsByRole(1, newPageSize);
+  };
 
   if (!user) {
     return (
@@ -389,7 +292,7 @@ const SubjectSelector = () => {
     );
   }
 
-  if (user.role === 'Student' && !currentClassId) {
+  if ((user.role === 'Student' || user.role === 'InstituteAdmin' || user.role === 'Teacher') && !currentClassId) {
     return (
       <div className="text-center py-12">
         <p className="text-gray-600 dark:text-gray-400">Please select a class first.</p>
@@ -412,14 +315,19 @@ const SubjectSelector = () => {
               Institute: {selectedInstitute.name}
             </p>
           )}
+          {selectedClass && (
+            <p className="text-sm text-green-600 dark:text-green-400 mt-1">
+              Class: {selectedClass.name}
+            </p>
+          )}
         </div>
         <Button 
-          onClick={fetchSubjectsByRole} 
-          disabled={isLoading || fetchClassSubjectsRequest.loading}
+          onClick={() => fetchSubjectsByRole(currentPage, pageSize)} 
+          disabled={isLoading}
           variant="outline"
           size="sm"
         >
-          {(isLoading || fetchClassSubjectsRequest.loading) ? (
+          {isLoading ? (
             <>
               <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
               Loading...
@@ -439,11 +347,11 @@ const SubjectSelector = () => {
             Click the button below to load your subjects
           </p>
           <Button 
-            onClick={fetchSubjectsByRole} 
-            disabled={isLoading || fetchClassSubjectsRequest.loading}
+            onClick={() => fetchSubjectsByRole(1, pageSize)} 
+            disabled={isLoading}
             className="bg-blue-600 hover:bg-blue-700"
           >
-            {(isLoading || fetchClassSubjectsRequest.loading) ? (
+            {isLoading ? (
               <>
                 <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
                 Loading Subjects...
@@ -457,67 +365,100 @@ const SubjectSelector = () => {
           </Button>
         </div>
       ) : (
-        <>
-          {/* Mobile View Content - Always Card View */}
-          <div className="md:hidden">
-            <DataCardView
-              data={subjectsData}
-              columns={tableColumns}
-              customActions={customActions}
-              allowEdit={false}
-              allowDelete={false}
-            />
+        <div className="max-h-[600px] overflow-y-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 p-4">
+            {subjectsData.map((subject) => (
+              <div
+                key={subject.id}
+                className="relative flex w-full flex-col rounded-xl bg-gradient-to-br from-white to-gray-50 bg-clip-border text-gray-700 shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 cursor-pointer"
+                onClick={() => handleSelectSubject(subject)}
+              >
+                <div className="relative mx-4 -mt-6 h-40 overflow-hidden rounded-xl bg-clip-border shadow-lg group">
+                  {subject.imgUrl ? (
+                    <img 
+                      src={subject.imgUrl} 
+                      alt={subject.name}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <>
+                      <div className="absolute inset-0 bg-gradient-to-r from-blue-600 via-blue-500 to-indigo-600 opacity-90"></div>
+                      <div className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.1)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.1)_1px,transparent_1px)] bg-[size:20px_20px] animate-pulse"></div>
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <BookOpen className="w-20 h-20 text-white/90 transform transition-transform group-hover:scale-110 duration-300" />
+                      </div>
+                    </>
+                  )}
+                </div>
+                <div className="p-6">
+                  <h5 className="mb-2 block font-sans text-xl font-semibold leading-snug tracking-normal text-gray-900 antialiased group-hover:text-blue-600 transition-colors duration-300">
+                    {subject.name}
+                  </h5>
+                  <p className="block font-sans text-base font-light leading-relaxed text-gray-700 antialiased mb-2">
+                    {subject.description}
+                  </p>
+                  <div className="flex items-center justify-between text-sm text-gray-500 mb-2">
+                    <span>Code: {subject.code}</span>
+                    <Badge variant={subject.category === 'Core' ? 'default' : 'secondary'}>
+                      {subject.category}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between text-sm text-gray-500">
+                    <span>Credits: {subject.creditHours}</span>
+                    <span>{subject.subjectType}</span>
+                  </div>
+                </div>
+                <div className="p-6 pt-0">
+                  <button className="group relative w-full inline-flex items-center justify-center px-6 py-3 font-bold text-white rounded-lg bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 shadow-lg shadow-blue-500/30 hover:shadow-blue-500/40 transition-all duration-300 hover:-translate-y-0.5">
+                    <span className="relative flex items-center gap-2">
+                      Select Subject
+                      <svg
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        fill="none"
+                        className="w-5 h-5 transform transition-transform group-hover:translate-x-1"
+                      >
+                        <path
+                          d="M17 8l4 4m0 0l-4 4m4-4H3"
+                          strokeWidth="2"
+                          strokeLinejoin="round"
+                          strokeLinecap="round"
+                        ></path>
+                      </svg>
+                    </span>
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
 
-          {/* Desktop View */}
-          <div className="hidden md:block">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {subjectsData.map((subject) => (
-                <Card 
-                  key={subject.id} 
-                  className="cursor-pointer transition-all duration-200 hover:shadow-lg hover:scale-105 border-2 hover:border-blue-500"
-                  onClick={() => handleSelectSubject(subject)}
-                >
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <BookOpen className="h-8 w-8 text-blue-600" />
-                      <Badge 
-                        variant={subject.isMandatory ? "default" : "secondary"}
-                        className={subject.isMandatory ? "bg-blue-100 text-blue-800" : "bg-gray-100 text-gray-800"}
-                      >
-                        {subject.isMandatory ? "Mandatory" : "Elective"}
-                      </Badge>
-                    </div>
-                    <CardTitle className="text-xl">{subject.name}</CardTitle>
-                    <CardDescription>
-                      Code: {subject.code}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                      {subject.description}
-                    </p>
-                    <div className="space-y-2 mb-4">
-                      <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
-                        <School className="h-4 w-4 mr-2" />
-                        <span>{subject.className} ({subject.classCode})</span>
-                      </div>
-                      {subject.teacherName && (
-                        <div className="flex items-center text-sm text-gray-500 dark:text-gray-400">
-                          <User className="h-4 w-4 mr-2" />
-                          <span>Teacher: {subject.teacherName}</span>
-                        </div>
-                      )}
-                    </div>
-                    <Button className="w-full bg-blue-600 hover:bg-blue-700">
-                      Select Subject
-                    </Button>
-                  </CardContent>
-                </Card>
-              ))}
+          {/* Pagination */}
+          {totalPages > 1 && (
+            <div className="flex justify-center items-center gap-4 mt-6 pb-4">
+              <Button
+                variant="outline"
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage <= 1 || isLoading}
+              >
+                <ChevronLeft className="h-4 w-4 mr-1" />
+                Previous
+              </Button>
+              
+              <span className="text-sm text-gray-600">
+                Page {currentPage} of {totalPages}
+              </span>
+              
+              <Button
+                variant="outline"
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage >= totalPages || isLoading}
+              >
+                Next
+                <ChevronRight className="h-4 w-4 ml-1" />
+              </Button>
             </div>
-          </div>
-        </>
+          )}
+        </div>
       )}
     </div>
   );

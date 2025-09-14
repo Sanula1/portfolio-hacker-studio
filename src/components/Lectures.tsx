@@ -4,7 +4,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { RefreshCw, Filter, Plus, Calendar, Clock, MapPin, Video, Users } from 'lucide-react';
+import { RefreshCw, Filter, Plus, Calendar, Clock, MapPin, Video, Users, ExternalLink, CheckCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth, type UserRole } from '@/contexts/AuthContext';
 import { AccessControl } from '@/utils/permissions';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -19,6 +20,7 @@ interface LecturesProps {
 }
 
 const Lectures = ({ apiLevel = 'institute' }: LecturesProps) => {
+  const navigate = useNavigate();
   const { user, selectedInstitute, selectedClass, selectedSubject, currentInstituteId, currentClassId, currentSubjectId } = useAuth();
   const { toast } = useToast();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -36,6 +38,7 @@ const Lectures = ({ apiLevel = 'institute' }: LecturesProps) => {
   const [typeFilter, setTypeFilter] = useState('all');
 
   const buildQueryParams = () => {
+    const userRole = (user?.role || 'Student') as UserRole;
     const params: Record<string, any> = {
       page: 1,
       limit: 100
@@ -52,6 +55,11 @@ const Lectures = ({ apiLevel = 'institute' }: LecturesProps) => {
 
     if (currentSubjectId) {
       params.subjectId = currentSubjectId;
+    }
+
+    // For Teachers, add instructorId parameter
+    if (userRole === 'Teacher' && user?.id) {
+      params.instructorId = user.id;
     }
 
     // Add filter parameters
@@ -87,8 +95,8 @@ const Lectures = ({ apiLevel = 'institute' }: LecturesProps) => {
       }
       
       endpoint = '/institute-class-subject-lectures';
-    } else if (userRole === 'InstituteAdmin') {
-      // For InstituteAdmin: use institute class subject lectures API
+    } else if (userRole === 'InstituteAdmin' || userRole === 'Teacher') {
+      // For InstituteAdmin and Teacher: use institute class subject lectures API
       if (currentInstituteId && currentClassId && currentSubjectId) {
         endpoint = '/institute-class-subject-lectures';
       } else {
@@ -155,7 +163,7 @@ const Lectures = ({ apiLevel = 'institute' }: LecturesProps) => {
   };
 
   const handleEditLecture = async (lectureData: any) => {
-    console.log('Loading lecture for editing:', lectureData);
+    console.log('Opening update lecture dialog:', lectureData);
     setSelectedLectureData(lectureData);
     setIsEditDialogOpen(true);
   };
@@ -166,6 +174,7 @@ const Lectures = ({ apiLevel = 'institute' }: LecturesProps) => {
     // Force refresh after updating lecture
     await handleLoadData(true);
   };
+
 
   const handleDeleteLecture = async (lectureData: any) => {
     console.log('Deleting lecture:', lectureData);
@@ -207,6 +216,8 @@ const Lectures = ({ apiLevel = 'institute' }: LecturesProps) => {
     });
   };
 
+  const userRole = (user?.role || 'Student') as UserRole;
+
   const lecturesColumns = [
     { key: 'title', header: 'Title' },
     { key: 'description', header: 'Description' },
@@ -222,13 +233,50 @@ const Lectures = ({ apiLevel = 'institute' }: LecturesProps) => {
           {value}
         </Badge>
       )
-    }
+    },
+    ...((['InstituteAdmin', 'Teacher', 'Student'] as UserRole[]).includes(userRole) ? [{
+      key: 'meetingLink',
+      header: 'Join Lecture',
+      render: (value: string, row: any) => value ? (
+        <Button
+          size="sm"
+          variant="default"
+          className="bg-green-600 hover:bg-green-700 text-white"
+          onClick={() => window.open(value, '_blank')}
+        >
+          <ExternalLink className="h-3 w-3 mr-1" />
+          Join
+        </Button>
+      ) : (
+        <span className="text-gray-400">No link</span>
+      )
+    }, {
+      key: 'recordingUrl',
+      header: 'Recording',
+      render: (value: string, row: any) => {
+        // Check multiple possible field names for recording URL
+        const recUrl = value || row.recordingUrl || row.recording_url || row.recUrl || row.videoUrl || row.video_url;
+        return recUrl ? (
+          <Button
+            size="sm"
+            variant="default"
+            style={{ backgroundColor: '#3338A0', color: 'white' }}
+            className="hover:opacity-90"
+            onClick={() => window.open(recUrl, '_blank')}
+          >
+            <Video className="h-3 w-3 mr-1" />
+            View Rec
+          </Button>
+        ) : (
+          <span className="text-gray-400">No recording</span>
+        );
+      }
+    }] : [])
   ];
 
-  const userRole = (user?.role || 'Student') as UserRole;
   const canAdd = AccessControl.hasPermission(userRole, 'create-lecture');
-  const canEdit = AccessControl.hasPermission(userRole, 'edit-lecture');
-  const canDelete = AccessControl.hasPermission(userRole, 'delete-lecture');
+  const canEdit = userRole === 'Teacher' ? true : AccessControl.hasPermission(userRole, 'edit-lecture');
+  const canDelete = userRole === 'Teacher' ? true : AccessControl.hasPermission(userRole, 'delete-lecture');
 
   const getTitle = () => {
     const contexts = [];
@@ -421,17 +469,20 @@ const Lectures = ({ apiLevel = 'institute' }: LecturesProps) => {
             </div>
           )}
 
-          {/* Desktop Table View */}
+           {/* Desktop Table View */}
           <div className="hidden md:block">
             <DataTable
               title=""
               data={lecturesData}
               columns={lecturesColumns}
-              onAdd={canAdd && userRole !== 'InstituteAdmin' ? () => setIsCreateDialogOpen(true) : undefined}
-              onEdit={canEdit ? handleEditLecture : undefined}
+              onAdd={canAdd ? () => setIsCreateDialogOpen(true) : undefined}
+              onEdit={userRole === 'InstituteAdmin' ? handleEditLecture : undefined}
               onDelete={canDelete ? handleDeleteLecture : undefined}
-              onView={handleViewLecture}
+              onView={undefined}
+              allowEdit={userRole === 'InstituteAdmin'}
+              allowDelete={canDelete}
               searchPlaceholder="Search lectures..."
+              sectionType="lectures"
             />
           </div>
 
@@ -463,22 +514,22 @@ const Lectures = ({ apiLevel = 'institute' }: LecturesProps) => {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Dialog */}
+      {/* Update Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Edit Lecture</DialogTitle>
+            <DialogTitle>Update Lecture</DialogTitle>
           </DialogHeader>
-          <UpdateLectureForm
-            lecture={selectedLectureData}
-            onClose={() => {
-              setIsEditDialogOpen(false);
-              setSelectedLectureData(null);
-            }}
-            onSuccess={handleUpdateLecture}
-          />
+          {selectedLectureData && (
+            <UpdateLectureForm
+              lecture={selectedLectureData}
+              onClose={() => setIsEditDialogOpen(false)}
+              onSuccess={handleUpdateLecture}
+            />
+          )}
         </DialogContent>
       </Dialog>
+
     </div>
   );
 };

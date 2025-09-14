@@ -4,11 +4,12 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, RefreshCw, GraduationCap, Image } from 'lucide-react';
+import { Plus, RefreshCw, GraduationCap, Image, Edit } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { getBaseUrl } from '@/contexts/utils/auth.api';
 import CreateClassForm from '@/components/forms/CreateClassForm';
+import UpdateClassForm from '@/components/forms/UpdateClassForm';
 import { AccessControl } from '@/utils/permissions';
 import { UserRole } from '@/contexts/types/auth.types';
 
@@ -57,10 +58,13 @@ const Classes = () => {
   const [classes, setClasses] = useState<ClassData[]>([]);
   const [loading, setLoading] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
+  const [selectedClass, setSelectedClass] = useState<ClassData | null>(null);
 
   const userRole = (user?.role || 'Student') as UserRole;
-  const canEdit = AccessControl.hasPermission(userRole, 'edit-class');
-  const canDelete = AccessControl.hasPermission(userRole, 'delete-class');
+  const isInstituteAdmin = userRole === 'InstituteAdmin';
+  const canEdit = AccessControl.hasPermission(userRole, 'edit-class') && !isInstituteAdmin;
+  const canDelete = AccessControl.hasPermission(userRole, 'delete-class') && !isInstituteAdmin;
   const canCreate = userRole === 'InstituteAdmin';
 
   const getApiHeaders = () => {
@@ -127,14 +131,21 @@ const Classes = () => {
     setIsCreateDialogOpen(false);
   };
 
-  const handleEditClass = async (classData: ClassData) => {
-    // Simulate API call
-    console.log('Editing class:', classData);
-    toast({
-      title: "Class Updated",
-      description: `Successfully updated class: ${classData.name}`
-    });
+  const handleEditClass = (classData: ClassData) => {
+    setSelectedClass(classData);
+    setIsUpdateDialogOpen(true);
+  };
+
+  const handleUpdateClass = async (responseData: any) => {
+    console.log('Class updated successfully:', responseData);
+    setIsUpdateDialogOpen(false);
+    setSelectedClass(null);
     fetchClasses(); // Refresh data
+  };
+
+  const handleCancelUpdate = () => {
+    setIsUpdateDialogOpen(false);
+    setSelectedClass(null);
   };
 
   const handleDeleteClass = async (classId: string) => {
@@ -216,7 +227,23 @@ const Classes = () => {
           {value ? 'Active' : 'Inactive'}
         </Badge>
       )
-    }
+    },
+    ...(userRole === 'InstituteAdmin' ? [{
+      key: 'actions',
+      header: 'Actions',
+      render: (value: any, row: ClassData) => (
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => handleEditClass(row)}
+            className="h-8 w-8 p-0"
+          >
+            <Edit className="h-4 w-4" />
+          </Button>
+        </div>
+      )
+    }] : [])
   ];
 
   return (
@@ -251,7 +278,7 @@ const Classes = () => {
                   Create Class
                 </Button>
               </DialogTrigger>
-              <DialogContent className="max-w-2xl">
+              <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
                 <DialogHeader>
                   <DialogTitle>Create New Class</DialogTitle>
                 </DialogHeader>
@@ -259,6 +286,22 @@ const Classes = () => {
               </DialogContent>
             </Dialog>
           )}
+
+          {/* Update Class Dialog */}
+          <Dialog open={isUpdateDialogOpen} onOpenChange={setIsUpdateDialogOpen}>
+            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>Update Class</DialogTitle>
+              </DialogHeader>
+              {selectedClass && (
+                <UpdateClassForm 
+                  classData={selectedClass}
+                  onSubmit={handleUpdateClass} 
+                  onCancel={handleCancelUpdate} 
+                />
+              )}
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
@@ -266,12 +309,12 @@ const Classes = () => {
         title=""
         data={classes}
         columns={columns}
-        onEdit={canEdit ? handleEditClass : undefined}
-        onDelete={canDelete ? handleDeleteClass : undefined}
+        onEdit={!isInstituteAdmin && canEdit ? handleEditClass : undefined}
+        onDelete={!isInstituteAdmin && canDelete ? handleDeleteClass : undefined}
         searchPlaceholder="Search classes..."
         allowAdd={false}
-        allowEdit={canEdit}
-        allowDelete={canDelete}
+        allowEdit={!isInstituteAdmin && canEdit}
+        allowDelete={!isInstituteAdmin && canDelete}
       />
     </div>
   );

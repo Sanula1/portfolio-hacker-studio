@@ -1,39 +1,30 @@
-import { useEffect, Suspense } from "react";
+
+import { useEffect } from "react";
 import React from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "@/contexts/AuthContext";
+import Index from "./pages/Index";
 
-// Lazy load pages for better performance
-const HomePage = React.lazy(() => import("./pages/HomePage"));
-const OrganizationPage = React.lazy(() => import("./pages/OrganizationPage"));
-const ProfilePage = React.lazy(() => import("./pages/ProfilePage"));
-const SettingsPage = React.lazy(() => import("./pages/SettingsPage"));
-const AppearancePage = React.lazy(() => import("./pages/AppearancePage"));
-const DashboardPage = React.lazy(() => import("./pages/DashboardPage"));
-const StudentsPage = React.lazy(() => import("./pages/StudentsPage"));
-const TeachersPage = React.lazy(() => import("./pages/TeachersPage"));
-const ParentsPage = React.lazy(() => import("./pages/ParentsPage"));
-const ClassesPage = React.lazy(() => import("./pages/ClassesPage"));
-const SubjectsPage = React.lazy(() => import("./pages/SubjectsPage"));
-const AttendancePage = React.lazy(() => import("./pages/AttendancePage"));
-const LecturesPage = React.lazy(() => import("./pages/LecturesPage"));
-const HomeworkPage = React.lazy(() => import("./pages/HomeworkPage"));
-const ExamsPage = React.lazy(() => import("./pages/ExamsPage"));
-const ResultsPage = React.lazy(() => import("./pages/ResultsPage"));
-const GalleryPage = React.lazy(() => import("./pages/GalleryPage"));
-const NotFound = React.lazy(() => import("./pages/NotFound"));
+import NotFound from "./pages/NotFound";
+import Payments from "./pages/Payments";
+import CreatePayment from "./pages/CreatePayment";
+import PaymentSubmissions from "./pages/PaymentSubmissions";
+import MySubmissions from "./pages/MySubmissions";
+import InstitutePayments from "./pages/InstitutePayments";
+import SubjectPayments from "./pages/SubjectPayments";
+import SubjectSubmissions from "./pages/SubjectSubmissions";
+import SubjectPaymentSubmissions from "./pages/SubjectPaymentSubmissions";
+import PaymentSubmissionsPage from "./pages/PaymentSubmissionsPage";
+import HomeworkSubmissions from "./pages/HomeworkSubmissions";
+import HomeworkSubmissionDetails from "./pages/HomeworkSubmissionDetails";
+import { AuthProvider } from "@/contexts/AuthContext";
+import UpdateHomework from '@/pages/UpdateHomework';
+import UpdateLecture from '@/pages/UpdateLecture';
+import CardDemo from '@/pages/CardDemo';
 
 const queryClient = new QueryClient();
-
-// Loading fallback component
-const LoadingFallback = () => (
-  <div className="flex items-center justify-center min-h-screen">
-    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-  </div>
-);
 
 const App = () => {
   useEffect(() => {
@@ -48,29 +39,97 @@ const App = () => {
         <AuthProvider>
           <Toaster />
           <Sonner />
-          <Suspense fallback={<LoadingFallback />}>
-            <Routes>
-              <Route path="/" element={<HomePage />} />
-              <Route path="/dashboard" element={<DashboardPage />} />
-              <Route path="/organization" element={<OrganizationPage />} />
-              <Route path="/profile" element={<ProfilePage />} />
-              <Route path="/settings" element={<SettingsPage />} />
-              <Route path="/appearance" element={<AppearancePage />} />
-              <Route path="/students" element={<StudentsPage />} />
-              <Route path="/teachers" element={<TeachersPage />} />
-              <Route path="/parents" element={<ParentsPage />} />
-              <Route path="/classes" element={<ClassesPage />} />
-              <Route path="/subjects" element={<SubjectsPage />} />
-              <Route path="/attendance" element={<AttendancePage />} />
-              <Route path="/lectures" element={<LecturesPage />} />
-              <Route path="/homework" element={<HomeworkPage />} />
-              <Route path="/exams" element={<ExamsPage />} />
-              <Route path="/results" element={<ResultsPage />} />
-              <Route path="/gallery" element={<GalleryPage />} />
-              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </Suspense>
+          <Routes>
+            {/* Main Dashboard Route */}
+            <Route path="/" element={<Index />} />
+            <Route path="/dashboard" element={<Index />} />
+            
+            {/* Institute Routes */}
+            <Route path="/institutes" element={<Index />} />
+            <Route path="/institutes/users" element={<Index />} />
+            <Route path="/institutes/classes" element={<Index />} />
+            
+            {/* Organization Routes */}
+            <Route path="/organizations" element={<Index />} />
+            
+            {/* User Management Routes */}
+            <Route path="/users" element={<Index />} />
+            <Route path="/students" element={<Index />} />
+            <Route path="/unverified-students" element={<Index />} />
+            <Route path="/enroll-class" element={<Index />} />
+            <Route path="/enroll-subject" element={<Index />} />
+            <Route path="/teachers" element={<Index />} />
+            <Route path="/parents" element={<Index />} />
+            
+            {/* Academic Routes */}
+            <Route path="/classes" element={<Index />} />
+            <Route path="/subjects" element={<Index />} />
+            <Route path="/grades" element={<Index />} />
+            <Route path="/grading" element={<Index />} />
+            
+            {/* Attendance Routes */}
+            <Route path="/attendance" element={<Index />} />
+            <Route path="/my-attendance" element={<Index />} />
+            <Route path="/daily-attendance" element={<Index />} />
+            <Route path="/attendance-marking" element={<Index />} />
+            <Route path="/attendance-markers" element={<Index />} />
+            <Route path="/qr-attendance" element={<Index />} />
+            <Route path="/rfid-attendance" element={<Index />} />
+            
+            {/* Academic Content Routes */}
+            <Route path="/lectures" element={<Index />} />
+            <Route path="/institute-lectures" element={<Index />} />
+            <Route path="/live-lectures" element={<Index />} />
+            <Route path="/free-lectures" element={<Index />} />
+            <Route path="/homework" element={<Index />} />
+              <Route path="/homework/update/:homeworkId" element={<UpdateHomework />} />
+              <Route path="/lecture/update/:lectureId" element={<UpdateLecture />} />
+            <Route path="/homework-submissions" element={<Index />} />
+            <Route path="/homework-submissions/:homeworkId" element={<HomeworkSubmissions />} />
+            <Route path="/homework/:homeworkId/submissions" element={<HomeworkSubmissionDetails />} />
+            <Route path="/exams" element={<Index />} />
+            <Route path="/results" element={<Index />} />
+            
+            {/* Selection Routes */}
+            <Route path="/select-institute" element={<Index />} />
+            <Route path="/select-class" element={<Index />} />
+            <Route path="/select-subject" element={<Index />} />
+            <Route path="/parent-children" element={<Index />} />
+            
+            {/* Parent Child Routes */}
+            <Route path="/child-attendance" element={<Index />} />
+            <Route path="/child-results" element={<Index />} />
+            
+            {/* Teacher Specific Routes */}
+            <Route path="/teacher-students" element={<Index />} />
+            <Route path="/teacher-homework" element={<Index />} />
+            <Route path="/teacher-exams" element={<Index />} />
+            <Route path="/teacher-lectures" element={<Index />} />
+            
+            {/* Settings and Profile Routes */}
+            <Route path="/profile" element={<Index />} />
+            <Route path="/settings" element={<Index />} />
+            <Route path="/appearance" element={<Index />} />
+            <Route path="/institute-details" element={<Index />} />
+            <Route path="/gallery" element={<Index />} />
+            
+            {/* Demo Routes */}
+            <Route path="/card-demo" element={<CardDemo />} />
+            
+            {/* Payment Routes */}
+            <Route path="/payments" element={<Payments />} />
+            <Route path="/payments/create" element={<CreatePayment />} />
+            <Route path="/payment-submissions/:paymentId" element={<PaymentSubmissions />} />
+            <Route path="/my-submissions" element={<MySubmissions />} />
+            <Route path="/institute-payments" element={<InstitutePayments />} />
+            <Route path="/subject-payments" element={<SubjectPayments />} />
+            <Route path="/subject-submissions" element={<SubjectSubmissions />} />
+            <Route path="/subject-pay-submission" element={<SubjectPaymentSubmissions />} />
+            <Route path="/payment-submissions" element={<PaymentSubmissionsPage />} />
+            
+            {/* Catch-all route for 404 */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
         </AuthProvider>
       </BrowserRouter>
     </QueryClientProvider>
