@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useNavigate, useLocation } from 'react-router-dom';
 import { useAppNavigation } from '@/hooks/useAppNavigation';
 import Sidebar from './Sidebar';
 import Header from './Header';
@@ -13,8 +12,6 @@ interface AppLayoutProps {
 
 const AppLayout = ({ children, currentPage: propCurrentPage, onPageChange }: AppLayoutProps) => {
   const { user } = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
   const { navigateToPage } = useAppNavigation();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
@@ -22,7 +19,7 @@ const AppLayout = ({ children, currentPage: propCurrentPage, onPageChange }: App
   const getCurrentPage = () => {
     if (propCurrentPage) return propCurrentPage;
     
-    const path = location.pathname;
+    const path = window.location.pathname;
     if (path.startsWith('/payments')) return 'system-payment';
     return 'dashboard';
   };
@@ -41,7 +38,7 @@ const AppLayout = ({ children, currentPage: propCurrentPage, onPageChange }: App
     if (onPageChange) {
       onPageChange(page);
     } else if (page === 'system-payment') {
-      navigate('/payments');
+      navigateToPage('payments');
     } else {
       navigateToPage(page);
     }
