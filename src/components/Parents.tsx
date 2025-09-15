@@ -1,8 +1,15 @@
 import React, { useState, useEffect } from 'react';
+import Paper from '@mui/material/Paper';
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableContainer from '@mui/material/TableContainer';
+import TableHead from '@mui/material/TableHead';
+import TablePagination from '@mui/material/TablePagination';
+import TableRow from '@mui/material/TableRow';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -33,10 +40,11 @@ const Parents = () => {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [meta, setMeta] = useState({
     total: 0,
-    page: 1,
-    limit: 10,
+    page: 0,
+    limit: 50,
     totalPages: 0
   });
+  const [rowsPerPageOptions] = useState([25, 50, 100]);
 
   const userRole = (user?.role || 'Student') as UserRole;
   const canViewParents = userRole === 'InstituteAdmin';
@@ -68,7 +76,7 @@ const Parents = () => {
       setParents(response.data || []);
       setFilteredParents(response.data || []);
       // Add fallback for meta to prevent undefined errors
-      setMeta(response.meta || { total: 0, page: 1, limit: 10, totalPages: 0 });
+      setMeta(response.meta || { total: 0, page: 0, limit: 50, totalPages: 0 });
 
       console.log('State updated - parents:', response.data?.length || 0);
 
@@ -234,118 +242,109 @@ const Parents = () => {
         </div>
       )}
 
-      {/* Parents Table */}
+      {/* Parents MUI Table */}
       {!loading && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base md:text-lg">
-              Parents List ({filteredParents.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="mb-4">
-              <p className="text-sm text-muted-foreground">
-                Debug: {parents.length} parents loaded, {filteredParents.length} filtered
-              </p>
-            </div>
-            {filteredParents.length > 0 ? (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-12"></TableHead>
-                      <TableHead className="min-w-[120px]">ID</TableHead>
-                      <TableHead className="min-w-[150px]">Name</TableHead>
-                      <TableHead className="min-w-[140px] hidden sm:table-cell">Phone</TableHead>
-                      <TableHead className="min-w-[200px] hidden md:table-cell">Address</TableHead>
-                      <TableHead className="min-w-[120px] hidden lg:table-cell">Institute ID</TableHead>
-                      <TableHead className="w-20 text-center">Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredParents.map((parent) => (
-                      <TableRow key={parent.id}>
-                        <TableCell>
-                          <Avatar className="h-8 w-8 md:h-10 md:w-10">
-                            <AvatarImage 
-                              src={parent.imageUrl} 
-                              alt={parent.name}
-                            />
-                            <AvatarFallback>
-                              <User className="h-4 w-4" />
-                            </AvatarFallback>
-                          </Avatar>
-                        </TableCell>
-                        <TableCell>
-                          <div className="font-medium text-sm">
-                            {parent.id}
-                          </div>
-                        </TableCell>
-                         <TableCell>
-                           <div className="space-y-1">
-                             <div className="font-medium text-sm md:text-base">
-                               {parent.name}
-                             </div>
-                             <div className="sm:hidden text-xs text-muted-foreground space-y-1">
-                               {parent.phoneNumber && (
-                                 <div className="flex items-center gap-1">
-                                   <Phone className="h-3 w-3" />
-                                   {parent.phoneNumber}
-                                 </div>
-                               )}
-                               {parent.addressLine2 && (
-                                 <div className="flex items-center gap-1">
-                                   <MapPin className="h-3 w-3" />
-                                   {parent.addressLine2}
-                                 </div>
-                               )}
-                             </div>
-                           </div>
-                         </TableCell>
-                         <TableCell className="hidden sm:table-cell">
-                           <div className="text-sm flex items-center gap-2">
-                             <Phone className="h-4 w-4 text-muted-foreground" />
-                             {parent.phoneNumber || 'Not specified'}
-                           </div>
-                         </TableCell>
-                        <TableCell className="hidden md:table-cell">
-                          <div className="text-sm flex items-center gap-2">
-                            <MapPin className="h-4 w-4 text-muted-foreground" />
-                            {parent.addressLine2 || 'Not specified'}
-                          </div>
-                        </TableCell>
-                        <TableCell className="hidden lg:table-cell">
-                          <div className="text-sm">
-                            {parent.userIdByInstitute || 'Not assigned'}
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Badge 
-                            variant={parent.verifiedBy ? "default" : "secondary"}
-                            className="text-xs"
-                          >
-                            {parent.verifiedBy ? 'Verified' : 'Unverified'}
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                <h3 className="text-lg font-semibold mb-2">No Parents Found</h3>
-                <p className="text-muted-foreground">
-                  {searchTerm 
-                    ? `No parents match "${searchTerm}"`
-                    : 'No parents found for this institute'
-                  }
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        <Paper sx={{ width: '100%', overflow: 'hidden' }}>
+          <TableContainer sx={{ height: 'calc(100vh - 280px)' }}>
+            <Table stickyHeader aria-label="parents table">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Avatar</TableCell>
+                  <TableCell>ID</TableCell>
+                  <TableCell>Name</TableCell>
+                  <TableCell>Phone</TableCell>
+                  <TableCell>Address</TableCell>
+                  <TableCell>Institute ID</TableCell>
+                  <TableCell>Status</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {filteredParents
+                  .slice(meta.page * meta.limit, meta.page * meta.limit + meta.limit)
+                  .map((parent) => (
+                  <TableRow hover role="checkbox" tabIndex={-1} key={parent.id}>
+                    <TableCell>
+                      <Avatar className="h-8 w-8 md:h-10 md:w-10">
+                        <AvatarImage 
+                          src={parent.imageUrl} 
+                          alt={parent.name}
+                        />
+                        <AvatarFallback>
+                          <User className="h-4 w-4" />
+                        </AvatarFallback>
+                      </Avatar>
+                    </TableCell>
+                    <TableCell>
+                      <div className="font-medium text-sm">
+                        {parent.id}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="font-medium text-sm md:text-base">
+                        {parent.name}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-sm flex items-center gap-2">
+                        <Phone className="h-4 w-4 text-muted-foreground" />
+                        {parent.phoneNumber || 'Not specified'}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-sm flex items-center gap-2">
+                        <MapPin className="h-4 w-4 text-muted-foreground" />
+                        {parent.addressLine2 || 'Not specified'}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-sm">
+                        {parent.userIdByInstitute || 'Not assigned'}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge 
+                        variant={parent.verifiedBy ? "default" : "secondary"}
+                        className="text-xs"
+                      >
+                        {parent.verifiedBy ? 'Verified' : 'Unverified'}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {filteredParents.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={7} align="center">
+                      <div className="text-center py-8">
+                        <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                        <h3 className="text-lg font-semibold mb-2">No Parents Found</h3>
+                        <p className="text-muted-foreground">
+                          {searchTerm 
+                            ? `No parents match "${searchTerm}"`
+                            : 'No parents found for this institute'
+                          }
+                        </p>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+          <TablePagination
+            rowsPerPageOptions={rowsPerPageOptions}
+            component="div"
+            count={filteredParents.length}
+            rowsPerPage={meta.limit}
+            page={meta.page}
+            onPageChange={(event: unknown, newPage: number) => {
+              setMeta(prev => ({ ...prev, page: newPage }));
+            }}
+            onRowsPerPageChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+              const newLimit = parseInt(event.target.value, 10);
+              setMeta(prev => ({ ...prev, limit: newLimit, page: 0 }));
+            }}
+          />
+        </Paper>
       )}
     </div>
   );

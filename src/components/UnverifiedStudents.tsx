@@ -1,4 +1,12 @@
 import React, { useState } from 'react';
+import Paper from '@mui/material/Paper';
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableContainer from '@mui/material/TableContainer';
+import TableHead from '@mui/material/TableHead';
+import TablePagination from '@mui/material/TablePagination';
+import TableRow from '@mui/material/TableRow';
 import { useAuth } from '@/contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -7,7 +15,6 @@ import { AlertCircle, UserCheck, UserX, RefreshCw } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from '@/hooks/use-toast';
 import { getBaseUrl } from '@/contexts/utils/auth.api';
-import DataTable from '@/components/ui/data-table';
 
 interface UnverifiedStudent {
   id: string;
@@ -58,10 +65,11 @@ const UnverifiedStudents = () => {
   const [loading, setLoading] = useState(false);
   const [verifyingIds, setVerifyingIds] = useState<Set<string>>(new Set());
   const [hasData, setHasData] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [totalCount, setTotalCount] = useState(0);
-  const limit = 10;
+  const [limit, setLimit] = useState(50);
+  const [rowsPerPageOptions] = useState([25, 50, 100]);
 
   const fetchUnverifiedStudents = async (page: number = 1) => {
     if (!selectedInstitute || !selectedClass) return;
@@ -76,7 +84,7 @@ const UnverifiedStudents = () => {
         endpoint = `${getBaseUrl()}/institute-class-subject-students/unverified/${selectedInstitute.id}/${selectedClass.id}/${selectedSubject.id}`;
       } else {
         // Fetch institute class unverified students - NEW API with pagination
-        endpoint = `${getBaseUrl()}/institute-classes/${selectedClass.id}/unverified-students?limit=${limit}&page=${page}`;
+        endpoint = `${getBaseUrl()}/institute-classes/${selectedClass.id}/unverified-students?limit=${limit}&page=${page + 1}`;
       }
 
       const response = await fetch(endpoint, {
@@ -105,7 +113,7 @@ const UnverifiedStudents = () => {
         setStudents(unverifiedStudents);
         setTotalCount(responseData.totalPendingVerifications);
         setTotalPages(Math.ceil(responseData.totalPendingVerifications / limit));
-        setCurrentPage(page);
+        setCurrentPage(page - 1); // Convert to 0-based for MUI
       }
       
       setHasData(true);
@@ -384,20 +392,125 @@ const UnverifiedStudents = () => {
       </div>
 
       {hasData ? (
-        <DataTable
-          title="Unverified Students"
-          data={students}
-          columns={columns}
-          customActions={customActions}
-          allowAdd={false}
-          allowEdit={false}
-          allowDelete={false}
-          currentPage={currentPage}
-          totalItems={totalCount}
-          totalPages={totalPages}
-          onPageChange={(page) => fetchUnverifiedStudents(page)}
-          searchPlaceholder="Search students by name, email, phone, or ID..."
-        />
+        <Paper sx={{ width: '100%', overflow: 'hidden' }}>
+          <TableContainer sx={{ height: 'calc(100vh - 280px)' }}>
+            <Table stickyHeader aria-label="unverified students table">
+              <TableHead>
+                <TableRow>
+                  <TableCell>Avatar</TableCell>
+                  <TableCell>Name</TableCell>
+                  <TableCell>Contact</TableCell>
+                  <TableCell>Enrollment</TableCell>
+                  <TableCell>Status</TableCell>
+                  <TableCell>Actions</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {students
+                  .slice(currentPage * limit, currentPage * limit + limit)
+                  .map((student) => {
+                    const userData = getStudentUser(student);
+                    const studentKey = getStudentKey(student);
+                    const isNewStudent = 'enrollmentDate' in student;
+                    const phone = 'phoneNumber' in student ? student.phoneNumber : userData.phone;
+                    
+                    return (
+                      <TableRow hover role="checkbox" tabIndex={-1} key={studentKey}>
+                        <TableCell>
+                          <Avatar className="h-10 w-10">
+                            <AvatarImage src={userData.imageUrl} alt={userData.firstName} />
+                            <AvatarFallback>
+                              {userData.firstName[0]}{userData.lastName[0]}
+                            </AvatarFallback>
+                          </Avatar>
+                        </TableCell>
+                        <TableCell>
+                          <div>
+                            <div className="font-medium">{userData.firstName} {userData.lastName}</div>
+                            <div className="text-sm text-muted-foreground">ID: {getStudentId(student)}</div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div>
+                            <div className="text-sm">{userData.email}</div>
+                            <div className="text-sm text-muted-foreground">{phone}</div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          {isNewStudent ? (
+                            <div>
+                              <div className="text-sm">{formatDate(student.enrollmentDate)}</div>
+                              <div className="mt-1">{getEnrollmentMethodBadge(student.enrollmentMethod)}</div>
+                            </div>
+                          ) : (
+                            <span>-</span>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div>
+                            <Badge variant="outline" className="text-orange-600 border-orange-200 mb-1">
+                              Pending Verification
+                            </Badge>
+                            {isNewStudent && (
+                              <div className="text-sm text-muted-foreground">
+                                {student.isActive ? 'Active' : 'Inactive'}
+                              </div>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              onClick={() => handleVerifyStudent(studentKey, true)}
+                              disabled={verifyingIds.has(studentKey)}
+                            >
+                              <UserCheck className="h-4 w-4 mr-1" />
+                              Approve
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleVerifyStudent(studentKey, false)}
+                              disabled={verifyingIds.has(studentKey)}
+                            >
+                              <UserX className="h-4 w-4 mr-1" />
+                              Reject
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                {students.length === 0 && (
+                  <TableRow>
+                    <TableCell colSpan={6} align="center">
+                      <div className="text-center py-8 text-muted-foreground">
+                        No unverified students found
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+          <TablePagination
+            rowsPerPageOptions={rowsPerPageOptions}
+            component="div"
+            count={totalCount}
+            rowsPerPage={limit}
+            page={currentPage}
+            onPageChange={(event: unknown, newPage: number) => {
+              fetchUnverifiedStudents(newPage + 1); // Convert back to 1-based for API
+            }}
+            onRowsPerPageChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+              const newLimit = parseInt(event.target.value, 10);
+              setLimit(newLimit);
+              setCurrentPage(0);
+              fetchUnverifiedStudents(1);
+            }}
+          />
+        </Paper>
       ) : (
         <div className="text-center py-8 text-muted-foreground">
           Click "Load Students" to fetch unverified students

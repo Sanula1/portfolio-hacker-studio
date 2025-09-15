@@ -1,11 +1,19 @@
 
 import React, { useState } from 'react';
+import * as MUI from '@mui/material';
+import Paper from '@mui/material/Paper';
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableContainer from '@mui/material/TableContainer';
+import TableHead from '@mui/material/TableHead';
+import TablePagination from '@mui/material/TablePagination';
+import TableRow from '@mui/material/TableRow';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -70,21 +78,21 @@ const InstituteUsers = () => {
   const studentsTable = useTableData<InstituteUserData>({
     endpoint: `/institute-users/institute/${currentInstituteId}/users/STUDENT`,
     dependencies: [currentInstituteId], // avoid auto fetch on tab switch
-    pagination: { defaultLimit: 10, availableLimits: [10, 25, 50] },
+    pagination: { defaultLimit: 50, availableLimits: [25, 50, 100] },
     autoLoad: false
   });
 
   const teachersTable = useTableData<InstituteUserData>({
     endpoint: `/institute-users/institute/${currentInstituteId}/users/TEACHER`,
     dependencies: [currentInstituteId], // avoid auto fetch on tab switch
-    pagination: { defaultLimit: 10, availableLimits: [10, 25, 50] },
+    pagination: { defaultLimit: 50, availableLimits: [25, 50, 100] },
     autoLoad: false
   });
 
   const attendanceMarkersTable = useTableData<InstituteUserData>({
     endpoint: `/institute-users/institute/${currentInstituteId}/users/ATTENDANCE_MARKER`,
     dependencies: [currentInstituteId], // avoid auto fetch on tab switch
-    pagination: { defaultLimit: 10, availableLimits: [10, 25, 50] },
+    pagination: { defaultLimit: 50, availableLimits: [25, 50, 100] },
     autoLoad: false
   });
 
@@ -463,63 +471,108 @@ const InstituteUsers = () => {
         </Card>
       )}
 
-      {/* Users Table */}
-      <Card>
-        <CardContent className="p-0">
-          <Table>
-            <TableHeader>
+      {/* Users MUI Table */}
+      <Paper sx={{ width: '100%', overflow: 'hidden' }}>
+        <TableContainer sx={{ height: 'calc(100vh - 280px)' }}>
+          <Table stickyHeader aria-label="users table">
+            <TableHead>
               <TableRow>
-                <TableHead>Image</TableHead>
-                <TableHead>ID</TableHead>
-                <TableHead>Name</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Phone Number</TableHead>
-                <TableHead>Actions</TableHead>
+                <TableCell>Image</TableCell>
+                <TableCell>ID</TableCell>
+                <TableCell>Name</TableCell>
+                <TableCell>Email</TableCell>
+                <TableCell>Phone Number</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell>Actions</TableCell>
               </TableRow>
-            </TableHeader>
+            </TableHead>
             <TableBody>
-              {filteredUsers.map((user) => (
-                <TableRow key={user.id}>
+              {filteredUsers
+                .slice(currentTable.pagination.page * currentTable.pagination.limit, 
+                       currentTable.pagination.page * currentTable.pagination.limit + currentTable.pagination.limit)
+                .map((userData) => (
+                <TableRow hover role="checkbox" tabIndex={-1} key={userData.id}>
                   <TableCell>
                     <Avatar className="h-10 w-10">
-                      <AvatarImage src={user.imageUrl || ''} alt={user.name} />
+                      <AvatarImage src={userData.imageUrl || ''} alt={userData.name} />
                       <AvatarFallback>
-                        {user.name.split(' ').map(n => n.charAt(0)).join('').slice(0, 2)}
+                        {userData.name.split(' ').map(n => n.charAt(0)).join('').slice(0, 2)}
                       </AvatarFallback>
                     </Avatar>
                   </TableCell>
-                  <TableCell className="font-medium">{user.id}</TableCell>
-                  <TableCell>{user.name}</TableCell>
-                  <TableCell>{user.email || 'N/A'}</TableCell>
-                  <TableCell>{user.phoneNumber || 'N/A'}</TableCell>
                   <TableCell>
-                    <div className="flex gap-2">
+                    <span className="font-mono text-sm">{userData.id}</span>
+                  </TableCell>
+                  <TableCell>
+                    <div>
+                      <div className="font-medium">{userData.name}</div>
+                      <div className="text-sm text-gray-500">
+                        {userData.userIdByInstitute ? `Institute ID: ${userData.userIdByInstitute}` : 'No Institute ID'}
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-sm">{userData.email || 'Not provided'}</span>
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-sm">{userData.phoneNumber || 'Not provided'}</span>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={userData.verifiedBy ? "default" : "secondary"}>
+                      {userData.verifiedBy ? 'Verified' : 'Unverified'}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex gap-1">
                       <Button
-                        variant="outline"
                         size="sm"
-                        onClick={() => handleViewUser(user)}
+                        variant="outline"
+                        onClick={() => handleViewUser(userData)}
                       >
-                        <Eye className="h-4 w-4 mr-2" />
+                        <Eye className="h-4 w-4 mr-1" />
                         View
                       </Button>
                       {activeTab === 'STUDENT' && (
                         <Button
-                          variant="outline"
                           size="sm"
-                          onClick={() => handleAssignParent(user)}
+                          variant="outline"
+                          onClick={() => handleAssignParent(userData)}
                         >
-                          <UserCog className="h-4 w-4 mr-2" />
-                          Assign Parent
+                          <UserCog className="h-4 w-4 mr-1" />
+                          Parent
                         </Button>
                       )}
                     </div>
                   </TableCell>
                 </TableRow>
               ))}
+              {filteredUsers.length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={7} align="center">
+                    <div className="py-12 text-center text-gray-500">
+                      <IconComponent className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p className="text-lg">No {getUserTypeLabel(activeTab).toLowerCase()}</p>
+                      <p className="text-sm">No users found for the current selection</p>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
-        </CardContent>
-      </Card>
+        </TableContainer>
+        <TablePagination
+          rowsPerPageOptions={currentTable.availableLimits}
+          component="div"
+          count={currentTable.pagination.totalCount}
+          rowsPerPage={currentTable.pagination.limit}
+          page={currentTable.pagination.page}
+          onPageChange={(event: unknown, newPage: number) => currentTable.actions.setPage(newPage)}
+          onRowsPerPageChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+            currentTable.actions.setLimit(parseInt(event.target.value, 10));
+            currentTable.actions.setPage(0);
+          }}
+        />
+      </Paper>
 
       {/* Pagination */}
       {currentTable.pagination.totalPages > 1 && (

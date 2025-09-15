@@ -1,11 +1,18 @@
 import React, { useState } from 'react';
+import Paper from '@mui/material/Paper';
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableContainer from '@mui/material/TableContainer';
+import TableHead from '@mui/material/TableHead';
+import TablePagination from '@mui/material/TablePagination';
+import TableRow from '@mui/material/TableRow';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { RefreshCw, Users, MapPin, Calendar, Clock } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import DataTable from '@/components/ui/data-table';
 import { instituteStudentsApi, StudentAttendanceRecord, StudentAttendanceResponse } from '@/api/instituteStudents.api';
 import { childAttendanceApi, ChildAttendanceRecord } from '@/api/childAttendance.api';
 import AttendanceFilters, { AttendanceFilterParams } from '@/components/AttendanceFilters';
@@ -18,10 +25,11 @@ const Attendance = () => {
   const [childAttendanceRecords, setChildAttendanceRecords] = useState<ChildAttendanceRecord[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [dataLoaded, setDataLoaded] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState(0);
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(5);
+  const [itemsPerPage, setItemsPerPage] = useState(50);
+  const [rowsPerPageOptions] = useState([25, 50, 100]);
   const [filters, setFilters] = useState<AttendanceFilterParams>({});
 
   // Check permissions and get view type based on role and context
@@ -87,7 +95,7 @@ const Attendance = () => {
 
   const handleApplyFilters = () => {
     console.log('Applying filters:', filters);
-    setCurrentPage(1);
+    setCurrentPage(0);
     // Always reload data when filters are applied
     loadStudentAttendanceData();
   };
@@ -95,7 +103,7 @@ const Attendance = () => {
   const handleClearFilters = () => {
     const clearedFilters = {};
     setFilters(clearedFilters);
-    setCurrentPage(1);
+    setCurrentPage(0);
     // Automatically reload data when filters are cleared
     setTimeout(() => {
       loadStudentAttendanceData();
@@ -123,7 +131,7 @@ const Attendance = () => {
           studentId: user.id,
           startDate: filters.startDate || '2025-09-01',
           endDate: filters.endDate || '2025-09-07',
-          page: currentPage,
+          page: currentPage + 1, // API expects 1-based pagination
           limit: itemsPerPage,
           ...(filters.status && { status: filters.status }),
           ...(filters.markingMethod && { markingMethod: filters.markingMethod }),
@@ -174,7 +182,7 @@ const Attendance = () => {
         let result: StudentAttendanceResponse;
         
         const params = {
-          page: currentPage,
+          page: currentPage + 1, // API expects 1-based pagination
           limit: itemsPerPage,
           ...(filters.startDate && { startDate: filters.startDate }),
           ...(filters.endDate && { endDate: filters.endDate }),
@@ -290,7 +298,7 @@ const Attendance = () => {
 
   const handleItemsPerPageChange = (items: number) => {
     setItemsPerPage(items);
-    setCurrentPage(1);
+    setCurrentPage(0);
     // Always reload data with current filters when items per page changes
     loadStudentAttendanceData();
   };
@@ -665,20 +673,63 @@ const Attendance = () => {
         </Card>
       </div>
 
-      {/* Data Table */}
-      <DataTable
-        title=""
-        data={viewType === 'student' ? childAttendanceRecords : studentAttendanceRecords}
-        columns={getColumns()}
-        allowAdd={false}
-        allowEdit={false}
-        allowDelete={false}
-        currentPage={currentPage}
-        totalItems={totalItems}
-        totalPages={totalPages}
-        onPageChange={handlePageChange}
-        onItemsPerPageChange={handleItemsPerPageChange}
-        itemsPerPage={itemsPerPage}
+      {/* MUI Data Table */}
+      <Paper sx={{ width: '100%', overflow: 'hidden' }}>
+        <TableContainer sx={{ height: 'calc(100vh - 280px)' }}>
+          <Table stickyHeader aria-label="attendance table">
+            <TableHead>
+              <TableRow>
+                {getColumns().map((column) => (
+                  <TableCell key={column.key}>
+                    {column.header}
+                  </TableCell>
+                ))}
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {(viewType === 'student' ? childAttendanceRecords : studentAttendanceRecords)
+                .slice(currentPage * itemsPerPage, currentPage * itemsPerPage + itemsPerPage)
+                .map((record, index) => (
+                <TableRow hover role="checkbox" tabIndex={-1} key={index}>
+                  {getColumns().map((column) => (
+                    <TableCell key={column.key}>
+                      {column.render ? column.render(record[column.key], record) : record[column.key]}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+              {(viewType === 'student' ? childAttendanceRecords : studentAttendanceRecords).length === 0 && (
+                <TableRow>
+                  <TableCell colSpan={getColumns().length} align="center">
+                    <div className="py-12 text-center text-gray-500">
+                      <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                      <p className="text-lg">No attendance records found</p>
+                      <p className="text-sm">{getCurrentSelection()}</p>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </TableContainer>
+        <TablePagination
+          rowsPerPageOptions={rowsPerPageOptions}
+          component="div"
+          count={totalItems}
+          rowsPerPage={itemsPerPage}
+          page={currentPage}
+          onPageChange={(event: unknown, newPage: number) => handlePageChange(newPage)}
+          onRowsPerPageChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+            handleItemsPerPageChange(parseInt(event.target.value, 10));
+          }}
+        />
+      </Paper>
+
+      {/* Filters */}
+      <AttendanceFilters
+        onFiltersChange={handleFiltersChange}
+        onApplyFilters={handleApplyFilters}
+        onClearFilters={handleClearFilters}
       />
     </div>
   );

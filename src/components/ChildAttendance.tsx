@@ -1,8 +1,15 @@
 import React, { useState, useEffect } from 'react';
+import Paper from '@mui/material/Paper';
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableContainer from '@mui/material/TableContainer';
+import TableHead from '@mui/material/TableHead';
+import TablePagination from '@mui/material/TablePagination';
+import TableRow from '@mui/material/TableRow';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Calendar, Clock, MapPin, User, RefreshCw, AlertTriangle, TrendingUp, UserCheck, UserX } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -16,8 +23,9 @@ const ChildAttendance = () => {
   const [attendanceData, setAttendanceData] = useState<ChildAttendanceResponse | null>(null);
   const [startDate, setStartDate] = useState('2025-09-01');
   const [endDate, setEndDate] = useState('2025-09-07');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [limit] = useState(5);
+  const [currentPage, setCurrentPage] = useState(0);
+  const [limit, setLimit] = useState(50);
+  const [rowsPerPageOptions] = useState([25, 50, 100]);
 
   const { execute: fetchAttendance, loading } = useApiRequest(childAttendanceApi.getChildAttendance);
 
@@ -37,7 +45,7 @@ const ChildAttendance = () => {
         studentId: selectedChild.id,
         startDate,
         endDate,
-        page: currentPage,
+        page: currentPage + 1, // API expects 1-based pagination
         limit
       });
       
@@ -262,7 +270,7 @@ const ChildAttendance = () => {
         </Card>
       )}
 
-      {/* Attendance Records Table */}
+      {/* Attendance Records MUI Table */}
       <Card>
         <CardHeader>
           <CardTitle>Attendance Records</CardTitle>
@@ -273,30 +281,32 @@ const ChildAttendance = () => {
             </p>
           )}
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           {loading ? (
             <div className="flex justify-center items-center py-8">
               <RefreshCw className="h-6 w-6 animate-spin mr-2" />
               <span>Loading attendance...</span>
             </div>
           ) : attendanceData?.data && attendanceData.data.length > 0 ? (
-            <>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
+            <Paper sx={{ width: '100%', overflow: 'hidden' }}>
+              <TableContainer sx={{ height: 'calc(100vh - 400px)' }}>
+                <Table stickyHeader aria-label="attendance table">
+                  <TableHead>
                     <TableRow>
-                      <TableHead>Date & Time</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Institute</TableHead>
-                      <TableHead>Class & Subject</TableHead>
-                      <TableHead>Location</TableHead>
-                      <TableHead>Marked By</TableHead>
-                      <TableHead>Method</TableHead>
+                      <TableCell>Date & Time</TableCell>
+                      <TableCell>Status</TableCell>
+                      <TableCell>Institute</TableCell>
+                      <TableCell>Class & Subject</TableCell>
+                      <TableCell>Location</TableCell>
+                      <TableCell>Marked By</TableCell>
+                      <TableCell>Method</TableCell>
                     </TableRow>
-                  </TableHeader>
+                  </TableHead>
                   <TableBody>
-                    {attendanceData.data.map((record) => (
-                      <TableRow key={record.attendanceId}>
+                    {attendanceData.data
+                      .slice(currentPage * limit, currentPage * limit + limit)
+                      .map((record) => (
+                      <TableRow hover role="checkbox" tabIndex={-1} key={record.attendanceId}>
                         <TableCell>
                           <div className="flex flex-col">
                             <span className="font-medium">{formatDate(record.markedAt)}</span>
@@ -338,33 +348,22 @@ const ChildAttendance = () => {
                     ))}
                   </TableBody>
                 </Table>
-              </div>
-
-              {/* Pagination */}
-              {attendanceData.pagination && attendanceData.pagination.totalPages > 1 && (
-                <div className="flex justify-between items-center mt-4">
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    disabled={!attendanceData.pagination.hasPrevPage || loading}
-                    onClick={() => setCurrentPage(currentPage - 1)}
-                  >
-                    Previous
-                  </Button>
-                  <span className="text-sm text-muted-foreground">
-                    Page {currentPage} of {attendanceData.pagination.totalPages}
-                  </span>
-                  <Button 
-                    variant="outline" 
-                    size="sm"
-                    disabled={!attendanceData.pagination.hasNextPage || loading}
-                    onClick={() => setCurrentPage(currentPage + 1)}
-                  >
-                    Next
-                  </Button>
-                </div>
-              )}
-            </>
+              </TableContainer>
+              <TablePagination
+                rowsPerPageOptions={rowsPerPageOptions}
+                component="div"
+                count={attendanceData.data.length}
+                rowsPerPage={limit}
+                page={currentPage}
+                onPageChange={(event: unknown, newPage: number) => {
+                  setCurrentPage(newPage);
+                }}
+                onRowsPerPageChange={(event: React.ChangeEvent<HTMLInputElement>) => {
+                  setLimit(parseInt(event.target.value, 10));
+                  setCurrentPage(0);
+                }}
+              />
+            </Paper>
           ) : (
             <div className="text-center py-8">
               <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
