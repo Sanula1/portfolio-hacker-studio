@@ -24,7 +24,7 @@ export const useAppNavigation = () => {
       'attendance': '/attendance',
       'my-attendance': '/my-attendance',
       'daily-attendance': '/daily-attendance',
-      'attendance-marking': '/attendance-marking',
+      
       'attendance-markers': '/attendance-markers',
       'qr-attendance': '/qr-attendance',
       'lectures': '/lectures',

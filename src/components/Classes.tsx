@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import DataTable from '@/components/ui/data-table';
+import MUITable from '@/components/ui/mui-table';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,7 @@ import CreateClassForm from '@/components/forms/CreateClassForm';
 import UpdateClassForm from '@/components/forms/UpdateClassForm';
 import { AccessControl } from '@/utils/permissions';
 import { UserRole } from '@/contexts/types/auth.types';
+import { useTableData } from '@/hooks/useTableData';
 
 interface ClassData {
   id: string;
@@ -57,15 +58,25 @@ const Classes = () => {
 
   const [classes, setClasses] = useState<ClassData[]>([]);
   const [loading, setLoading] = useState(false);
+  // Pagination state
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(50); // Default 50 instead of 25
+  const [totalCount, setTotalCount] = useState(0);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
   const [selectedClass, setSelectedClass] = useState<ClassData | null>(null);
+
+  // Fetch classes when component mounts or pagination changes
+  useEffect(() => {
+    fetchClasses();
+  }, [selectedInstitute?.id, page, rowsPerPage]);
 
   const userRole = (user?.role || 'Student') as UserRole;
   const isInstituteAdmin = userRole === 'InstituteAdmin';
   const canEdit = AccessControl.hasPermission(userRole, 'edit-class') && !isInstituteAdmin;
   const canDelete = AccessControl.hasPermission(userRole, 'delete-class') && !isInstituteAdmin;
   const canCreate = userRole === 'InstituteAdmin';
+  const canAdd = canCreate;
 
   const getApiHeaders = () => {
     const token = localStorage.getItem('access_token');
@@ -89,8 +100,8 @@ const Classes = () => {
     setLoading(true);
     try {
       const params = new URLSearchParams({
-        page: '1',
-        limit: '10',
+        page: (page + 1).toString(), // API expects 1-based pagination
+        limit: rowsPerPage.toString(),
         instituteId: selectedInstitute.id,
       });
 
@@ -102,6 +113,7 @@ const Classes = () => {
       if (response.ok) {
         const data: ApiResponse = await response.json();
         setClasses(data.data);
+        setTotalCount(data.meta.total); // Set total count for pagination
         toast({
           title: "Classes Loaded",
           description: `Successfully loaded ${data.data.length} classes.`
@@ -305,14 +317,32 @@ const Classes = () => {
         </div>
       </div>
 
-      <DataTable
-        title=""
+      <MUITable
+        title="Classes"
         data={classes}
-        columns={columns}
+        columns={columns.map(col => ({
+          id: col.key,
+          label: col.header,
+          minWidth: col.key === 'actions' ? 200 : 170,
+          format: col.render
+        }))}
+        onAdd={canAdd ? () => setIsCreateDialogOpen(true) : undefined}
         onEdit={!isInstituteAdmin && canEdit ? handleEditClass : undefined}
         onDelete={!isInstituteAdmin && canDelete ? handleDeleteClass : undefined}
-        searchPlaceholder="Search classes..."
-        allowAdd={false}
+        page={page}
+        rowsPerPage={rowsPerPage}
+        totalCount={totalCount} // Use actual total count for server-side pagination
+        onPageChange={(newPage: number) => {
+          setPage(newPage);
+          // fetchClasses will be called automatically by useEffect
+        }}
+        onRowsPerPageChange={(newRowsPerPage: number) => {
+          setRowsPerPage(newRowsPerPage);
+          setPage(0); // Reset to first page
+          // fetchClasses will be called automatically by useEffect
+        }}
+        sectionType="classes"
+        allowAdd={canAdd}
         allowEdit={!isInstituteAdmin && canEdit}
         allowDelete={!isInstituteAdmin && canDelete}
       />

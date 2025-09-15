@@ -407,6 +407,15 @@ const ClassSelector = () => {
       description: `Selected ${classData.name} (${classData.code})`
     });
 
+    // For AttendanceMarker role, auto-navigate to select subject
+    if (user?.role === 'AttendanceMarker') {
+      console.log('AttendanceMarker detected - auto-navigating to select subject');
+      setTimeout(() => {
+        window.history.pushState({}, '', '/select-subject');
+        window.dispatchEvent(new PopStateEvent('popstate'));
+      }, 1000); // Small delay to show the toast
+    }
+
     // Explicitly log that no further API calls should happen
     console.log('Class selection complete - blocking any follow-up requests');
   };

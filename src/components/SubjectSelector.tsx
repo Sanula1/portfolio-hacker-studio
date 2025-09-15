@@ -97,7 +97,7 @@ const SubjectSelector = () => {
 
   const fetchSubjectsByRole = async (page: number = 1, limit: number = 10) => {
     setIsLoading(true);
-    console.log('Loading subjects data');
+    console.log('Loading subjects data for teacher');
     
     try {
       const baseUrl = getBaseUrl();
@@ -105,10 +105,10 @@ const SubjectSelector = () => {
       
       let url: string;
       
-      // For Institute Admin, use the new class subjects API endpoint
-      if (user.role === 'InstituteAdmin') {
+      // For Institute Admin and AttendanceMarker, use the new class subjects API endpoint
+      if (user.role === 'InstituteAdmin' || user.role === 'AttendanceMarker') {
         if (!currentInstituteId || !currentClassId) {
-          throw new Error('Missing required parameters for institute admin subject fetch');
+          throw new Error('Missing required parameters for institute admin/attendance marker subject fetch');
         }
         url = `${baseUrl}/institutes/${currentInstituteId}/classes/${currentClassId}/subjects?page=${page}&limit=${limit}`;
       } else if (user.role === 'Teacher') {
@@ -142,9 +142,26 @@ const SubjectSelector = () => {
       
       let subjects: SubjectCardData[] = [];
       
-      if (user.role === 'InstituteAdmin' || user.role === 'Teacher') {
+      if (user.role === 'InstituteAdmin' || user.role === 'Teacher' || user.role === 'AttendanceMarker') {
         // Handle the new API response format for Institute Admin and Teacher
-        if (result.data && Array.isArray(result.data)) {
+        if (Array.isArray(result)) {
+          // Direct array response
+          subjects = result.map((item: any) => ({
+            id: item.subject.id,
+            name: item.subject.name,
+            code: item.subject.code,
+            description: item.subject.description || '',
+            category: item.subject.category || '',
+            creditHours: item.subject.creditHours || 0,
+            isActive: item.subject.isActive,
+            subjectType: item.subject.subjectType || '',
+            basketCategory: item.subject.basketCategory || '',
+            instituteType: item.subject.instituteType || '',
+            imgUrl: item.subject.imgUrl,
+            createdAt: item.subject.createdAt,
+            updatedAt: item.subject.updatedAt
+          }));
+        } else if (result.data && Array.isArray(result.data)) {
           subjects = result.data.map((item: any) => ({
             id: item.subject.id,
             name: item.subject.name,
@@ -162,8 +179,8 @@ const SubjectSelector = () => {
           }));
         }
         
-        // For Institute Admin and Teacher, use the pagination data from the API response
-        const totalSubjects = result.total || 0;
+        // For Institute Admin, Teacher, and AttendanceMarker, use the pagination data from the API response
+        const totalSubjects = result.total || subjects.length;
         const totalPagesFromApi = result.totalPages || Math.ceil(totalSubjects / limit);
         
         setSubjectsData(subjects);
@@ -239,6 +256,35 @@ const SubjectSelector = () => {
     }
   };
 
+  // Auto-load subjects when component mounts and required data is available
+  useEffect(() => {
+    console.log('SubjectSelector useEffect triggered', {
+      user: user?.role,
+      currentInstituteId,
+      currentClassId,
+      dataLoaded
+    });
+    
+    if (user && currentInstituteId && !dataLoaded) {
+      // For roles that require class selection
+      if ((user.role === 'Student' || user.role === 'InstituteAdmin' || user.role === 'Teacher' || user.role === 'AttendanceMarker') && currentClassId) {
+        console.log('Auto-loading subjects for role:', user.role);
+        fetchSubjectsByRole(1, pageSize);
+      } else if (user.role !== 'Student' && user.role !== 'InstituteAdmin' && user.role !== 'Teacher' && user.role !== 'AttendanceMarker') {
+        // For other roles that don't require class selection
+        console.log('Auto-loading subjects for other role:', user.role);
+        fetchSubjectsByRole(1, pageSize);
+      }
+    }
+  }, [user, currentInstituteId, currentClassId, dataLoaded, pageSize]);
+
+  // Reset dataLoaded when institute or class changes for AttendanceMarker
+  useEffect(() => {
+    if (user?.role === 'AttendanceMarker') {
+      setDataLoaded(false);
+    }
+  }, [user?.role, currentInstituteId, currentClassId]);
+
 
   const handleSelectSubject = (subject: SubjectCardData) => {
     console.log('Selecting subject:', subject);
@@ -292,7 +338,7 @@ const SubjectSelector = () => {
     );
   }
 
-  if ((user.role === 'Student' || user.role === 'InstituteAdmin' || user.role === 'Teacher') && !currentClassId) {
+  if ((user.role === 'Student' || user.role === 'InstituteAdmin' || user.role === 'Teacher' || user.role === 'AttendanceMarker') && !currentClassId) {
     return (
       <div className="text-center py-12">
         <p className="text-gray-600 dark:text-gray-400">Please select a class first.</p>

@@ -27,6 +27,7 @@ const Attendance = () => {
   // Check permissions and get view type based on role and context
   const getPermissionInfo = () => {
     const userRole = user?.userType;
+    const userRoleAuth = user?.role; // From auth context
     
     // Student - No permission to view attendance
     if (userRole === 'STUDENT') {
@@ -38,8 +39,8 @@ const Attendance = () => {
       };
     }
     
-    // 1. InstituteAdmin only - Institute level attendance (Institute only selected)
-    if (userRole === 'INSTITUTE_ADMIN' && currentInstituteId && !currentClassId) {
+    // 1. InstituteAdmin and AttendanceMarker - Institute level attendance (Institute only selected)
+    if ((userRole === 'INSTITUTE_ADMIN' || userRoleAuth === 'AttendanceMarker') && currentInstituteId && !currentClassId) {
       return {
         hasPermission: true,
         title: 'Institute Student Attendance Overview',
@@ -48,8 +49,8 @@ const Attendance = () => {
       };
     }
     
-    // 2. InstituteAdmin and Teacher - Class attendance (Institute + Class selected)
-    if ((userRole === 'INSTITUTE_ADMIN' || userRole === 'TEACHER') && 
+    // 2. InstituteAdmin, Teacher, and AttendanceMarker - Class attendance (Institute + Class selected)
+    if ((userRole === 'INSTITUTE_ADMIN' || userRole === 'TEACHER' || userRoleAuth === 'AttendanceMarker') && 
         currentInstituteId && currentClassId && !currentSubjectId) {
       return {
         hasPermission: true,
@@ -59,8 +60,8 @@ const Attendance = () => {
       };
     }
     
-    // 3. InstituteAdmin and Teacher - Subject attendance (Institute + Class + Subject selected)
-    if ((userRole === 'INSTITUTE_ADMIN' || userRole === 'TEACHER') && 
+    // 3. InstituteAdmin, Teacher, and AttendanceMarker - Subject attendance (Institute + Class + Subject selected)
+    if ((userRole === 'INSTITUTE_ADMIN' || userRole === 'TEACHER' || userRoleAuth === 'AttendanceMarker') && 
         currentInstituteId && currentClassId && currentSubjectId) {
       return {
         hasPermission: true,
@@ -506,9 +507,9 @@ const Attendance = () => {
               Please select the required context to view attendance records:
             </p>
             <div className="space-y-2 text-sm text-muted-foreground">
-              <p><strong>Institute Admin:</strong> Select Institute only for institute-level attendance</p>
-              <p><strong>Institute Admin/Teacher:</strong> Select Institute + Class for class-level attendance</p>
-              <p><strong>Institute Admin/Teacher:</strong> Select Institute + Class + Subject for subject-level attendance</p>
+              <p><strong>Institute Admin/Attendance Marker:</strong> Select Institute only for institute-level attendance</p>
+              <p><strong>Institute Admin/Teacher/Attendance Marker:</strong> Select Institute + Class for class-level attendance</p>
+              <p><strong>Institute Admin/Teacher/Attendance Marker:</strong> Select Institute + Class + Subject for subject-level attendance</p>
             </div>
             <div className="mt-4 text-sm text-muted-foreground">
               Current Selection: {getCurrentSelection() || 'None'}

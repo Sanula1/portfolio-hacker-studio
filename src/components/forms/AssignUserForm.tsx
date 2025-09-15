@@ -28,7 +28,8 @@ const AssignUserForm = ({ instituteId, onSubmit, onCancel, initialUserId }: Assi
   const [formData, setFormData] = useState({
     userId: initialUserId || '',
     userIdByInstitute: '',
-    status: 'ACTIVE'
+    status: 'ACTIVE',
+    role: ''
   });
 
   const handleInputChange = (field: string, value: string) => {
@@ -47,7 +48,8 @@ const AssignUserForm = ({ instituteId, onSubmit, onCancel, initialUserId }: Assi
         instituteId,
         userId: formData.userId,
         userIdByInstitute: formData.userIdByInstitute,
-        status: formData.status
+        status: formData.status,
+        role: formData.role
       };
 
       const response = await apiClient.post<AssignUserResponse>('/institute-users', payload);
@@ -154,6 +156,23 @@ const AssignUserForm = ({ instituteId, onSubmit, onCancel, initialUserId }: Assi
             <SelectItem value="INACTIVE">Inactive</SelectItem>
           </SelectContent>
         </Select>
+        
+        <div>
+          <Label htmlFor="role" className="text-sm font-medium">User Role *</Label>
+          <Select value={formData.role || ''} onValueChange={(value) => handleInputChange('role', value)}>
+            <SelectTrigger className="mt-1">
+              <SelectValue placeholder="Select user role" />
+            </SelectTrigger>
+            <SelectContent>
+              {/* Roles available for InstituteAdmin to assign */}
+              <SelectItem value="INSTITUTE_ADMIN">Institute Admin</SelectItem>
+              <SelectItem value="STUDENT">Student</SelectItem>
+              <SelectItem value="ATTENDANCE_MARKER">Attendance Marker</SelectItem>
+              <SelectItem value="TEACHER">Teacher</SelectItem>
+              <SelectItem value="PARENT">Parent</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       <div className="flex justify-end gap-3 pt-4">

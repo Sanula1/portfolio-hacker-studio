@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import CreatePaymentDialog from '@/components/forms/CreatePaymentDialog';
 import SubmitPaymentDialog from '@/components/forms/SubmitPaymentDialog';
+import ViewSubmissionsDialog from '@/components/forms/ViewSubmissionsDialog';
 
 const InstitutePayments = () => {
   const { selectedInstitute, user } = useAuth();
@@ -20,6 +21,7 @@ const InstitutePayments = () => {
   const [loading, setLoading] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [submitDialogOpen, setSubmitDialogOpen] = useState(false);
+  const [viewSubmissionsDialogOpen, setViewSubmissionsDialogOpen] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState<InstitutePayment | null>(null);
 
   const isInstituteAdmin = user?.userType === 'INSTITUTE_ADMIN';
@@ -53,6 +55,11 @@ const InstitutePayments = () => {
   const handleSubmitPayment = (payment: InstitutePayment) => {
     setSelectedPayment(payment);
     setSubmitDialogOpen(true);
+  };
+
+  const handleViewSubmissions = (payment: InstitutePayment) => {
+    setSelectedPayment(payment);
+    setViewSubmissionsDialogOpen(true);
   };
 
   const getStatusColor = (status: string) => {
@@ -247,7 +254,17 @@ const InstitutePayments = () => {
                               <Eye className="h-4 w-4" />
                               <span>View Submissions</span>
                             </Button>
-                          ) : (isStudent || isTeacher) ? (
+                          ) : isTeacher ? (
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => handleViewSubmissions(payment)}
+                              className="flex items-center space-x-1"
+                            >
+                              <Eye className="h-4 w-4" />
+                              <span>View Submissions</span>
+                            </Button>
+                          ) : isStudent ? (
                             <Button 
                               variant="outline" 
                               size="sm"
@@ -332,6 +349,12 @@ const InstitutePayments = () => {
               payment={selectedPayment}
               instituteId={selectedInstitute.id}
               onSuccess={loadPayments}
+            />
+            <ViewSubmissionsDialog
+              open={viewSubmissionsDialogOpen}
+              onOpenChange={setViewSubmissionsDialogOpen}
+              payment={selectedPayment}
+              instituteId={selectedInstitute.id}
             />
           </>
         )}

@@ -91,9 +91,9 @@ const NewAttendance = () => {
   const getPermissionAndEndpoint = () => {
     const userRole = user?.role;
     // Determine permissions purely from role and current selection
-    const canViewSubject = (userRole === 'InstituteAdmin' || userRole === 'Teacher') && currentInstituteId && currentClassId && currentSubjectId;
-    const canViewClass = (userRole === 'InstituteAdmin' || userRole === 'Teacher') && currentInstituteId && currentClassId;
-    const canViewInstitute = userRole === 'InstituteAdmin' && currentInstituteId;
+    const canViewSubject = (userRole === 'InstituteAdmin' || userRole === 'Teacher' || userRole === 'AttendanceMarker') && currentInstituteId && currentClassId && currentSubjectId;
+    const canViewClass = (userRole === 'InstituteAdmin' || userRole === 'Teacher' || userRole === 'AttendanceMarker') && currentInstituteId && currentClassId;
+    const canViewInstitute = (userRole === 'InstituteAdmin' || userRole === 'AttendanceMarker') && currentInstituteId;
 
     // Build base URL (attendance service first, fallback to main API)
     let attendanceBaseUrl = getAttendanceUrl() || getBaseUrl() || localStorage.getItem('baseUrl2') || '';
@@ -421,11 +421,16 @@ const NewAttendance = () => {
         <Card>
           <CardContent className="text-center py-12">
             <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-              Access Denied
+              Access Denied or Missing Selection
             </h3>
-            <p className="text-gray-600 dark:text-gray-400">
-              You don't have permission to view attendance records or haven't selected the required context.
+            <p className="text-gray-600 dark:text-gray-400 mb-4">
+              Please select the required context to view attendance records:
             </p>
+            <div className="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+              <p><strong>Institute Admin/Attendance Marker:</strong> Select Institute only for institute-level attendance</p>
+              <p><strong>Institute Admin/Teacher/Attendance Marker:</strong> Select Institute + Class for class-level attendance</p>
+              <p><strong>Institute Admin/Teacher/Attendance Marker:</strong> Select Institute + Class + Subject for subject-level attendance</p>
+            </div>
             <div className="mt-4 text-sm text-gray-500">
               Current Selection: {getContextInfo() || 'None'}
             </div>

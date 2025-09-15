@@ -42,8 +42,8 @@ const QRAttendance = () => {
   const animationRef = useRef<number | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
-  // Check if user has permission - InstituteAdmin only
-  const hasPermission = user?.userType === 'INSTITUTE_ADMIN';
+  // Check if user has permission - InstituteAdmin, Teacher, and AttendanceMarker can mark attendance
+  const hasPermission = user?.userType === 'INSTITUTE_ADMIN' || user?.role === 'Teacher' || user?.role === 'AttendanceMarker';
 
   useEffect(() => {
     fetchLocation();
@@ -576,7 +576,7 @@ const QRAttendance = () => {
           <CardContent className="text-center py-12">
             <h3 className="text-lg font-medium mb-2">Access Denied</h3>
             <p className="text-muted-foreground">
-              You don't have permission to mark attendance. This feature is only available for Institute Admins.
+              You don't have permission to mark attendance. This feature is available for Institute Admins, Teachers, and Attendance Markers.
             </p>
           </CardContent>
         </Card>

@@ -20,7 +20,7 @@ import Grading from '@/components/Grading';
 import Attendance from '@/components/Attendance';
 import NewAttendance from '@/components/NewAttendance';
 import MyAttendance from '@/components/MyAttendance';
-import AttendanceMarking from '@/components/AttendanceMarking';
+
 import AttendanceMarkers from '@/components/AttendanceMarkers';
 import QRAttendance from '@/components/QRAttendance';
 import RFIDAttendance from '@/pages/RFIDAttendance';
@@ -535,7 +535,7 @@ const AppContent = ({ initialPage }: AppContentProps) => {
         return <SubjectSelector />;
       }
 
-      const classRequiredPages = ['attendance-marking', 'grading'];
+      const classRequiredPages = ['grading'];
       if (selectedInstitute && !selectedClass && classRequiredPages.includes(currentPage)) {
         return <ClassSelector />;
       }
@@ -570,8 +570,6 @@ const AppContent = ({ initialPage }: AppContentProps) => {
           return <Attendance />;
         case 'daily-attendance':
           return <NewAttendance />;
-        case 'attendance-marking':
-          return <AttendanceMarking onNavigate={setCurrentPage} />;
         case 'qr-attendance':
           return <QRAttendance />;
         case 'rfid-attendance':
@@ -608,18 +606,24 @@ const AppContent = ({ initialPage }: AppContentProps) => {
       }
 
       if (currentPage === 'select-subject') {
-        return <AttendanceMarkerSubjectSelector />;
+        return <SubjectSelector />;
       }
 
       switch (currentPage) {
         case 'dashboard':
           return <Dashboard />;
+        case 'attendance':
+          return <Attendance />;
+        case 'daily-attendance':
+          return <NewAttendance />;
+        case 'my-attendance':
+          return <MyAttendance />;
+        case 'attendance-markers':
+          return <AttendanceMarkers />;
         case 'qr-attendance':
           return <QRAttendance />;
         case 'rfid-attendance':
           return <RFIDAttendance />;
-        case 'attendance-marking':
-          return <AttendanceMarking onNavigate={setCurrentPage} />;
         case 'profile':
           return <Profile />;
         case 'select-institute':
@@ -631,7 +635,7 @@ const AppContent = ({ initialPage }: AppContentProps) => {
         case 'settings':
           return <Settings />;
         default:
-          return <QRAttendance />;
+          return <Dashboard />;
       }
     }
 
@@ -648,7 +652,7 @@ const AppContent = ({ initialPage }: AppContentProps) => {
       return <SubjectSelector />;
     }
 
-    const classRequiredPages = ['attendance-marking', 'grading'];
+    const classRequiredPages = ['grading'];
     if (selectedInstitute && !selectedClass && classRequiredPages.includes(currentPage)) {
       return <ClassSelector />;
     }
@@ -703,8 +707,6 @@ const AppContent = ({ initialPage }: AppContentProps) => {
         return <Attendance />;
       case 'daily-attendance':
         return <NewAttendance />;
-      case 'attendance-marking':
-        return <AttendanceMarking onNavigate={setCurrentPage} />;
       case 'attendance-markers':
         return <AttendanceMarkers />;
       case 'qr-attendance':

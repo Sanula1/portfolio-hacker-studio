@@ -1,11 +1,11 @@
 
 import React, { useState } from 'react';
-import DataTable from '@/components/ui/data-table';
+import MUITable from '@/components/ui/mui-table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { RefreshCw, Filter, Plus, Calendar, Clock, FileText, CheckCircle, ExternalLink, BarChart3 } from 'lucide-react';
+import { RefreshCw, Filter, Plus, Calendar, Clock, FileText, CheckCircle, ExternalLink, BarChart3, Eye } from 'lucide-react';
 import { useAuth, type UserRole } from '@/contexts/AuthContext';
 import { AccessControl } from '@/utils/permissions';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -14,6 +14,7 @@ import CreateExamForm from '@/components/forms/CreateExamForm';
 import { UpdateExamForm } from '@/components/forms/UpdateExamForm';
 import CreateResultsForm from '@/components/forms/CreateResultsForm';
 import { DataCardView } from '@/components/ui/data-card-view';
+import { useTableData } from '@/hooks/useTableData';
 import { cachedApiClient } from '@/api/cachedClient';
 import { ExamResultsDialog } from '@/components/ExamResultsDialog';
 
@@ -29,9 +30,6 @@ const Exams = ({ apiLevel = 'institute' }: ExamsProps) => {
   const [isCreateResultsDialogOpen, setIsCreateResultsDialogOpen] = useState(false);
   const [isExamResultsDialogOpen, setIsExamResultsDialogOpen] = useState(false);
   const [selectedExam, setSelectedExam] = useState<any>(null);
-  const [examsData, setExamsData] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [dataLoaded, setDataLoaded] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
 
   // Filter states
@@ -40,22 +38,36 @@ const Exams = ({ apiLevel = 'institute' }: ExamsProps) => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
 
-  const buildQueryParams = () => {
-    const userRole = (user?.role || 'Student') as UserRole;
-    const params: Record<string, any> = {
-      page: 1,
-      limit: 10
-    };
+  const userRole = (user?.role || 'Student') as UserRole;
+
+  // Enhanced pagination with useTableData hook
+  const {
+    state: { data: examsData, loading: isLoading },
+    pagination,
+    actions: { refresh, updateFilters },
+    filters
+  } = useTableData({
+    endpoint: '/institute-class-subject-exams',
+    defaultParams: buildDefaultParams(),
+    dependencies: [currentInstituteId, currentClassId, currentSubjectId, userRole],
+    pagination: {
+      defaultLimit: 50,
+      availableLimits: [25, 50, 100]
+    }
+  });
+
+  const dataLoaded = examsData.length > 0;
+
+  function buildDefaultParams() {
+    const params: Record<string, any> = {};
 
     // Add context-aware filtering
     if (currentInstituteId) {
       params.instituteId = currentInstituteId;
     }
-
     if (currentClassId) {
       params.classId = currentClassId;
     }
-
     if (currentSubjectId) {
       params.subjectId = currentSubjectId;
     }
@@ -65,25 +77,10 @@ const Exams = ({ apiLevel = 'institute' }: ExamsProps) => {
       params.teacherId = user.id;
     }
 
-    // Add filter parameters
-    if (searchTerm.trim()) {
-      params.search = searchTerm.trim();
-    }
-
-    if (statusFilter !== 'all') {
-      params.status = statusFilter;
-    }
-
-    if (typeFilter !== 'all') {
-      params.examType = typeFilter;
-    }
-
     return params;
-  };
+  }
 
   const handleLoadData = async (forceRefresh = false) => {
-    const userRole = (user?.role || 'Student') as UserRole;
-    
     // For students: require all context selections
     if (userRole === 'Student') {
       if (!currentInstituteId || !currentClassId || !currentSubjectId) {
@@ -108,51 +105,25 @@ const Exams = ({ apiLevel = 'institute' }: ExamsProps) => {
       }
     }
 
-    const endpoint = '/institute-class-subject-exams';
-    const params = buildQueryParams();
+    // Update filters and refresh data
+    const newFilters = buildDefaultParams();
+    updateFilters(newFilters);
     
-    setIsLoading(true);
-    console.log(`Loading exams data for role: ${userRole}`, { forceRefresh, params });
-    
-    try {
-      const result = await cachedApiClient.get(endpoint, params, { 
-        forceRefresh,
-        ttl: 30 // Cache exams for 30 minutes
-      });
-
-      console.log('Exams loaded successfully:', result);
-      
-      // Handle both array response and paginated response
-      const exams = Array.isArray(result) ? result : (result as any)?.data || [];
-      setExamsData(exams);
-      setDataLoaded(true);
-      setLastRefresh(new Date());
-      
-      toast({
-        title: "Data Loaded",
-        description: `Successfully loaded ${exams.length} exams.`
-      });
-    } catch (error) {
-      console.error('Failed to load exams:', error);
-      toast({
-        title: "Load Failed",
-        description: "Failed to load exams data.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoading(false);
+    if (forceRefresh) {
+      refresh();
     }
   };
 
   const handleRefreshData = async () => {
     console.log('Force refreshing exams data...');
-    await handleLoadData(true);
+    refresh();
+    setLastRefresh(new Date());
   };
 
   const handleCreateExam = async () => {
     setIsCreateDialogOpen(false);
     // Force refresh after creating new exam
-    await handleLoadData(true);
+    refresh();
   };
 
   const handleEditExam = (examData: any) => {
@@ -166,7 +137,7 @@ const Exams = ({ apiLevel = 'institute' }: ExamsProps) => {
     setSelectedExam(null);
   };
 
-  const handleViewExam = (examData: any) => {
+  const handleViewResults = (examData: any) => {
     console.log('View exam results:', examData);
     setSelectedExam(examData);
     setIsExamResultsDialogOpen(true);
@@ -176,8 +147,6 @@ const Exams = ({ apiLevel = 'institute' }: ExamsProps) => {
     console.log('Deleting exam:', examData);
     
     try {
-      setIsLoading(true);
-      
       // Use cached client for delete (will clear related cache)
       await cachedApiClient.delete(`/institute-class-subject-exams/${examData.id}`);
 
@@ -190,7 +159,7 @@ const Exams = ({ apiLevel = 'institute' }: ExamsProps) => {
       });
       
       // Force refresh after deletion
-      await handleLoadData(true);
+      refresh();
       
     } catch (error) {
       console.error('Error deleting exam:', error);
@@ -199,8 +168,6 @@ const Exams = ({ apiLevel = 'institute' }: ExamsProps) => {
         description: "Failed to delete exam. Please try again.",
         variant: "destructive"
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -209,7 +176,6 @@ const Exams = ({ apiLevel = 'institute' }: ExamsProps) => {
     setIsCreateResultsDialogOpen(true);
   };
 
-  const userRole = (user?.role || 'Student') as UserRole;
 
   const examsColumns = [
     { key: 'title', header: 'Title' },
@@ -290,7 +256,7 @@ const Exams = ({ apiLevel = 'institute' }: ExamsProps) => {
     canDelete,
     canView,
     handleEditExam: !!handleEditExam,
-    handleViewExam: !!handleViewExam
+    handleViewResults: !!handleViewResults
   });
 
   const getTitle = () => {
@@ -509,20 +475,36 @@ const Exams = ({ apiLevel = 'institute' }: ExamsProps) => {
               </div>
            )}
 
-           {/* Desktop Table View */}
+           {/* Desktop MUI Table View */}
           <div className="hidden md:block">
-            <DataTable
+            <MUITable
               title=""
               data={examsData}
-              columns={examsColumns}
+              columns={examsColumns.map(col => ({
+                id: col.key,
+                label: col.header,
+                minWidth: 170,
+                format: col.render
+              }))}
               onAdd={canAdd ? () => setIsCreateDialogOpen(true) : undefined}
               onEdit={userRole === 'InstituteAdmin' ? handleEditExam : undefined}
-              onDelete={canDelete ? handleDeleteExam : undefined}
-              onView={handleViewExam}
+              onView={undefined}
+              page={0}
+              rowsPerPage={50}
+              totalCount={examsData.length}
+              onPageChange={() => {}}
+              onRowsPerPageChange={() => {}}
+              sectionType="exams"
               allowEdit={userRole === 'InstituteAdmin'}
               allowDelete={canDelete}
-              searchPlaceholder="Search exams..."
-              sectionType="exams"
+              customActions={[
+                {
+                  label: '',
+                  action: handleViewResults,
+                  icon: <Eye className="h-4 w-4" />,
+                  variant: 'outline' as const
+                }
+              ]}
             />
           </div>
 
@@ -531,7 +513,7 @@ const Exams = ({ apiLevel = 'institute' }: ExamsProps) => {
             <DataCardView
               data={filteredExams}
               columns={examsColumns}
-              onView={handleViewExam}
+              onView={handleViewResults}
               onEdit={canEdit ? handleEditExam : undefined}
               onDelete={canDelete ? handleDeleteExam : undefined}
               allowEdit={canEdit}

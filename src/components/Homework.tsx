@@ -1,11 +1,11 @@
 
-import React, { useState } from 'react';
-import DataTable from '@/components/ui/data-table';
+import React, { useState, useEffect } from 'react';
+import MUITable from '@/components/ui/mui-table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { RefreshCw, Filter, Plus, Calendar, Clock, BookOpen, FileText, Upload, ExternalLink, BarChart3, Eye } from 'lucide-react';
+import { RefreshCw, Filter, Plus, Calendar, Clock, BookOpen, FileText, Upload, ExternalLink, BarChart3, Eye, Edit, Users } from 'lucide-react';
 import { useAuth, type UserRole } from '@/contexts/AuthContext';
 import { AccessControl } from '@/utils/permissions';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -37,16 +37,35 @@ const Homework = ({ apiLevel = 'institute' }: HomeworkProps) => {
   const [dataLoaded, setDataLoaded] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
 
+  // Pagination states
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(25);
+  const [totalCount, setTotalCount] = useState(0);
+
   // Filter states
   const [showFilters, setShowFilters] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
+  // Auto-load data when pagination changes
+  useEffect(() => {
+    if (dataLoaded) {
+      handleLoadData(false);
+    }
+  }, [page, rowsPerPage, dataLoaded]);
+
+  // Auto-load data when context changes
+  useEffect(() => {
+    if (!dataLoaded) {
+      handleLoadData(false);
+    }
+  }, [selectedInstitute, selectedClass, selectedSubject, user?.id, dataLoaded]);
+
   const buildQueryParams = () => {
     const userRole = (user?.role || 'Student') as UserRole;
     const params: Record<string, any> = {
-      page: 1,
-      limit: 10
+      page: page + 1, // MUI pagination is 0-based, API is 1-based
+      limit: rowsPerPage
     };
 
     // Add context-aware filtering
@@ -130,7 +149,10 @@ const Homework = ({ apiLevel = 'institute' }: HomeworkProps) => {
       
       // Handle both array response and paginated response
       const homework = Array.isArray(result) ? result : (result as any)?.data || [];
+      const total = Array.isArray(result) ? result.length : (result as any)?.meta?.total || homework.length;
+      
       setHomeworkData(homework);
+      setTotalCount(total);
       setDataLoaded(true);
       setLastRefresh(new Date());
       
@@ -265,6 +287,20 @@ const Homework = ({ apiLevel = 'institute' }: HomeworkProps) => {
         <span className="text-gray-400">No reference</span>
       )
     }] : []),
+    ...(userRole === 'InstituteAdmin' || userRole === 'Teacher' ? [{
+      key: 'submissions',
+      header: 'Submissions',
+      render: (value: any, row: any) => (
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => handleViewSubmissions(row)}
+        >
+          <Users className="h-3 w-3 mr-1" />
+          View
+        </Button>
+      )
+    }] : []),
     { 
       key: 'isActive', 
       header: 'Status',
@@ -281,38 +317,29 @@ const Homework = ({ apiLevel = 'institute' }: HomeworkProps) => {
     // Actions for InstituteAdmin and Teacher
     ...((userRole === 'InstituteAdmin' || userRole === 'Teacher') ? [
       {
-        label: 'View',
+        label: '',
         action: (homework: any) => handleViewHomework(homework),
-        icon: <Eye className="h-3 w-3" />,
-        variant: 'outline' as const
+        icon: <Eye className="h-4 w-4" />,
+        variant: 'outline' as const,
+        tooltip: 'View details'
       },
       {
-        label: 'Edit Homework',
+        label: '',
         action: (homework: any) => handleEditHomework(homework),
-        icon: <FileText className="h-3 w-3" />,
-        variant: 'outline' as const
-      },
-      {
-        label: 'View Submissions',
-        action: (homework: any) => handleViewSubmissions(homework),
-        icon: <BarChart3 className="h-3 w-3" />,
-        variant: 'outline' as const
-      },
-      {
-        label: 'Update',
-        action: (homework: any) => handleEditHomework(homework),
-        icon: <FileText className="h-3 w-3" />,
-        variant: 'outline' as const
+        icon: <Edit className="h-4 w-4" />,
+        variant: 'outline' as const,
+        tooltip: 'Edit homework'
       }
     ] : []),
     
     // Actions for Students
     ...(userRole === 'Student' ? [
       {
-        label: 'View',
+        label: '',
         action: (homework: any) => handleViewHomework(homework),
-        icon: <Eye className="h-3 w-3" />,
-        variant: 'outline' as const
+        icon: <Eye className="h-4 w-4" />,
+        variant: 'outline' as const,
+        tooltip: 'View details'
       },
       {
         label: 'Submit',
@@ -495,13 +522,33 @@ const Homework = ({ apiLevel = 'institute' }: HomeworkProps) => {
 
           {/* Desktop Table View */}
           <div className="hidden md:block">
-            <DataTable
+            <MUITable
               title=""
               data={homeworkData}
-              columns={homeworkColumns}
-              customActions={customActions}
-              searchPlaceholder="Search homework..."
+              columns={homeworkColumns.map(col => ({
+                id: col.key,
+                label: col.header,
+                minWidth: 170,
+                format: col.render
+              }))}
+              onAdd={canAdd ? () => setIsCreateDialogOpen(true) : undefined}
+              onEdit={canEdit ? handleEditHomework : undefined}
+              onView={handleViewHomework}
+              page={page}
+              rowsPerPage={rowsPerPage}
+              totalCount={totalCount}
+              onPageChange={(newPage: number) => {
+                setPage(newPage);
+                handleLoadData(false);
+              }}
+              onRowsPerPageChange={(newRowsPerPage: number) => {
+                setRowsPerPage(newRowsPerPage);
+                setPage(0);
+                handleLoadData(false);
+              }}
               sectionType="homework"
+              allowEdit={canEdit}
+              allowDelete={canDelete}
             />
           </div>
 

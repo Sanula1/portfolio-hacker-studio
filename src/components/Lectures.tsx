@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import DataTable from '@/components/ui/data-table';
+import MUITable from '@/components/ui/mui-table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import CreateLectureForm from '@/components/forms/CreateLectureForm';
 import UpdateLectureForm from '@/components/forms/UpdateLectureForm';
 import { DataCardView } from '@/components/ui/data-card-view';
+import { useTableData } from '@/hooks/useTableData';
 import { cachedApiClient } from '@/api/cachedClient';
 
 interface LecturesProps {
@@ -26,9 +27,6 @@ const Lectures = ({ apiLevel = 'institute' }: LecturesProps) => {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [selectedLectureData, setSelectedLectureData] = useState<any>(null);
-  const [lecturesData, setLecturesData] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [dataLoaded, setDataLoaded] = useState(false);
   const [lastRefresh, setLastRefresh] = useState<Date | null>(null);
 
   // Filter states
@@ -37,54 +35,62 @@ const Lectures = ({ apiLevel = 'institute' }: LecturesProps) => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [typeFilter, setTypeFilter] = useState('all');
 
-  const buildQueryParams = () => {
-    const userRole = (user?.role || 'Student') as UserRole;
-    const params: Record<string, any> = {
-      page: 1,
-      limit: 100
-    };
+  const userRole = (user?.role || 'Student') as UserRole;
+  
+  // Enhanced pagination with useTableData hook
+  const tableData = useTableData({
+    endpoint: getEndpoint(),
+    defaultParams: buildDefaultParams(),
+    dependencies: [currentInstituteId, currentClassId, currentSubjectId, userRole],
+    pagination: {
+      defaultLimit: 50,
+      availableLimits: [25, 50, 100]
+    }
+  });
 
+  const { 
+    state: { data: lecturesData, loading: isLoading },
+    pagination,
+    actions
+  } = tableData;
+
+  const dataLoaded = lecturesData.length > 0;
+
+  function getEndpoint() {
+    if (userRole === 'Student') {
+      return '/institute-class-subject-lectures';
+    } else if (userRole === 'InstituteAdmin' || userRole === 'Teacher') {
+      if (currentInstituteId && currentClassId && currentSubjectId) {
+        return '/institute-class-subject-lectures';
+      }
+    }
+    return '/lectures';
+  }
+
+  function buildDefaultParams() {
+    const params: Record<string, any> = {};
+    
     // Add context-aware filtering
     if (currentInstituteId) {
       params.instituteId = currentInstituteId;
     }
-
     if (currentClassId) {
       params.classId = currentClassId;
     }
-
     if (currentSubjectId) {
       params.subjectId = currentSubjectId;
     }
-
+    
     // For Teachers, add instructorId parameter
     if (userRole === 'Teacher' && user?.id) {
       params.instructorId = user.id;
     }
-
-    // Add filter parameters
-    if (searchTerm.trim()) {
-      params.search = searchTerm.trim();
-    }
-
-    if (statusFilter !== 'all') {
-      params.status = statusFilter;
-    }
-
-    if (typeFilter !== 'all') {
-      params.lectureType = typeFilter;
-    }
-
+    
     return params;
-  };
+  }
 
   const handleLoadData = async (forceRefresh = false) => {
-    const userRole = (user?.role || 'Student') as UserRole;
-    let endpoint = '';
-    const params = buildQueryParams();
-    
     if (userRole === 'Student') {
-      // For students: use the specific API endpoint with required parameters
       if (!currentInstituteId || !currentClassId || !currentSubjectId) {
         toast({
           title: "Missing Selection",
@@ -93,13 +99,8 @@ const Lectures = ({ apiLevel = 'institute' }: LecturesProps) => {
         });
         return;
       }
-      
-      endpoint = '/institute-class-subject-lectures';
     } else if (userRole === 'InstituteAdmin' || userRole === 'Teacher') {
-      // For InstituteAdmin and Teacher: use institute class subject lectures API
-      if (currentInstituteId && currentClassId && currentSubjectId) {
-        endpoint = '/institute-class-subject-lectures';
-      } else {
+      if (!currentInstituteId || !currentClassId || !currentSubjectId) {
         toast({
           title: "Missing Selection",
           description: "Please select institute, class, and subject to view lectures.",
@@ -107,59 +108,27 @@ const Lectures = ({ apiLevel = 'institute' }: LecturesProps) => {
         });
         return;
       }
-    } else {
-      // For other roles: use the original API
-      endpoint = '/lectures';
     }
 
-    setIsLoading(true);
-    console.log(`Loading lectures data for role: ${userRole}`, { forceRefresh });
-    console.log(`Current context - Institute: ${selectedInstitute?.name}, Class: ${selectedClass?.name}, Subject: ${selectedSubject?.name}`);
+    // Update filters and refresh data
+    const newFilters = buildDefaultParams();
+    actions.updateFilters(newFilters);
     
-    try {
-      console.log('Fetching lectures from endpoint:', endpoint, 'with params:', params);
-      
-      // Use cached API client
-      const result = await cachedApiClient.get(endpoint, params, { 
-        forceRefresh,
-        ttl: 10 // Cache lectures for 10 minutes (they change frequently)
-      });
-
-      console.log('Lectures loaded successfully:', result);
-      
-      // Handle both array response and paginated response
-      const lectures = Array.isArray(result) ? result : (result as any)?.data || [];
-      setLecturesData(lectures);
-      setDataLoaded(true);
-      setLastRefresh(new Date());
-      
-      if (forceRefresh) {
-        toast({
-          title: "Data Refreshed",
-          description: `Successfully refreshed ${lectures.length} lectures.`
-        });
-      }
-    } catch (error) {
-      console.error('Failed to load lectures:', error);
-      toast({
-        title: "Load Failed",
-        description: "Failed to load lectures data.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoading(false);
+    if (forceRefresh) {
+      actions.refresh();
     }
   };
 
   const handleRefreshData = async () => {
     console.log('Force refreshing lectures data...');
-    await handleLoadData(true);
+    actions.refresh();
+    setLastRefresh(new Date());
   };
 
   const handleCreateLecture = async () => {
     setIsCreateDialogOpen(false);
     // Force refresh after creating new lecture
-    await handleLoadData(true);
+    actions.refresh();
   };
 
   const handleEditLecture = async (lectureData: any) => {
@@ -172,7 +141,7 @@ const Lectures = ({ apiLevel = 'institute' }: LecturesProps) => {
     setIsEditDialogOpen(false);
     setSelectedLectureData(null);
     // Force refresh after updating lecture
-    await handleLoadData(true);
+    actions.refresh();
   };
 
 
@@ -180,8 +149,6 @@ const Lectures = ({ apiLevel = 'institute' }: LecturesProps) => {
     console.log('Deleting lecture:', lectureData);
     
     try {
-      setIsLoading(true);
-      
       // Use cached client for delete (will clear related cache)
       await cachedApiClient.delete(`/lectures/${lectureData.id}`);
 
@@ -194,7 +161,7 @@ const Lectures = ({ apiLevel = 'institute' }: LecturesProps) => {
       });
       
       // Force refresh after deletion
-      await handleLoadData(true);
+      actions.refresh();
       
     } catch (error) {
       console.error('Error deleting lecture:', error);
@@ -203,8 +170,6 @@ const Lectures = ({ apiLevel = 'institute' }: LecturesProps) => {
         description: "Failed to delete lecture. Please try again.",
         variant: "destructive"
       });
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -216,7 +181,6 @@ const Lectures = ({ apiLevel = 'institute' }: LecturesProps) => {
     });
   };
 
-  const userRole = (user?.role || 'Student') as UserRole;
 
   const lecturesColumns = [
     { key: 'title', header: 'Title' },
@@ -469,20 +433,28 @@ const Lectures = ({ apiLevel = 'institute' }: LecturesProps) => {
             </div>
           )}
 
-           {/* Desktop Table View */}
+           {/* Desktop MUI Table View */}
           <div className="hidden md:block">
-            <DataTable
+            <MUITable
               title=""
               data={lecturesData}
-              columns={lecturesColumns}
+              columns={lecturesColumns.map(col => ({
+                id: col.key,
+                label: col.header,
+                minWidth: 170,
+                format: col.render
+              }))}
               onAdd={canAdd ? () => setIsCreateDialogOpen(true) : undefined}
               onEdit={userRole === 'InstituteAdmin' ? handleEditLecture : undefined}
               onDelete={canDelete ? handleDeleteLecture : undefined}
-              onView={undefined}
+              page={pagination.page}
+              rowsPerPage={pagination.limit}
+              totalCount={pagination.totalCount}
+              onPageChange={(newPage: number) => actions.setPage(newPage)}
+              onRowsPerPageChange={(newLimit: number) => actions.setLimit(newLimit)}
+              sectionType="lectures"
               allowEdit={userRole === 'InstituteAdmin'}
               allowDelete={canDelete}
-              searchPlaceholder="Search lectures..."
-              sectionType="lectures"
             />
           </div>
 

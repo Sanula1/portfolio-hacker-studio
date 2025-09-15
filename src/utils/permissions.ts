@@ -331,8 +331,12 @@ export class AccessControl {
       '/subjects': 'view-subjects',
       '/institutes': 'view-institutes',
       '/attendance': 'view-attendance',
-      '/attendance-marking': 'mark-attendance',
+      '/my-attendance': 'view-attendance',
+      '/daily-attendance': 'view-attendance',
+      
       '/attendance-markers': 'manage-attendance-markers',
+      '/qr-attendance': 'mark-attendance',
+      '/rfid-attendance': 'mark-attendance',
       '/grades': 'view-grades',
       '/grading': 'view-grading',
       '/lectures': 'view-lectures',

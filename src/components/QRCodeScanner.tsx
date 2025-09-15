@@ -62,8 +62,8 @@ const QRCodeScanner = () => {
   const animationRef = useRef<number | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
 
-  // Check if user has permission - InstituteAdmin only for attendance marking
-  const hasPermission = user?.role === 'InstituteAdmin';
+  // Check if user has permission - InstituteAdmin, Teacher, and AttendanceMarker can mark attendance
+  const hasPermission = user?.role === 'InstituteAdmin' || user?.role === 'Teacher' || user?.role === 'AttendanceMarker';
 
   useEffect(() => {
     if (attendanceNotification) {
@@ -512,7 +512,7 @@ const QRCodeScanner = () => {
               Access Denied
             </h3>
             <p className="text-gray-600 dark:text-gray-400 text-sm sm:text-base">
-              You don't have permission to mark attendance. This feature is only available for Institute Admins.
+              You don't have permission to mark attendance. This feature is available for Institute Admins, Teachers, and Attendance Markers.
             </p>
           </CardContent>
         </Card>

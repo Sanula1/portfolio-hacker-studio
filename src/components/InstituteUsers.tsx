@@ -7,16 +7,19 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Eye, RefreshCw, GraduationCap, Users, UserCheck, Plus, UserPlus, UserCog } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Eye, RefreshCw, GraduationCap, Users, UserCheck, Plus, UserPlus, UserCog, Filter, Search } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { instituteApi } from '@/api/institute.api';
 import { studentsApi } from '@/api/students.api';
 import { useApiRequest } from '@/hooks/useApiRequest';
+import { useTableData } from '@/hooks/useTableData';
 import CreateUserForm from '@/components/forms/CreateUserForm';
 import AssignUserForm from '@/components/forms/AssignUserForm';
 import AssignParentForm from '@/components/forms/AssignParentForm';
-import CreateInstituteStudentForm from '@/components/forms/CreateInstituteStudentForm';
+import CreateStudentForm from '@/components/forms/CreateStudentForm';
 
 interface InstituteUserData {
   id: string;
@@ -50,9 +53,6 @@ const InstituteUsers = () => {
   const { toast } = useToast();
   const { user, currentInstituteId } = useAuth();
   
-  const [students, setStudents] = useState<InstituteUserData[]>([]);
-  const [teachers, setTeachers] = useState<InstituteUserData[]>([]);
-  const [attendanceMarkers, setAttendanceMarkers] = useState<InstituteUserData[]>([]);
   const [selectedUser, setSelectedUser] = useState<InstituteUserData | null>(null);
   const [showUserDialog, setShowUserDialog] = useState(false);
   const [showCreateUserDialog, setShowCreateUserDialog] = useState(false);
@@ -62,59 +62,46 @@ const InstituteUsers = () => {
   const [selectedStudentForParent, setSelectedStudentForParent] = useState<InstituteUserData | null>(null);
   const [assignInitialUserId, setAssignInitialUserId] = useState<string | undefined>(undefined);
   const [activeTab, setActiveTab] = useState<UserType>('STUDENT');
-  const [loadingStates, setLoadingStates] = useState({
-    STUDENT: false,
-    TEACHER: false,
-    ATTENDANCE_MARKER: false
+  const [showFilters, setShowFilters] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'verified' | 'unverified'>('all');
+
+  // Table data management for each user type
+  const studentsTable = useTableData<InstituteUserData>({
+    endpoint: `/institute-users/institute/${currentInstituteId}/users/STUDENT`,
+    dependencies: [currentInstituteId], // avoid auto fetch on tab switch
+    pagination: { defaultLimit: 10, availableLimits: [10, 25, 50] },
+    autoLoad: false
   });
 
-  // Use API request hook for fetching users by type
-  const fetchUsersByTypeRequest = useApiRequest(
-    async (userType: UserType) => {
-      if (!currentInstituteId) throw new Error('No institute selected');
-      const response = await instituteApi.getInstituteUsersByType(currentInstituteId, userType);
-      return response;
-    },
-    { preventDuplicates: true }
-  );
+  const teachersTable = useTableData<InstituteUserData>({
+    endpoint: `/institute-users/institute/${currentInstituteId}/users/TEACHER`,
+    dependencies: [currentInstituteId], // avoid auto fetch on tab switch
+    pagination: { defaultLimit: 10, availableLimits: [10, 25, 50] },
+    autoLoad: false
+  });
 
-  const fetchUsersByType = async (userType: UserType) => {
-    try {
-      setLoadingStates(prev => ({ ...prev, [userType]: true }));
-      
-      const response = await fetchUsersByTypeRequest.execute(userType);
-      console.log(`Institute ${userType.toLowerCase()}s data received:`, response);
-      
-      const userData = response.data || [];
-      
-      // Update the appropriate state based on user type
-      switch (userType) {
-        case 'STUDENT':
-          setStudents(userData);
-          break;
-        case 'TEACHER':
-          setTeachers(userData);
-          break;
-        case 'ATTENDANCE_MARKER':
-          setAttendanceMarkers(userData);
-          break;
-      }
-      
-      toast({
-        title: `${userType.charAt(0) + userType.slice(1).toLowerCase()}s Loaded`,
-        description: `Successfully loaded ${userData.length} ${userType.toLowerCase()}s.`
+  const attendanceMarkersTable = useTableData<InstituteUserData>({
+    endpoint: `/institute-users/institute/${currentInstituteId}/users/ATTENDANCE_MARKER`,
+    dependencies: [currentInstituteId], // avoid auto fetch on tab switch
+    pagination: { defaultLimit: 10, availableLimits: [10, 25, 50] },
+    autoLoad: false
+  });
+
+  // Use API request hook for creating users with duplicate prevention
+  const createUserRequest = useApiRequest(
+    async (userData: any) => {
+      console.log('Creating user with data:', userData);
+      // This would need to be implemented based on your API structure
+      const response = await fetch(`/api/users`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(userData)
       });
-    } catch (error) {
-      console.error(`Error fetching institute ${userType.toLowerCase()}s:`, error);
-      toast({
-        title: "Error",
-        description: `Failed to load institute ${userType.toLowerCase()}s`,
-        variant: "destructive"
-      });
-    } finally {
-      setLoadingStates(prev => ({ ...prev, [userType]: false }));
-    }
-  };
+      return response.json();
+    },
+    { preventDuplicates: true, showLoading: false }
+  );
 
   const handleViewUser = (user: InstituteUserData) => {
     setSelectedUser(user);
@@ -147,7 +134,7 @@ const InstituteUsers = () => {
     });
     
     // Refresh the current tab data
-    fetchUsersByType(activeTab);
+    getCurrentTable().actions.refresh();
   };
 
   const handleAssignParent = (student: InstituteUserData) => {
@@ -170,7 +157,7 @@ const InstituteUsers = () => {
       setSelectedStudentForParent(null);
       
       // Refresh students data
-      fetchUsersByType('STUDENT');
+      studentsTable.actions.refresh();
     } catch (error) {
       console.error('Error assigning parent:', error);
       toast({
@@ -181,17 +168,29 @@ const InstituteUsers = () => {
     }
   };
 
-  const getCurrentUsers = () => {
+  const getCurrentTable = () => {
     switch (activeTab) {
       case 'STUDENT':
-        return students;
+        return studentsTable;
       case 'TEACHER':
-        return teachers;
+        return teachersTable;
       case 'ATTENDANCE_MARKER':
-        return attendanceMarkers;
+        return attendanceMarkersTable;
       default:
-        return [];
+        return studentsTable;
     }
+  };
+
+  // Prevent unnecessary API calls on repeated clicks.
+  const safeLoad = (table: any) => {
+    if (!table || table.state?.loading) return;
+    // If already loaded once and no explicit refresh requested, skip
+    if (table.state?.lastRefresh && (table.state?.data?.length || 0) > 0) return;
+    table.actions?.loadData?.(false);
+  };
+
+  const getCurrentUsers = () => {
+    return getCurrentTable().state.data;
   };
 
   const getUserTypeLabel = (type: UserType) => {
@@ -236,8 +235,18 @@ const InstituteUsers = () => {
     );
   }
 
+  const currentTable = getCurrentTable();
   const currentUsers = getCurrentUsers();
-  const currentLoading = loadingStates[activeTab];
+  const filteredUsers = currentUsers.filter((u) => {
+    const term = searchTerm.trim().toLowerCase();
+    const matchesTerm = !term || [u.name, u.id, u.email, u.phoneNumber]
+      .filter(Boolean)
+      .some((v) => String(v).toLowerCase().includes(term));
+    const matchesStatus =
+      statusFilter === 'all' || (statusFilter === 'verified' ? !!u.verifiedBy : !u.verifiedBy);
+    return matchesTerm && matchesStatus;
+  });
+  const currentLoading = currentTable.state.loading;
   const IconComponent = getUserTypeIcon(activeTab);
 
   return (
@@ -250,6 +259,14 @@ const InstituteUsers = () => {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={() => setShowFilters(!showFilters)}
+            className="flex items-center gap-2"
+          >
+            <Filter className="h-4 w-4" />
+            Filters
+          </Button>
           <Button 
             onClick={() => setShowAssignUserDialog(true)}
             variant="outline"
@@ -290,7 +307,7 @@ const InstituteUsers = () => {
             <div className="flex items-center gap-2">
               <Badge variant="outline" className="flex items-center gap-1">
                 <GraduationCap className="h-4 w-4" />
-                {students.length} Students
+                {studentsTable.pagination.totalCount} Students
               </Badge>
             </div>
             <div className="flex items-center gap-2">
@@ -303,12 +320,12 @@ const InstituteUsers = () => {
                 Create Student
               </Button>
               <Button 
-                onClick={() => fetchUsersByType('STUDENT')} 
-                disabled={loadingStates.STUDENT}
+                onClick={() => studentsTable.actions.refresh()} 
+                disabled={studentsTable.state.loading}
                 variant="outline"
                 size="sm"
               >
-                {loadingStates.STUDENT ? (
+                {studentsTable.state.loading ? (
                   <>
                     <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
                     Loading...
@@ -329,16 +346,16 @@ const InstituteUsers = () => {
             <div className="flex items-center gap-2">
               <Badge variant="outline" className="flex items-center gap-1">
                 <Users className="h-4 w-4" />
-                {teachers.length} Teachers
+                {teachersTable.pagination.totalCount} Teachers
               </Badge>
             </div>
             <Button 
-              onClick={() => fetchUsersByType('TEACHER')} 
-              disabled={loadingStates.TEACHER}
+              onClick={() => teachersTable.actions.refresh()} 
+              disabled={teachersTable.state.loading}
               variant="outline"
               size="sm"
             >
-              {loadingStates.TEACHER ? (
+              {teachersTable.state.loading ? (
                 <>
                   <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
                   Loading...
@@ -358,16 +375,16 @@ const InstituteUsers = () => {
             <div className="flex items-center gap-2">
               <Badge variant="outline" className="flex items-center gap-1">
                 <UserCheck className="h-4 w-4" />
-                {attendanceMarkers.length} Attendance Markers
+                {attendanceMarkersTable.pagination.totalCount} Attendance Markers
               </Badge>
             </div>
             <Button 
-              onClick={() => fetchUsersByType('ATTENDANCE_MARKER')} 
-              disabled={loadingStates.ATTENDANCE_MARKER}
+              onClick={() => attendanceMarkersTable.actions.refresh()} 
+              disabled={attendanceMarkersTable.state.loading}
               variant="outline"
               size="sm"
             >
-              {loadingStates.ATTENDANCE_MARKER ? (
+              {attendanceMarkersTable.state.loading ? (
                 <>
                   <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
                   Loading...
@@ -382,6 +399,69 @@ const InstituteUsers = () => {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Filter Controls */}
+      {showFilters && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Filter className="h-5 w-5" />
+              Filter {getUserTypeLabel(activeTab)}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder={`Search ${activeTab.toLowerCase()}s...`}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <Select 
+                value={statusFilter}
+                onValueChange={(value) => setStatusFilter(value as 'all' | 'verified' | 'unverified')}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="verified">Verified</SelectItem>
+                  <SelectItem value="unverified">Unverified</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select 
+                value={currentTable.pagination.limit.toString()} 
+                onValueChange={(value) => currentTable.actions.setLimit(parseInt(value))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Items per page" />
+                </SelectTrigger>
+                <SelectContent>
+                  {currentTable.availableLimits.map((limit) => (
+                    <SelectItem key={limit} value={limit.toString()}>
+                      {limit} per page
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSearchTerm('');
+                  setStatusFilter('all');
+                }}
+                className="w-full"
+              >
+                Clear Filters
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Users Table */}
       <Card>
@@ -398,7 +478,7 @@ const InstituteUsers = () => {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {currentUsers.map((user) => (
+              {filteredUsers.map((user) => (
                 <TableRow key={user.id}>
                   <TableCell>
                     <Avatar className="h-10 w-10">
@@ -440,6 +520,36 @@ const InstituteUsers = () => {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Pagination */}
+      {currentTable.pagination.totalPages > 1 && (
+        <div className="flex items-center justify-between">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Showing {((currentTable.pagination.page) * currentTable.pagination.limit) + 1} to {Math.min((currentTable.pagination.page + 1) * currentTable.pagination.limit, currentTable.pagination.totalCount)} of {currentTable.pagination.totalCount} {activeTab.toLowerCase()}s
+          </p>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => currentTable.actions.prevPage()}
+              disabled={currentTable.pagination.page === 0 || currentTable.state.loading}
+            >
+              Previous
+            </Button>
+            <span className="text-sm text-gray-600 dark:text-gray-400">
+              Page {currentTable.pagination.page + 1} of {currentTable.pagination.totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => currentTable.actions.nextPage()}
+              disabled={currentTable.pagination.page === currentTable.pagination.totalPages - 1 || currentTable.state.loading}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
 
       {currentUsers.length === 0 && !currentLoading && (
         <Card>
@@ -600,11 +710,13 @@ const InstituteUsers = () => {
       </Dialog>
 
       {/* Create Student Dialog */}
-      <CreateInstituteStudentForm
-        isOpen={showCreateStudentDialog}
-        onClose={() => setShowCreateStudentDialog(false)}
-        onSuccess={() => fetchUsersByType('STUDENT')}
-      />
+      {showCreateStudentDialog && (
+        <CreateStudentForm
+          onSubmit={handleCreateUser}
+          onCancel={() => setShowCreateStudentDialog(false)}
+          loading={createUserRequest.loading}
+        />
+      )}
     </div>
   );
 };

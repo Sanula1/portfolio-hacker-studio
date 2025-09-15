@@ -199,10 +199,10 @@ const CreateUserForm = ({ onSubmit, onCancel, loading = false, initialData }: Cr
                       <SelectValue placeholder="Select user type" />
                     </SelectTrigger>
                      <SelectContent>
-                       <SelectItem value="STUDENT">Student</SelectItem>
+                       {/* Restricted options for InstituteAdmin */}
+                       <SelectItem value="INSTITUTE_ADMIN">Institute Admin</SelectItem>
                        <SelectItem value="ATTENDANCE_MARKER">Attendance Marker</SelectItem>
                        <SelectItem value="TEACHER">Teacher</SelectItem>
-                       <SelectItem value="PARENT">Parent</SelectItem>
                      </SelectContent>
                   </Select>
                 </div>

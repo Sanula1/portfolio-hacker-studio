@@ -2,7 +2,7 @@ import React from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import ClassSelector from './ClassSelector';
 import SubjectSelector from './SubjectSelector';
-import AttendanceMarking from './AttendanceMarking';
+
 import Lectures from './Lectures';
 import Results from './Results';
 import DataTable from './ui/data-table';
@@ -182,9 +182,14 @@ const Dashboard = () => {
     );
   }
 
-  // For Attendance Markers, show only attendance marking
+  // For Attendance Markers, show dashboard
   if (user?.role === 'AttendanceMarker') {
-    return <AttendanceMarking />;
+    return (
+      <div className="text-center py-12">
+        <p className="text-gray-600 dark:text-gray-400">Welcome, Attendance Marker!</p>
+        <p className="text-sm text-gray-500 dark:text-gray-500 mt-2">Use the sidebar to navigate to attendance features.</p>
+      </div>
+    );
   }
 
   // System Admin gets direct dashboard with admin filters

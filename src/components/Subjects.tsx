@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import DataTable from '@/components/ui/data-table';
+import React, { useState } from 'react';
+import MUITable from '@/components/ui/mui-table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { useToast } from '@/hooks/use-toast';
 import CreateSubjectForm from '@/components/forms/CreateSubjectForm';
 import AssignSubjectToClassForm from '@/components/forms/AssignSubjectToClassForm';
-import { getBaseUrl } from '@/contexts/utils/auth.api';
+import { useTableData } from '@/hooks/useTableData';
 
 interface SubjectData {
   id: string;
@@ -38,13 +38,31 @@ const Subjects = () => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
   const [selectedSubjectData, setSelectedSubjectData] = useState<any>(null);
-  const [subjectsData, setSubjectsData] = useState<SubjectData[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [dataLoaded, setDataLoaded] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
+
+  // Enhanced pagination with useTableData hook
+  const tableData = useTableData<SubjectData>({
+    endpoint: '/subjects',
+    defaultParams: {
+      ...(selectedInstituteType && { instituteType: selectedInstituteType })
+    },
+    dependencies: [currentInstituteId, selectedInstituteType],
+    pagination: {
+      defaultLimit: 50,
+      availableLimits: [25, 50, 100]
+    }
+  });
+
+  const { 
+    state: { data: subjectsData, loading: isLoading },
+    pagination,
+    actions
+  } = tableData;
+
+  const dataLoaded = subjectsData.length > 0;
 
   const userRole = (user?.role || 'Student') as UserRole;
   const isInstituteAdmin = userRole === 'InstituteAdmin';
@@ -52,28 +70,6 @@ const Subjects = () => {
   const canDelete = AccessControl.hasPermission(userRole, 'delete-subject') && !isInstituteAdmin;
   const canCreate = userRole === 'InstituteAdmin';
   const canAssignSubjects = userRole === 'InstituteAdmin' || userRole === 'Teacher';
-
-  const getAuthToken = () => {
-    const token = localStorage.getItem('access_token') || 
-                  localStorage.getItem('token') || 
-                  localStorage.getItem('authToken');
-    return token;
-  };
-
-  const getApiHeaders = () => {
-    const token = getAuthToken();
-    
-    const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-      'ngrok-skip-browser-warning': 'true'
-    };
-
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
-
-    return headers;
-  };
 
   const handleLoadData = async () => {
     if (!currentInstituteId) {
@@ -85,81 +81,12 @@ const Subjects = () => {
       return;
     }
 
-    setIsLoading(true);
-    console.log('Loading subjects data...');
-    console.log(`Current context - Institute: ${selectedInstitute?.name}, InstituteId: ${currentInstituteId}`);
-    
-    try {
-      const baseUrl = getBaseUrl();
-      const headers = getApiHeaders();
-      
-      // Use the subjects API endpoint with query parameters
-      const params = new URLSearchParams({ npage: '1', limit: '10' });
-      if (selectedInstituteType) {
-        params.set('instituteType', selectedInstituteType);
-      }
-      const url = `${baseUrl}/subjects?${params.toString()}`;
-      console.log('Fetching subjects from:', url);
-      
-      const response = await fetch(url, {
-        method: 'GET',
-        headers
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch subjects: ${response.status}`);
-      }
-      
-      const result = await response.json();
-      console.log('API response:', result);
-      
-      // Handle the response structure based on user's provided format
-      let subjectsArray = Array.isArray(result) ? result : result.data || [];
-      
-      // Filter subjects based on institute if needed
-      if (currentInstituteId && selectedInstituteType) {
-        subjectsArray = subjectsArray.filter((subject: SubjectData) => 
-          !subject.instituteType || subject.instituteType === selectedInstituteType
-        );
-      }
-      
-      // Filter subjects based on local filters
-      let filteredData = subjectsArray;
-      
-      if (searchTerm) {
-        filteredData = filteredData.filter((subject: SubjectData) =>
-          subject.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          subject.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          subject.description.toLowerCase().includes(searchTerm.toLowerCase())
-        );
-      }
-      
-      if (statusFilter !== 'all') {
-        filteredData = filteredData.filter((subject: SubjectData) => 
-          statusFilter === 'active' ? subject.isActive : !subject.isActive
-        );
-      }
-      
-      if (categoryFilter !== 'all') {
-        filteredData = filteredData.filter((subject: SubjectData) => subject.category === categoryFilter);
-      }
-      
-      setSubjectsData(filteredData);
-      setDataLoaded(true);
-      toast({
-        title: "Data Loaded",
-        description: `Successfully loaded ${filteredData.length} subjects.`
-      });
-    } catch (error) {
-      console.error('Error loading subjects:', error);
-      toast({
-        title: "Load Failed",
-        description: "Failed to load subjects data.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsLoading(false);
-    }
+    // Update filters and reload data
+    const newFilters = {
+      ...(selectedInstituteType && { instituteType: selectedInstituteType })
+    };
+    actions.updateFilters(newFilters);
+    actions.refresh();
   };
 
   const subjectsColumns = [
@@ -199,7 +126,7 @@ const Subjects = () => {
       
       setIsCreateDialogOpen(false);
       // Refresh data after creation
-      handleLoadData();
+      actions.refresh();
     } catch (error: any) {
       console.error('Error in handleCreateSubject:', error);
       toast({
@@ -226,7 +153,7 @@ const Subjects = () => {
     setIsEditDialogOpen(false);
     setSelectedSubjectData(null);
     // Refresh data after update
-    handleLoadData();
+    actions.refresh();
   };
 
   const handleDeleteSubject = (subject: any) => {
@@ -445,16 +372,26 @@ const Subjects = () => {
             />
           </div>
 
-          {/* Desktop View */}
+          {/* Desktop MUI Table View */}
           <div className="hidden md:block">
-            <DataTable
+            <MUITable
               title="Subjects"
               data={subjectsData || []}
-              columns={subjectsColumns}
+              columns={subjectsColumns.map(col => ({
+                id: col.key,
+                label: col.header,
+                minWidth: 170,
+                format: col.render
+              }))}
               onEdit={!isInstituteAdmin && canEdit ? handleEditSubject : undefined}
               onDelete={!isInstituteAdmin && canDelete ? handleDeleteSubject : undefined}
               onView={!isInstituteAdmin ? handleViewSubject : undefined}
-              searchPlaceholder="Search subjects..."
+              page={pagination.page}
+              rowsPerPage={pagination.limit}
+              totalCount={pagination.totalCount}
+              onPageChange={(newPage: number) => actions.setPage(newPage)}
+              onRowsPerPageChange={(newLimit: number) => actions.setLimit(newLimit)}
+              sectionType="subjects"
               allowEdit={!isInstituteAdmin && canEdit}
               allowDelete={!isInstituteAdmin && canDelete}
             />

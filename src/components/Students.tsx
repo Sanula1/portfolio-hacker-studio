@@ -8,7 +8,7 @@ import { Plus, RefreshCw, Users, Search, Filter, UserPlus } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { DataCardView } from '@/components/ui/data-card-view';
-import DataTable from '@/components/ui/data-table';
+import MUITable from '@/components/ui/mui-table';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import CreateStudentForm from '@/components/forms/CreateStudentForm';
@@ -16,6 +16,7 @@ import AssignStudentsDialog from '@/components/forms/AssignStudentsDialog';
 import AssignSubjectStudentsDialog from '@/components/forms/AssignSubjectStudentsDialog';
 import { cachedApiClient } from '@/api/cachedClient';
 import { useApiRequest } from '@/hooks/useApiRequest';
+import { useTableData } from '@/hooks/useTableData';
 import { getBaseUrl } from '@/contexts/utils/auth.api';
 
 interface InstituteStudent {
@@ -100,15 +101,25 @@ const Students = () => {
   const [showSubjectAssignDialog, setShowSubjectAssignDialog] = useState(false);
   const [dataLoaded, setDataLoaded] = useState(false);
   
-  // Pagination state
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalStudents, setTotalStudents] = useState(0);
-  const limit = 10;
-  
   // Filter states
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+
+  // Enhanced pagination with useTableData hook
+  const {
+    state: { data: paginatedStudents, loading: tableLoading },
+    pagination,
+    actions: { refresh: refreshTableData, updateFilters, setPage, setLimit },
+    filters
+  } = useTableData<Student>({
+    endpoint: '/students',
+    defaultParams: {},
+    dependencies: [],
+    pagination: {
+      defaultLimit: 50,
+      availableLimits: [25, 50, 100]
+    }
+  });
 
   // Check if user should use new institute-based API
   const shouldUseInstituteApi = () => {
@@ -137,10 +148,10 @@ const Students = () => {
   // Use API request hook for fetching students (original API)
   const fetchStudentsRequest = useApiRequest(
     async (page: number) => {
-      console.log(`Fetching students with params: page=${page}&limit=${limit}`);
+      console.log(`Fetching students with params: page=${page}&limit=${pagination.limit}`);
       const response = await cachedApiClient.get<StudentsResponse>(
         '/students',
-        { page: page.toString(), limit: limit.toString() },
+        { page: page.toString(), limit: pagination.limit.toString() },
         { ttl: 15, useStaleWhileRevalidate: true }
       );
       return response;
@@ -155,9 +166,7 @@ const Students = () => {
       console.log('Students data received:', data);
       
       setStudents(data.data);
-      setCurrentPage(data.meta.page);
-      setTotalPages(data.meta.totalPages);
-      setTotalStudents(data.meta.total);
+      // Note: pagination is managed by the hook automatically
       setDataLoaded(true);
       
       toast({
@@ -188,9 +197,9 @@ const Students = () => {
       if (response.ok) {
         const data: InstituteStudentsResponse = await response.json();
         setInstituteStudents(data.data);
-        setTotalStudents(data.meta.total);
-        setCurrentPage(data.meta.page);
-        setTotalPages(data.meta.totalPages);
+        const totalStudents = data.meta.total;
+        const currentPage = data.meta.page;
+        const totalPages = data.meta.totalPages;
         setDataLoaded(true);
         
         toast({
@@ -226,9 +235,9 @@ const Students = () => {
       if (response.ok) {
         const data: InstituteStudentsResponse = await response.json();
         setInstituteStudents(data.data);
-        setTotalStudents(data.meta.total);
-        setCurrentPage(data.meta.page);
-        setTotalPages(data.meta.totalPages);
+        const totalStudents = data.meta.total;
+        const currentPage = data.meta.page;
+        const totalPages = data.meta.totalPages;
         setDataLoaded(true);
         
         toast({
@@ -253,6 +262,7 @@ const Students = () => {
   // Determine which fetch function to use
   const getLoadFunction = () => {
     if (!shouldUseInstituteApi()) {
+      const currentPage = 1;
       return () => fetchStudents(currentPage);
     }
     
@@ -262,6 +272,7 @@ const Students = () => {
       return fetchInstituteClassStudents;
     }
     
+    const currentPage = 1;
     return () => fetchStudents(currentPage);
   };
 
@@ -579,7 +590,7 @@ const Students = () => {
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="flex items-center gap-1">
             <Users className="h-4 w-4" />
-            {totalStudents} Students
+            {pagination.totalCount} Students
           </Badge>
           {/* Assign User Buttons - Only for InstituteAdmin and Teacher */}
           {shouldUseInstituteApi() && selectedClass && (user?.role === 'InstituteAdmin' || user?.role === 'Teacher') && (
@@ -702,13 +713,27 @@ const Students = () => {
         </Card>
       ) : (
         <>
-          {/* Desktop Table View */}
+          {/* Desktop MUI Table View */}
           <div className="hidden md:block">
-            <DataTable
+            <MUITable
               title=""
               data={filteredStudents}
-              columns={studentColumns}
-              searchPlaceholder="Search students..."
+              columns={studentColumns.map(col => ({
+                id: col.key,
+                label: col.header,
+                minWidth: 170,
+                format: col.render
+              }))}
+              onAdd={undefined}
+              onEdit={undefined}
+              onDelete={undefined}
+              onView={undefined}
+              page={pagination.page}
+              rowsPerPage={pagination.limit}
+              totalCount={filteredStudents.length}
+              onPageChange={setPage}
+              onRowsPerPageChange={setLimit}
+              sectionType="students"
               allowAdd={false}
               allowEdit={false}
               allowDelete={false}
@@ -727,33 +752,12 @@ const Students = () => {
         </>
       )}
 
-      {/* Pagination - Only show for original API */}
-      {!shouldUseInstituteApi() && totalPages > 1 && (
+      {/* Pagination - Only show for paginated data */}
+      {shouldUseInstituteApi() && pagination.totalCount > pagination.limit && (
         <div className="flex items-center justify-between">
           <p className="text-sm text-gray-600 dark:text-gray-400">
-            Showing {((currentPage - 1) * limit) + 1} to {Math.min(currentPage * limit, totalStudents)} of {totalStudents} students
+            Showing {(pagination.page * pagination.limit) + 1} to {Math.min((pagination.page + 1) * pagination.limit, pagination.totalCount)} of {pagination.totalCount} students
           </p>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => fetchStudents(currentPage - 1)}
-              disabled={currentPage === 1 || fetchStudentsRequest.loading}
-            >
-              Previous
-            </Button>
-            <span className="text-sm text-gray-600 dark:text-gray-400">
-              Page {currentPage} of {totalPages}
-            </span>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => fetchStudents(currentPage + 1)}
-              disabled={currentPage === totalPages || fetchStudentsRequest.loading}
-            >
-              Next
-            </Button>
-          </div>
         </div>
       )}
 

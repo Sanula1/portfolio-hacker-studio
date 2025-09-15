@@ -92,7 +92,7 @@ const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) =
         ];
       }
 
-      // 2. Student with institute selected (but no class)
+      // 2. Student with institute selected - show basic navigation
       if (selectedInstitute && !selectedClass) {
         return [
           {
@@ -126,7 +126,7 @@ const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) =
         ];
       }
 
-      // 3. Student with institute and class selected (but no subject)
+      // 3. Student with institute and class selected (but no subject) - remove enroll options
       if (selectedInstitute && selectedClass && !selectedSubject) {
         return [
           {
@@ -137,23 +137,16 @@ const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) =
             alwaysShow: false
           },
           {
-            id: 'enroll-subject',
-            label: 'Enroll Subject',
-            icon: BookOpen,
+            id: 'my-attendance',
+            label: 'My Attendance',
+            icon: UserCheck,
             permission: 'view-dashboard',
-            alwaysShow: false
-          },
-          {
-            id: 'institute-lectures',
-            label: 'Institute Lectures',
-            icon: Video,
-            permission: 'view-lectures',
             alwaysShow: false
           }
         ];
       }
 
-      // 4. Student with institute, class, and subject all selected
+      // 4. Student with institute, class, and subject all selected - show subject-specific navigation
       if (selectedInstitute && selectedClass && selectedSubject) {
         return [
           {
@@ -164,15 +157,15 @@ const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) =
             alwaysShow: false
           },
           {
-            id: 'lectures',
-            label: 'Lectures',
-            icon: Video,
-            permission: 'view-lectures',
+            id: 'my-attendance',
+            label: 'My Attendance',
+            icon: UserCheck,
+            permission: 'view-dashboard',
             alwaysShow: false
           },
           {
-            id: 'free-lectures',
-            label: 'Free Lectures',
+            id: 'lectures',
+            label: 'Lectures',
             icon: Video,
             permission: 'view-lectures',
             alwaysShow: false
@@ -218,15 +211,8 @@ const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) =
             icon: Notebook,
             permission: 'view-homework',
             alwaysShow: false
-          },
-          {
-            id: 'institute-lectures',
-            label: 'Institute Lectures',
-            icon: Video,
-            permission: 'view-lectures',
-            alwaysShow: false
           }
-        ];
+         ];
       }
     }
 
@@ -540,20 +526,6 @@ const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) =
             alwaysShow: false
           },
           {
-            id: 'daily-attendance',
-            label: 'Daily Attendance',
-            icon: UserCheck,
-            permission: 'view-attendance',
-            alwaysShow: false
-          },
-          {
-            id: 'free-lectures',
-            label: 'Free Lectures',
-            icon: Video,
-            permission: 'view-lectures',
-            alwaysShow: false
-          },
-          {
             id: 'students',
             label: 'Students',
             icon: GraduationCap,
@@ -565,27 +537,6 @@ const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) =
             label: 'Unverified Students',
             icon: AlertCircle,
             permission: 'view-students',
-            alwaysShow: false
-          },
-          {
-            id: 'lectures',
-            label: 'Lectures',
-            icon: Video,
-            permission: 'view-lectures',
-            alwaysShow: false
-          },
-          {
-            id: 'homework',
-            label: 'Homework',
-            icon: Notebook,
-            permission: 'view-homework',
-            alwaysShow: false
-          },
-          {
-            id: 'exams',
-            label: 'Exams',
-            icon: Award,
-            permission: 'view-exams',
             alwaysShow: false
           },
           {
@@ -679,7 +630,7 @@ const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) =
         ];
       }
 
-      // For AttendanceMarker with institute selected
+      // For AttendanceMarker with institute selected - remove attendance sections
       const baseItems = [
         {
           id: 'select-class',
@@ -948,13 +899,6 @@ const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) =
         label: 'View Attendance',
         icon: ClipboardList,
         permission: 'view-attendance',
-        alwaysShow: false
-      },
-      {
-        id: 'attendance-marking',
-        label: 'Mark Attendance',
-        icon: UserCheck,
-        permission: 'mark-attendance',
         alwaysShow: false
       },
       {
@@ -1445,6 +1389,7 @@ const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) =
     // Handle Enroll Class click (for Students only)
     if (itemId === 'enroll-class') {
       navigateToRoute('/enroll-class');
+      onPageChange('enroll-class');
       onClose();
       return;
     }
@@ -1452,6 +1397,7 @@ const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) =
     // Handle Enroll Subject click (for Students only) 
     if (itemId === 'enroll-subject') {
       navigateToRoute('/enroll-subject');
+      onPageChange('enroll-subject');
       onClose();
       return;
     }

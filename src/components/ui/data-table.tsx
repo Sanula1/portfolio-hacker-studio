@@ -64,7 +64,7 @@ const DataTable = ({
   allowEdit = true,
   allowDelete = true,
   customActions = [],
-  itemsPerPage = 10,
+  itemsPerPage = 50,
   currentPage = 1,
   totalItems = 0,
   totalPages = 1,
@@ -170,7 +170,7 @@ const DataTable = ({
 
       {/* Table Container - Fixed Height with Scrollbars */}
       <div className="border border-gray-200 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 shadow-sm">
-        <div className="h-[600px] overflow-auto">
+        <div className="h-[calc(100vh-280px)] overflow-auto">
           <table className="w-full min-w-[800px]">
             {/* Sticky Header */}
             <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0 z-10">

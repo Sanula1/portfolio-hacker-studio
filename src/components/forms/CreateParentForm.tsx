@@ -132,7 +132,7 @@ const CreateParentForm = ({ onSubmit, onCancel, initialData }: CreateParentFormP
           country: formData.country,
           imageUrl: formData.imageUrl,
           isActive: formData.isActive,
-          userType: 'PARENT' // Add missing userType field
+          userType: 'PARENT' // Fixed to PARENT only for InstituteAdmin
         },
         occupation: formData.occupation,
         workplace: formData.workplace,
