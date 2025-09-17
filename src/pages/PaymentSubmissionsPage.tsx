@@ -113,7 +113,12 @@ const PaymentSubmissionsPage: React.FC = () => {
   };
 
   // Filter submissions based on search term
-  const filteredSubmissions = submissions.filter(submission => submission.username?.toLowerCase().includes(searchTerm.toLowerCase()) || false);
+  const filteredSubmissions = submissions.filter(submission => 
+    submission.username?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    submission.submittedAmount?.toString().includes(searchTerm) ||
+    submission.transactionId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    false
+  );
   const handleRefresh = () => {
     setLoaded(false);
     setSearchTerm('');
@@ -211,7 +216,7 @@ const PaymentSubmissionsPage: React.FC = () => {
               {/* Search Input */}
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                <Input placeholder="Search by student name..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10" />
+                <Input placeholder="Search by student name, amount, or transaction ID..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10" />
               </div>
 
               {/* Student Name and Institute Info */}
@@ -238,10 +243,11 @@ const PaymentSubmissionsPage: React.FC = () => {
                   </Button>
                 </div> : <Paper sx={{
               width: '100%',
-              overflow: 'hidden'
+              overflow: 'hidden',
+              height: 'calc(100vh - 280px)'
             }}>
                   <TableContainer sx={{
-                maxHeight: 600
+                height: 'calc(100% - 52px)'
               }}>
                     <Table stickyHeader aria-label="payment submissions table">
                       <TableHead>
