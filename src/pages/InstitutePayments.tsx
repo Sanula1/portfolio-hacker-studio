@@ -62,7 +62,7 @@ const InstitutePayments = () => {
     defaultParams: { search: searchQuery },
     dependencies: [selectedInstitute?.id, isInstituteAdmin, isTeacher, searchQuery],
     pagination: { defaultLimit: 50, availableLimits: [25, 50, 100] },
-    autoLoad: !!selectedInstitute?.id
+    autoLoad: false
   });
   // Search handler
   const handleSearch = (value: string) => {
@@ -327,8 +327,40 @@ const InstitutePayments = () => {
           </Card>
         )}
 
-        {/* Payments Table */}
-        {!tableData.state.loading && !tableData.state.error && (
+        {/* Load Data Section */}
+        {!Array.isArray(tableData.state.data) || tableData.state.data.length === 0 ? (
+          <div className="text-center py-12">
+            <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
+              Institute Payments
+            </h2>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
+              {!selectedInstitute?.id 
+                ? 'Please select an institute first.' 
+                : 'Click the button below to load payments data'
+              }
+            </p>
+            <Button 
+              onClick={() => tableData.actions.refresh()} 
+              disabled={tableData.state.loading || !selectedInstitute?.id}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              {tableData.state.loading ? (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                  Loading Data...
+                </>
+              ) : (
+                <>
+                  <RefreshCw className="h-4 w-4 mr-2" />
+                  Load Data
+                </>
+              )}
+            </Button>
+          </div>
+        ) : (
+          <>
+            {/* Payments Table */}
+            {!tableData.state.loading && !tableData.state.error && (
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -375,9 +407,9 @@ const InstitutePayments = () => {
               </div>
             </CardContent>
           </Card>
-        )}
+            )}
 
-        {/* Summary Stats */}
+            {/* Summary Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card>
             <CardHeader className="pb-2">
@@ -420,7 +452,9 @@ const InstitutePayments = () => {
               </p>
             </CardContent>
           </Card>
-        </div>
+            </div>
+          </>
+        )}
 
         {/* Dialogs */}
         {selectedInstitute && (

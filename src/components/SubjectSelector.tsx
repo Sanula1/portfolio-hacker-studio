@@ -237,26 +237,7 @@ const SubjectSelector = () => {
     }
   };
 
-  // Auto-load subjects when component mounts and required data is available
-  useEffect(() => {
-    console.log('SubjectSelector useEffect triggered', {
-      user: user?.role,
-      currentInstituteId,
-      currentClassId,
-      dataLoaded
-    });
-    if (user && currentInstituteId && !dataLoaded) {
-      // For roles that require class selection
-      if ((user.role === 'Student' || user.role === 'InstituteAdmin' || user.role === 'Teacher' || user.role === 'AttendanceMarker') && currentClassId) {
-        console.log('Auto-loading subjects for role:', user.role);
-        fetchSubjectsByRole(1, pageSize);
-      } else if (user.role !== 'Student' && user.role !== 'InstituteAdmin' && user.role !== 'Teacher' && user.role !== 'AttendanceMarker') {
-        // For other roles that don't require class selection
-        console.log('Auto-loading subjects for other role:', user.role);
-        fetchSubjectsByRole(1, pageSize);
-      }
-    }
-  }, [user, currentInstituteId, currentClassId, dataLoaded, pageSize]);
+  // Removed auto-loading useEffects - data now only loads when button is clicked
 
   // Reset dataLoaded when institute or class changes for AttendanceMarker
   useEffect(() => {

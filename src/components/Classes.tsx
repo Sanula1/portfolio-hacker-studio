@@ -66,10 +66,7 @@ const Classes = () => {
   const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
   const [selectedClass, setSelectedClass] = useState<ClassData | null>(null);
 
-  // Fetch classes when component mounts or pagination changes
-  useEffect(() => {
-    fetchClasses();
-  }, [selectedInstitute?.id, page, rowsPerPage]);
+  // Removed auto-loading useEffect - data now only loads when button is clicked
 
   const userRole = (user?.role || 'Student') as UserRole;
   const isInstituteAdmin = userRole === 'InstituteAdmin';
@@ -284,15 +281,46 @@ const Classes = () => {
     }] : [])
   ];
 
+  const dataLoaded = classes.length > 0;
+
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Classes</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
+      {!dataLoaded ? (
+        <div className="text-center py-12">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">Classes</h1>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">
             Manage institute classes and their details
           </p>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">
+            Click the button below to load classes data
+          </p>
+          <Button 
+            onClick={handleLoadData} 
+            disabled={loading || !selectedInstitute?.id}
+            className="bg-blue-600 hover:bg-blue-700"
+          >
+            {loading ? (
+              <>
+                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                Loading Data...
+              </>
+            ) : (
+              <>
+                <RefreshCw className="h-4 w-4 mr-2" />
+                Load Data
+              </>
+            )}
+          </Button>
         </div>
+      ) : (
+        <>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Classes</h1>
+              <p className="text-gray-600 dark:text-gray-400 mt-1">
+                Manage institute classes and their details
+              </p>
+            </div>
         <div className="flex items-center gap-2">
           <Button onClick={handleLoadData} disabled={loading} variant="outline" size="sm">
             {loading ? (
@@ -372,6 +400,8 @@ const Classes = () => {
         allowEdit={!isInstituteAdmin && canEdit}
         allowDelete={!isInstituteAdmin && canDelete}
       />
+        </>
+      )}
     </div>
   );
 };

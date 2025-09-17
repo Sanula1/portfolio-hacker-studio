@@ -47,19 +47,7 @@ const Homework = ({ apiLevel = 'institute' }: HomeworkProps) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
-  // Auto-load data when pagination changes
-  useEffect(() => {
-    if (dataLoaded) {
-      handleLoadData(false);
-    }
-  }, [page, rowsPerPage, dataLoaded]);
-
-  // Auto-load data when context changes
-  useEffect(() => {
-    if (!dataLoaded) {
-      handleLoadData(false);
-    }
-  }, [selectedInstitute, selectedClass, selectedSubject, user?.id, dataLoaded]);
+  // Removed auto-loading useEffects - data now only loads when button is clicked
 
   const buildQueryParams = () => {
     const userRole = (user?.role || 'Student') as UserRole;
