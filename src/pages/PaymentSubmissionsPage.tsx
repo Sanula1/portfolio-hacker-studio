@@ -102,13 +102,13 @@ const PaymentSubmissionsPage: React.FC = () => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'VERIFIED':
-        return 'success';
+        return 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900/20 dark:text-green-300';
       case 'PENDING':
-        return 'warning';
+        return 'bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900/20 dark:text-yellow-300';
       case 'REJECTED':
-        return 'error';
+        return 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900/20 dark:text-red-300';
       default:
-        return 'default';
+        return 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-900/20 dark:text-gray-300';
     }
   };
 
@@ -145,6 +145,10 @@ const PaymentSubmissionsPage: React.FC = () => {
     label: 'Submitted At',
     minWidth: 120
   }, {
+    id: 'receipt',
+    label: 'Receipt',
+    minWidth: 100
+  }, {
     id: 'actions',
     label: 'Actions',
     minWidth: 150
@@ -172,6 +176,14 @@ const PaymentSubmissionsPage: React.FC = () => {
               <div className="flex items-center space-x-2">
                 <span className="font-medium text-gray-600 dark:text-gray-400">Institute:</span>
                 <span className="font-semibold">Mahinda College</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <span className="font-medium text-gray-600 dark:text-gray-400">Class:</span>
+                <span className="font-semibold">Grade 10 - Maths</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <span className="font-medium text-gray-600 dark:text-gray-400">Subject:</span>
+                <span className="font-semibold">Grade 10 Maths</span>
               </div>
             </div>
           </CardContent>
@@ -266,23 +278,40 @@ const PaymentSubmissionsPage: React.FC = () => {
                                   {new Date(submission.paymentDate).toLocaleDateString()}
                                 </TableCell>
                                 <TableCell>
-                                  <Badge variant={getStatusColor(submission.status) as any}>
+                                  <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(submission.status)}`}>
                                     {submission.status}
-                                  </Badge>
+                                  </span>
                                 </TableCell>
                                 <TableCell>
                                   {new Date(submission.uploadedAt).toLocaleDateString()}
                                 </TableCell>
                                 <TableCell>
+                                  {submission.receiptUrl ? (
+                                    <Button 
+                                      variant="outline" 
+                                      size="sm" 
+                                      onClick={() => window.open(submission.receiptUrl, '_blank')} 
+                                      className="flex items-center space-x-1"
+                                    >
+                                      <Eye className="h-3 w-3" />
+                                      <span>View</span>
+                                    </Button>
+                                  ) : (
+                                    <span className="text-gray-400 text-sm">No receipt</span>
+                                  )}
+                                </TableCell>
+                                <TableCell>
                                   <div className="flex items-center space-x-2">
-                                    {submission.receiptUrl && <Button variant="outline" size="sm" onClick={() => window.open(submission.receiptUrl, '_blank')} className="flex items-center space-x-1">
-                                        <Download className="h-3 w-3" />
-                                        <span>Receipt</span>
-                                      </Button>}
-                                    {canVerifySubmissions && submission.status === 'PENDING' && <Button onClick={() => setVerifyingSubmission(submission)} className="flex items-center space-x-1" size="sm">
+                                    {canVerifySubmissions && submission.status === 'PENDING' && (
+                                      <Button 
+                                        onClick={() => setVerifyingSubmission(submission)} 
+                                        className="flex items-center space-x-1" 
+                                        size="sm"
+                                      >
                                         <Shield className="h-4 w-4" />
                                         <span>Verify</span>
-                                      </Button>}
+                                      </Button>
+                                    )}
                                   </div>
                                 </TableCell>
                               </TableRow>)}
