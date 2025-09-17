@@ -208,10 +208,7 @@ const PaymentSubmissionsPage: React.FC = () => {
                   
                   <div>
                     <div className="space-y-1">
-                      <div className="flex items-center space-x-2">
-                        <span className="font-medium text-gray-600 dark:text-gray-400">Institute:</span>
-                        <span className="font-semibold">Mahinda College</span>
-                      </div>
+                      
                       <div className="flex items-center space-x-2">
                         <span className="font-medium text-gray-600 dark:text-gray-400">Payment Submissions</span>
                         <Badge variant="secondary">{totalCount} total</Badge>
