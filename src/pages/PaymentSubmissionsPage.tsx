@@ -18,16 +18,17 @@ import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TablePagination from '@mui/material/TablePagination';
 import TableRow from '@mui/material/TableRow';
-
 const PaymentSubmissionsPage: React.FC = () => {
   const navigate = useNavigate();
-  const { toast } = useToast();
-  const { user } = useAuth();
+  const {
+    toast
+  } = useToast();
+  const {
+    user
+  } = useAuth();
   const [searchParams] = useSearchParams();
-  
   const paymentId = searchParams.get('paymentId');
   const paymentTitle = searchParams.get('paymentTitle');
-  
   const [submissions, setSubmissions] = useState<SubjectPaymentSubmission[]>([]);
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
@@ -39,13 +40,10 @@ const PaymentSubmissionsPage: React.FC = () => {
 
   // Check if user can verify submissions (InstituteAdmin or Teacher only)
   const canVerifySubmissions = user?.userType === 'INSTITUTE_ADMIN' || user?.userType === 'TEACHER';
-  
   const loadSubmissions = async (newPage?: number, newRowsPerPage?: number) => {
     if (loading || !paymentId) return;
-    
     const currentPage = newPage !== undefined ? newPage + 1 : page + 1; // API uses 1-based indexing
     const currentLimit = newRowsPerPage || rowsPerPage;
-    
     setLoading(true);
     try {
       const response = await subjectPaymentsApi.getPaymentSubmissions(paymentId, currentPage, currentLimit);
@@ -66,7 +64,6 @@ const PaymentSubmissionsPage: React.FC = () => {
       setLoading(false);
     }
   };
-
   const handleVerifySubmission = async (status: 'VERIFIED' | 'REJECTED', rejectionReason?: string, notes?: string) => {
     if (!verifyingSubmission) return;
     try {
@@ -92,19 +89,16 @@ const PaymentSubmissionsPage: React.FC = () => {
       });
     }
   };
-
   const handleChangePage = (event: unknown, newPage: number) => {
     setPage(newPage);
     loadSubmissions(newPage, rowsPerPage);
   };
-
   const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
     const newRowsPerPage = +event.target.value;
     setRowsPerPage(newRowsPerPage);
     setPage(0);
     loadSubmissions(0, newRowsPerPage);
   };
-  
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'VERIFIED':
@@ -119,26 +113,42 @@ const PaymentSubmissionsPage: React.FC = () => {
   };
 
   // Filter submissions based on search term
-  const filteredSubmissions = submissions.filter(submission =>
-    submission.username?.toLowerCase().includes(searchTerm.toLowerCase()) || false
-  );
-
+  const filteredSubmissions = submissions.filter(submission => submission.username?.toLowerCase().includes(searchTerm.toLowerCase()) || false);
   const handleRefresh = () => {
     setLoaded(false);
     setSearchTerm('');
     loadSubmissions(0, rowsPerPage);
   };
-
-  const columns = [
-    { id: 'username', label: 'Student Name', minWidth: 150 },
-    { id: 'submittedAmount', label: 'Amount', minWidth: 100, align: 'right' as const },
-    { id: 'transactionId', label: 'Transaction ID', minWidth: 150 },
-    { id: 'paymentDate', label: 'Payment Date', minWidth: 120 },
-    { id: 'status', label: 'Status', minWidth: 100 },
-    { id: 'uploadedAt', label: 'Submitted At', minWidth: 120 },
-    { id: 'actions', label: 'Actions', minWidth: 150 },
-  ];
-
+  const columns = [{
+    id: 'username',
+    label: 'Student Name',
+    minWidth: 150
+  }, {
+    id: 'submittedAmount',
+    label: 'Amount',
+    minWidth: 100,
+    align: 'right' as const
+  }, {
+    id: 'transactionId',
+    label: 'Transaction ID',
+    minWidth: 150
+  }, {
+    id: 'paymentDate',
+    label: 'Payment Date',
+    minWidth: 120
+  }, {
+    id: 'status',
+    label: 'Status',
+    minWidth: 100
+  }, {
+    id: 'uploadedAt',
+    label: 'Submitted At',
+    minWidth: 120
+  }, {
+    id: 'actions',
+    label: 'Actions',
+    minWidth: 150
+  }];
   return <AppLayout>
       <div className="space-y-6">
         {/* Header */}
@@ -180,34 +190,22 @@ const PaymentSubmissionsPage: React.FC = () => {
                 <span>Refresh</span>
               </Button>
             </div>
-            {paymentId && (
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+            {paymentId && <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
                 Payment ID: {paymentId}
-              </p>
-            )}
+              </p>}
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               {/* Search Input */}
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                <Input
-                  placeholder="Search by student name..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10"
-                />
+                <Input placeholder="Search by student name..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="pl-10" />
               </div>
 
               {/* Student Name and Institute Info */}
               <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <h3 className="font-semibold text-lg mb-2 flex items-center space-x-2">
-                      <User className="h-5 w-5" />
-                      <span>Student Name</span>
-                    </h3>
-                  </div>
+                  
                   <div>
                     <div className="space-y-1">
                       <div className="flex items-center space-x-2">
@@ -224,34 +222,33 @@ const PaymentSubmissionsPage: React.FC = () => {
               </div>
 
               {/* Load Button or Table */}
-              {!loaded ? (
-                <div className="text-center py-12">
+              {!loaded ? <div className="text-center py-12">
                   <Button onClick={() => loadSubmissions()} disabled={loading} className="flex items-center space-x-2">
                     <Eye className="h-4 w-4" />
                     <span>{loading ? 'Loading...' : 'Load Submissions'}</span>
                   </Button>
-                </div>
-              ) : (
-                <Paper sx={{ width: '100%', overflow: 'hidden' }}>
-                  <TableContainer sx={{ maxHeight: 600 }}>
+                </div> : <Paper sx={{
+              width: '100%',
+              overflow: 'hidden'
+            }}>
+                  <TableContainer sx={{
+                maxHeight: 600
+              }}>
                     <Table stickyHeader aria-label="payment submissions table">
                       <TableHead>
                         <TableRow>
-                          {columns.map((column) => (
-                            <TableCell
-                              key={column.id}
-                              align={column.align}
-                              style={{ minWidth: column.minWidth }}
-                            >
+                          {columns.map(column => <TableCell key={column.id} align={column.align} style={{
+                        minWidth: column.minWidth
+                      }}>
                               {column.label}
-                            </TableCell>
-                          ))}
+                            </TableCell>)}
                         </TableRow>
                       </TableHead>
                       <TableBody>
-                        {filteredSubmissions.length === 0 ? (
-                          <TableRow>
-                            <TableCell colSpan={columns.length} align="center" sx={{ py: 8 }}>
+                        {filteredSubmissions.length === 0 ? <TableRow>
+                            <TableCell colSpan={columns.length} align="center" sx={{
+                        py: 8
+                      }}>
                               <div className="text-center">
                                 <FileText className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                                 <p className="text-gray-500 dark:text-gray-400 text-lg mb-2">
@@ -262,12 +259,7 @@ const PaymentSubmissionsPage: React.FC = () => {
                                 </p>
                               </div>
                             </TableCell>
-                          </TableRow>
-                        ) : (
-                          filteredSubmissions
-                            .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                            .map((submission) => (
-                              <TableRow hover role="checkbox" tabIndex={-1} key={submission.id}>
+                          </TableRow> : filteredSubmissions.slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map(submission => <TableRow hover role="checkbox" tabIndex={-1} key={submission.id}>
                                 <TableCell>{submission.username || 'Unknown User'}</TableCell>
                                 <TableCell align="right">
                                   Rs {parseFloat(submission.submittedAmount || '0').toLocaleString()}
@@ -286,46 +278,22 @@ const PaymentSubmissionsPage: React.FC = () => {
                                 </TableCell>
                                 <TableCell>
                                   <div className="flex items-center space-x-2">
-                                    {submission.receiptUrl && (
-                                      <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => window.open(submission.receiptUrl, '_blank')}
-                                        className="flex items-center space-x-1"
-                                      >
+                                    {submission.receiptUrl && <Button variant="outline" size="sm" onClick={() => window.open(submission.receiptUrl, '_blank')} className="flex items-center space-x-1">
                                         <Download className="h-3 w-3" />
                                         <span>Receipt</span>
-                                      </Button>
-                                    )}
-                                    {canVerifySubmissions && submission.status === 'PENDING' && (
-                                      <Button
-                                        onClick={() => setVerifyingSubmission(submission)}
-                                        className="flex items-center space-x-1"
-                                        size="sm"
-                                      >
+                                      </Button>}
+                                    {canVerifySubmissions && submission.status === 'PENDING' && <Button onClick={() => setVerifyingSubmission(submission)} className="flex items-center space-x-1" size="sm">
                                         <Shield className="h-4 w-4" />
                                         <span>Verify</span>
-                                      </Button>
-                                    )}
+                                      </Button>}
                                   </div>
                                 </TableCell>
-                              </TableRow>
-                            ))
-                        )}
+                              </TableRow>)}
                       </TableBody>
                     </Table>
                   </TableContainer>
-                  <TablePagination
-                    rowsPerPageOptions={[25, 50, 100]}
-                    component="div"
-                    count={searchTerm ? filteredSubmissions.length : totalCount}
-                    rowsPerPage={rowsPerPage}
-                    page={page}
-                    onPageChange={handleChangePage}
-                    onRowsPerPageChange={handleChangeRowsPerPage}
-                  />
-                </Paper>
-              )}
+                  <TablePagination rowsPerPageOptions={[25, 50, 100]} component="div" count={searchTerm ? filteredSubmissions.length : totalCount} rowsPerPage={rowsPerPage} page={page} onPageChange={handleChangePage} onRowsPerPageChange={handleChangeRowsPerPage} />
+                </Paper>}
             </div>
           </CardContent>
         </Card>
