@@ -44,6 +44,8 @@ const SubjectPayments = () => {
   const [submitPaymentDialogOpen, setSubmitPaymentDialogOpen] = useState(false);
   const [selectedPaymentForSubmission, setSelectedPaymentForSubmission] = useState<SubjectPayment | null>(null);
   
+  const [searchQuery, setSearchQuery] = useState('');
+  
   // Pagination state
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(50);
@@ -164,6 +166,33 @@ const SubjectPayments = () => {
     loadSubjectPayments(0, newRowsPerPage);
   };
 
+  // Handle search with live filtering
+  const handleSearch = (value: string) => {
+    setSearchQuery(value);
+  };
+
+  // Filter data locally for live search
+  const filteredPayments = React.useMemo(() => {
+    if (!subjectPaymentsData?.data) return [];
+    
+    if (!searchQuery.trim()) return subjectPaymentsData.data;
+    
+    const searchLower = searchQuery.toLowerCase();
+    
+    return subjectPaymentsData.data.filter(payment => {
+      // Search in Title
+      const matchesTitle = payment.title?.toLowerCase().includes(searchLower);
+      
+      // Search in Amount (convert to string and search)
+      const matchesAmount = payment.amount?.toString().includes(searchQuery.trim());
+      
+      // Search in Priority
+      const matchesPriority = payment.priority?.toLowerCase().includes(searchLower);
+      
+      return matchesTitle || matchesAmount || matchesPriority;
+    });
+  }, [subjectPaymentsData?.data, searchQuery]);
+
   // Table columns configuration
   const columns = [
     { id: 'title', label: 'Title', minWidth: 200 },
@@ -240,8 +269,10 @@ const SubjectPayments = () => {
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input 
-                  placeholder="Search payments..." 
+                  placeholder="Search by title, amount, or priority..." 
                   className="pl-10 w-full"
+                  value={searchQuery}
+                  onChange={(e) => handleSearch(e.target.value)}
                 />
               </div>
             </div>
@@ -300,7 +331,7 @@ const SubjectPayments = () => {
               </CardTitle>
               {subjectPaymentsData && (
                 <Badge variant="outline" className="text-sm">
-                  {subjectPaymentsData.total} total
+                  {filteredPayments.length} of {subjectPaymentsData.total} total
                 </Badge>
               )}
             </div>
@@ -338,22 +369,22 @@ const SubjectPayments = () => {
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {subjectPaymentsData.data.length === 0 ? (
+                      {filteredPayments.length === 0 ? (
                         <TableRow>
                           <TableCell colSpan={columns.length} align="center">
                             <div className="py-12">
                               <CreditCard className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                               <p className="text-muted-foreground text-lg mb-2">
-                                No payments found
+                                {searchQuery ? 'No matching payments found' : 'No payments found'}
                               </p>
                               <p className="text-muted-foreground text-sm">
-                                Subject payments will appear here when created.
+                                {searchQuery ? 'Try adjusting your search criteria.' : 'Subject payments will appear here when created.'}
                               </p>
                             </div>
                           </TableCell>
                         </TableRow>
                       ) : (
-                        subjectPaymentsData.data
+                        filteredPayments
                           .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
                           .map((payment) => (
                             <TableRow hover role="checkbox" tabIndex={-1} key={payment.id}>
@@ -448,7 +479,7 @@ const SubjectPayments = () => {
                 <TablePagination
                   rowsPerPageOptions={[25, 50, 100]}
                   component="div"
-                  count={subjectPaymentsData.total || 0}
+                  count={searchQuery ? filteredPayments.length : (subjectPaymentsData.total || 0)}
                   rowsPerPage={rowsPerPage}
                   page={page}
                   onPageChange={handleChangePage}

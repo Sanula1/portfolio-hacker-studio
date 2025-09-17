@@ -64,10 +64,10 @@ const InstitutePayments = () => {
     pagination: { defaultLimit: 50, availableLimits: [25, 50, 100] },
     autoLoad: false
   });
-  // Search handler
+  // Search handler with live filtering
   const handleSearch = (value: string) => {
     setSearchQuery(value);
-    tableData.actions.updateFilters({ search: value });
+    // Don't update filters in the API call, just filter locally for live search
   };
 
   // Force refresh data from API
@@ -89,6 +89,28 @@ const InstitutePayments = () => {
       window.location.href = `/payment-submissions/${payment.id}`;
     }
   };
+  // Filter data locally for live search
+  const filteredData = useMemo(() => {
+    if (!Array.isArray(tableData.state.data)) return [];
+    
+    return tableData.state.data.filter(payment => {
+      if (!searchQuery.trim()) return true;
+      
+      const searchLower = searchQuery.toLowerCase();
+      
+      // Search in Payment Type
+      const matchesPaymentType = payment.paymentType?.toLowerCase().includes(searchLower);
+      
+      // Search in Amount (convert to string and search)
+      const matchesAmount = payment.amount?.toString().includes(searchQuery.trim());
+      
+      // Search in Priority
+      const matchesPriority = payment.priority?.toLowerCase().includes(searchLower);
+      
+      return matchesPaymentType || matchesAmount || matchesPriority;
+    });
+  }, [tableData.state.data, searchQuery]);
+
   // Table columns configuration
   const columns = useMemo(() => [
     {
@@ -267,7 +289,7 @@ const InstitutePayments = () => {
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input 
-                    placeholder="Search payments..." 
+                    placeholder="Search by payment type, amount, or priority..." 
                     className="pl-10 w-full"
                     value={searchQuery}
                     onChange={(e) => handleSearch(e.target.value)}
@@ -379,10 +401,10 @@ const InstitutePayments = () => {
                   <MUITable
                     title=""
                     columns={columns}
-                    data={Array.isArray(tableData.state.data) ? tableData.state.data : []}
+                    data={filteredData}
                     page={tableData.pagination.page}
                     rowsPerPage={tableData.pagination.limit}
-                    totalCount={tableData.pagination.totalCount}
+                    totalCount={filteredData.length}
                     onPageChange={tableData.actions.setPage}
                     onRowsPerPageChange={tableData.actions.setLimit}
                     rowsPerPageOptions={tableData.availableLimits}
@@ -419,7 +441,7 @@ const InstitutePayments = () => {
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold text-foreground">
-                Rs {Array.isArray(tableData.state.data) ? tableData.state.data.filter(p => p.status === 'ACTIVE').reduce((sum, p) => sum + p.amount, 0).toLocaleString() : '0'}
+                Rs {filteredData.filter(p => p.status === 'ACTIVE').reduce((sum, p) => sum + p.amount, 0).toLocaleString()}
               </p>
             </CardContent>
           </Card>
@@ -433,8 +455,8 @@ const InstitutePayments = () => {
             <CardContent>
               <p className="text-2xl font-bold text-foreground">
                 {isInstituteAdmin 
-                  ? (Array.isArray(tableData.state.data) ? tableData.state.data.reduce((sum, p) => sum + (p.totalSubmissions || 0), 0) : 0)
-                  : tableData.pagination.totalCount
+                  ? (filteredData ? filteredData.reduce((sum, p) => sum + (p.totalSubmissions || 0), 0) : 0)
+                  : filteredData.length
                 }
               </p>
             </CardContent>
@@ -448,7 +470,7 @@ const InstitutePayments = () => {
             </CardHeader>
             <CardContent>
               <p className="text-2xl font-bold text-foreground">
-                {Array.isArray(tableData.state.data) ? tableData.state.data.length : 0}
+                {filteredData.length}
               </p>
             </CardContent>
           </Card>
