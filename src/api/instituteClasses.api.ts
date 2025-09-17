@@ -119,6 +119,38 @@ export interface EnrollmentResult {
   requiresVerification: boolean;
 }
 
+export interface TeacherClassAssignment {
+  instituteId: string;
+  classId: string;
+  isActive: boolean;
+  assignedAt: string;
+  teacherRole: string;
+  priority: number;
+  class: {
+    id: string;
+    name: string;
+    code: string;
+    grade: number;
+    specialty: string;
+    academicYear: string;
+    classType: string;
+    imageUrl?: string;
+  };
+}
+
+export interface TeacherClassesResponse {
+  data: TeacherClassAssignment[];
+  total: number;
+  page: number;
+  limit: number;
+  instituteId: string;
+  requestId: string;
+  timestamp: string;
+  totalPages: number;
+  hasNext: boolean;
+  hasPrevious: boolean;
+}
+
 export const instituteClassesApi = {
   create: async (data: InstituteClassCreateData): Promise<InstituteClassResponse> => {
     const response = await apiClient.post('/institute-classes', data);
@@ -139,6 +171,13 @@ export const instituteClassesApi = {
     console.log('📋 Response data keys:', response.data ? Object.keys(response.data) : 'No data');
     // Return the response data directly as it's the array of classes
     return response.data || response;
+  },
+
+  getByInstituteAndTeacher: async (instituteId: string, teacherId: string, page: number = 1, limit: number = 10): Promise<TeacherClassesResponse> => {
+    console.log('🚀 API call to getByInstituteAndTeacher with:', { instituteId, teacherId, page, limit });
+    const response = await apiClient.get(`/institute-classes/${instituteId}/teacher/${teacherId}?page=${page}&limit=${limit}`);
+    console.log('📡 Teacher classes response:', response.data);
+    return response.data;
   },
 
   enroll: async (data: EnrollClassData): Promise<EnrollmentResult> => {

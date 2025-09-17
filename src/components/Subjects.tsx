@@ -14,7 +14,6 @@ import { useToast } from '@/hooks/use-toast';
 import CreateSubjectForm from '@/components/forms/CreateSubjectForm';
 import AssignSubjectToClassForm from '@/components/forms/AssignSubjectToClassForm';
 import { useTableData } from '@/hooks/useTableData';
-
 interface SubjectData {
   id: string;
   code: string;
@@ -30,10 +29,20 @@ interface SubjectData {
   createdAt: string;
   updatedAt: string;
 }
-
 const Subjects = () => {
-  const { user, selectedInstitute, selectedClass, selectedSubject, selectedInstituteType, currentInstituteId, currentClassId, currentSubjectId } = useAuth();
-  const { toast } = useToast();
+  const {
+    user,
+    selectedInstitute,
+    selectedClass,
+    selectedSubject,
+    selectedInstituteType,
+    currentInstituteId,
+    currentClassId,
+    currentSubjectId
+  } = useAuth();
+  const {
+    toast
+  } = useToast();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isAssignDialogOpen, setIsAssignDialogOpen] = useState(false);
@@ -47,7 +56,9 @@ const Subjects = () => {
   const tableData = useTableData<SubjectData>({
     endpoint: '/subjects',
     defaultParams: {
-      ...(selectedInstituteType && { instituteType: selectedInstituteType })
+      ...(selectedInstituteType && {
+        instituteType: selectedInstituteType
+      })
     },
     dependencies: [currentInstituteId, selectedInstituteType],
     pagination: {
@@ -55,22 +66,21 @@ const Subjects = () => {
       availableLimits: [25, 50, 100]
     }
   });
-
-  const { 
-    state: { data: subjectsData, loading: isLoading },
+  const {
+    state: {
+      data: subjectsData,
+      loading: isLoading
+    },
     pagination,
     actions
   } = tableData;
-
   const dataLoaded = subjectsData.length > 0;
-
   const userRole = (user?.role || 'Student') as UserRole;
   const isInstituteAdmin = userRole === 'InstituteAdmin';
   const canEdit = AccessControl.hasPermission(userRole, 'edit-subject') && !isInstituteAdmin;
   const canDelete = AccessControl.hasPermission(userRole, 'delete-subject') && !isInstituteAdmin;
   const canCreate = userRole === 'InstituteAdmin';
   const canAssignSubjects = userRole === 'InstituteAdmin' || userRole === 'Teacher';
-
   const handleLoadData = async () => {
     if (!currentInstituteId) {
       toast({
@@ -83,31 +93,41 @@ const Subjects = () => {
 
     // Update filters and reload data
     const newFilters = {
-      ...(selectedInstituteType && { instituteType: selectedInstituteType })
+      ...(selectedInstituteType && {
+        instituteType: selectedInstituteType
+      })
     };
     actions.updateFilters(newFilters);
     actions.refresh();
   };
-
-  const subjectsColumns = [
-    { key: 'code', header: 'Code' },
-    { key: 'name', header: 'Name' },
-    { key: 'description', header: 'Description' },
-    { key: 'category', header: 'Category' },
-    { key: 'creditHours', header: 'Credit Hours' },
-    { key: 'subjectType', header: 'Type' },
-    { key: 'basketCategory', header: 'Basket' },
-    { 
-      key: 'isActive', 
-      header: 'Status',
-      render: (value: boolean) => (
-        <Badge variant={value ? 'default' : 'secondary'}>
+  const subjectsColumns = [{
+    key: 'code',
+    header: 'Code'
+  }, {
+    key: 'name',
+    header: 'Name'
+  }, {
+    key: 'description',
+    header: 'Description'
+  }, {
+    key: 'category',
+    header: 'Category'
+  }, {
+    key: 'creditHours',
+    header: 'Credit Hours'
+  }, {
+    key: 'subjectType',
+    header: 'Type'
+  }, {
+    key: 'basketCategory',
+    header: 'Basket'
+  }, {
+    key: 'isActive',
+    header: 'Status',
+    render: (value: boolean) => <Badge variant={value ? 'default' : 'secondary'}>
           {value ? 'Active' : 'Inactive'}
         </Badge>
-      )
-    }
-  ];
-
+  }];
   const handleCreateSubject = async (subjectData: any) => {
     if (!currentInstituteId) {
       toast({
@@ -117,13 +137,11 @@ const Subjects = () => {
       });
       return;
     }
-
     try {
       toast({
         title: "Subject Created",
         description: `Subject ${subjectData.name} has been created successfully.`
       });
-      
       setIsCreateDialogOpen(false);
       // Refresh data after creation
       actions.refresh();
@@ -136,16 +154,13 @@ const Subjects = () => {
       });
     }
   };
-
   const handleEditSubject = (subject: any) => {
     console.log('Edit subject:', subject);
     setSelectedSubjectData(subject);
     setIsEditDialogOpen(true);
   };
-
   const handleUpdateSubject = (subjectData: any) => {
     console.log('Updating subject:', subjectData);
-    
     toast({
       title: "Subject Updated",
       description: `Subject ${subjectData.name} has been updated successfully.`
@@ -155,7 +170,6 @@ const Subjects = () => {
     // Refresh data after update
     actions.refresh();
   };
-
   const handleDeleteSubject = (subject: any) => {
     console.log('Delete subject:', subject);
     toast({
@@ -164,7 +178,6 @@ const Subjects = () => {
       variant: "destructive"
     });
   };
-
   const handleViewSubject = (subject: any) => {
     console.log('View subject details:', subject);
     toast({
@@ -172,82 +185,58 @@ const Subjects = () => {
       description: `Viewing subject: ${subject.name}`
     });
   };
-
   const getContextTitle = () => {
     const contexts = [];
-    
     if (selectedInstitute) {
       contexts.push(selectedInstitute.name);
     }
-    
     if (selectedClass) {
       contexts.push(selectedClass.name);
     }
-    
     if (selectedSubject) {
       contexts.push(selectedSubject.name);
     }
-    
     let title = 'Subjects Management';
     if (contexts.length > 0) {
       title += ` (${contexts.join(' → ')})`;
     }
-    
     return title;
   };
-
-  const customActions = isInstituteAdmin ? [] : [
-    {
-      label: 'View',
-      action: (subject: any) => handleViewSubject(subject),
-      icon: <Eye className="h-3 w-3" />,
-      variant: 'outline' as const
-    },
-    ...(canEdit ? [{
-      label: 'Edit',
-      action: (subject: any) => handleEditSubject(subject),
-      icon: <Edit className="h-3 w-3" />,
-      variant: 'outline' as const
-    }] : []),
-    ...(canDelete ? [{
-      label: 'Delete',
-      action: (subject: any) => handleDeleteSubject(subject),
-      icon: <Trash2 className="h-3 w-3" />,
-      variant: 'destructive' as const
-    }] : [])
-  ];
-
-  return (
-    <div className="space-y-6">
-      {!dataLoaded ? (
-        <div className="text-center py-12">
+  const customActions = isInstituteAdmin ? [] : [{
+    label: 'View',
+    action: (subject: any) => handleViewSubject(subject),
+    icon: <Eye className="h-3 w-3" />,
+    variant: 'outline' as const
+  }, ...(canEdit ? [{
+    label: 'Edit',
+    action: (subject: any) => handleEditSubject(subject),
+    icon: <Edit className="h-3 w-3" />,
+    variant: 'outline' as const
+  }] : []), ...(canDelete ? [{
+    label: 'Delete',
+    action: (subject: any) => handleDeleteSubject(subject),
+    icon: <Trash2 className="h-3 w-3" />,
+    variant: 'destructive' as const
+  }] : [])];
+  return <div className="space-y-6">
+      {!dataLoaded ? <div className="text-center py-12">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
             {getContextTitle()}
           </h1>
           <p className="text-gray-600 dark:text-gray-400 mb-6">
             Click the button below to load subjects data
           </p>
-          <Button 
-            onClick={handleLoadData} 
-            disabled={isLoading}
-            className="bg-blue-600 hover:bg-blue-700"
-          >
-            {isLoading ? (
-              <>
+          <Button onClick={handleLoadData} disabled={isLoading} className="bg-blue-600 hover:bg-blue-700">
+            {isLoading ? <>
                 <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
                 Loading Data...
-              </>
-            ) : (
-              <>
+              </> : <>
                 <RefreshCw className="h-4 w-4 mr-2" />
                 Load Data
-              </>
-            )}
+              </>}
           </Button>
-        </div>
-      ) : (
-        <>
-          <div className="text-center mb-6">
+        </div> : <>
+          <div className="text-center sm:text-left flex-1">
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
               {getContextTitle()}
             </h1>
@@ -258,71 +247,39 @@ const Subjects = () => {
 
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowFilters(!showFilters)}
-                className="flex items-center gap-2"
-              >
+              <Button variant="outline" size="sm" onClick={() => setShowFilters(!showFilters)} className="flex items-center gap-2">
                 <Filter className="h-4 w-4" />
                 Filters
               </Button>
               
-              {canCreate && (
-                 <Button
-                   onClick={() => setIsCreateDialogOpen(true)}
-                   className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-2"
-                   size="sm"
-                 >
+              {canCreate && <Button onClick={() => setIsCreateDialogOpen(true)} className="bg-green-600 hover:bg-green-700 text-white flex items-center gap-2" size="sm">
                    <Plus className="h-4 w-4" />
                    Create Subject
-                 </Button>
-                )}
+                 </Button>}
                 
-                {canAssignSubjects && dataLoaded && subjectsData.length > 0 && (
-                  <Button
-                    onClick={() => setIsAssignDialogOpen(true)}
-                    className="bg-purple-600 hover:bg-purple-700 text-white flex items-center gap-2"
-                    size="sm"
-                  >
+                {canAssignSubjects && dataLoaded && subjectsData.length > 0 && <Button onClick={() => setIsAssignDialogOpen(true)} className="bg-purple-600 hover:bg-purple-700 text-white flex items-center gap-2" size="sm">
                     <Plus className="h-4 w-4" />
                     Assign Subject
-                  </Button>
-                )}
+                  </Button>}
             </div>
             
-            <Button 
-              onClick={handleLoadData} 
-              disabled={isLoading}
-              variant="outline"
-              size="sm"
-            >
-              {isLoading ? (
-                <>
+            <Button onClick={handleLoadData} disabled={isLoading} variant="outline" size="sm">
+              {isLoading ? <>
                   <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
                   Refreshing...
-                </>
-              ) : (
-                <>
+                </> : <>
                   <RefreshCw className="h-4 w-4 mr-2" />
                   Refresh Data
-                </>
-              )}
+                </>}
             </Button>
           </div>
 
-          {showFilters && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border mb-6">
+          {showFilters && <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border mb-6">
               <div>
                 <label className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1 block">
                   Search Subjects
                 </label>
-                <Input
-                  placeholder="Search subjects..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full"
-                />
+                <Input placeholder="Search subjects..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full" />
               </div>
               
               <div>
@@ -358,46 +315,23 @@ const Subjects = () => {
                   </SelectContent>
                 </Select>
               </div>
-            </div>
-          )}
+            </div>}
 
           {/* Mobile View Content - Always Card View */}
           <div className="md:hidden">
-            <DataCardView
-              data={subjectsData || []}
-              columns={subjectsColumns}
-              customActions={customActions}
-              allowEdit={false}
-              allowDelete={false}
-            />
+            <DataCardView data={subjectsData || []} columns={subjectsColumns} customActions={customActions} allowEdit={false} allowDelete={false} />
           </div>
 
           {/* Desktop MUI Table View */}
           <div className="hidden md:block">
-            <MUITable
-              title="Subjects"
-              data={subjectsData || []}
-              columns={subjectsColumns.map(col => ({
-                id: col.key,
-                label: col.header,
-                minWidth: 170,
-                format: col.render
-              }))}
-              onEdit={!isInstituteAdmin && canEdit ? handleEditSubject : undefined}
-              onDelete={!isInstituteAdmin && canDelete ? handleDeleteSubject : undefined}
-              onView={!isInstituteAdmin ? handleViewSubject : undefined}
-              page={pagination.page}
-              rowsPerPage={pagination.limit}
-              totalCount={pagination.totalCount}
-              onPageChange={(newPage: number) => actions.setPage(newPage)}
-              onRowsPerPageChange={(newLimit: number) => actions.setLimit(newLimit)}
-              sectionType="subjects"
-              allowEdit={!isInstituteAdmin && canEdit}
-              allowDelete={!isInstituteAdmin && canDelete}
-            />
+            <MUITable title="Subjects" data={subjectsData || []} columns={subjectsColumns.map(col => ({
+          id: col.key,
+          label: col.header,
+          minWidth: 170,
+          format: col.render
+        }))} onEdit={!isInstituteAdmin && canEdit ? handleEditSubject : undefined} onDelete={!isInstituteAdmin && canDelete ? handleDeleteSubject : undefined} onView={!isInstituteAdmin ? handleViewSubject : undefined} page={pagination.page} rowsPerPage={pagination.limit} totalCount={pagination.totalCount} onPageChange={(newPage: number) => actions.setPage(newPage)} onRowsPerPageChange={(newLimit: number) => actions.setLimit(newLimit)} sectionType="subjects" allowEdit={!isInstituteAdmin && canEdit} allowDelete={!isInstituteAdmin && canDelete} />
           </div>
-        </>
-      )}
+        </>}
 
       {/* Create Dialog */}
       <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
@@ -405,10 +339,7 @@ const Subjects = () => {
           <DialogHeader>
             <DialogTitle>Create New Subject</DialogTitle>
           </DialogHeader>
-          <CreateSubjectForm
-            onSubmit={handleCreateSubject}
-            onCancel={() => setIsCreateDialogOpen(false)}
-          />
+          <CreateSubjectForm onSubmit={handleCreateSubject} onCancel={() => setIsCreateDialogOpen(false)} />
         </DialogContent>
       </Dialog>
 
@@ -418,14 +349,10 @@ const Subjects = () => {
           <DialogHeader>
             <DialogTitle>Edit Subject</DialogTitle>
           </DialogHeader>
-          <CreateSubjectForm
-            initialData={selectedSubjectData}
-            onSubmit={handleUpdateSubject}
-            onCancel={() => {
-              setIsEditDialogOpen(false);
-              setSelectedSubjectData(null);
-            }}
-          />
+          <CreateSubjectForm initialData={selectedSubjectData} onSubmit={handleUpdateSubject} onCancel={() => {
+          setIsEditDialogOpen(false);
+          setSelectedSubjectData(null);
+        }} />
         </DialogContent>
       </Dialog>
 
@@ -435,20 +362,15 @@ const Subjects = () => {
           <DialogHeader>
             <DialogTitle>Assign Subjects to Class</DialogTitle>
           </DialogHeader>
-          <AssignSubjectToClassForm
-            onSuccess={() => {
-              setIsAssignDialogOpen(false);
-              toast({
-                title: "Success",
-                description: "Subjects assigned successfully!"
-              });
-            }}
-            onCancel={() => setIsAssignDialogOpen(false)}
-          />
+          <AssignSubjectToClassForm onSuccess={() => {
+          setIsAssignDialogOpen(false);
+          toast({
+            title: "Success",
+            description: "Subjects assigned successfully!"
+          });
+        }} onCancel={() => setIsAssignDialogOpen(false)} />
         </DialogContent>
       </Dialog>
-    </div>
-  );
+    </div>;
 };
-
 export default Subjects;

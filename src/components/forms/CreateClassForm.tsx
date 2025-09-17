@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,6 +9,7 @@ import { Switch } from '@/components/ui/switch';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { getBaseUrl } from '@/contexts/utils/auth.api';
+import { instituteClassesApi } from '@/api/instituteClasses.api';
 
 interface CreateClassFormProps {
   onSubmit: (data: any) => void;
@@ -19,6 +20,7 @@ const CreateClassForm = ({ onSubmit, onCancel }: CreateClassFormProps) => {
   const { user, selectedInstitute } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const [teachers, setTeachers] = useState<any[]>([]);
 
   const [formData, setFormData] = useState({
     name: '',
@@ -39,6 +41,8 @@ const CreateClassForm = ({ onSubmit, onCancel }: CreateClassFormProps) => {
     requireTeacherVerification: true,
     imageUrl: ''
   });
+
+  // Teachers list functionality removed - manual ID entry only
 
   const handleInputChange = (field: string, value: any) => {
     setFormData(prev => ({
@@ -84,34 +88,30 @@ const CreateClassForm = ({ onSubmit, onCancel }: CreateClassFormProps) => {
         classTeacherId: formData.classTeacherId || undefined,
         description: formData.description,
         isActive: formData.isActive,
-        startDate: formData.startDate,
-        endDate: formData.endDate,
+        startDate: formData.startDate ? new Date(formData.startDate).toISOString() : new Date().toISOString(),
+        endDate: formData.endDate ? new Date(formData.endDate).toISOString() : new Date(new Date().getFullYear() + 1, 5, 30).toISOString(),
         enrollmentCode: formData.enrollmentCode,
         enrollmentEnabled: formData.enrollmentEnabled,
         requireTeacherVerification: formData.requireTeacherVerification,
         imageUrl: formData.imageUrl
       };
 
-      const response = await fetch(`${getBaseUrl()}/institute-classes`, {
-        method: 'POST',
-        headers: getApiHeaders(),
-        body: JSON.stringify(classData)
+      const response = await instituteClassesApi.create(classData);
+      
+      toast({
+        title: "Class Created",
+        description: response?.message || `Class "${formData.name}" has been created successfully.`
       });
-
-      if (response.ok) {
-        const responseData = await response.json();
-        toast({
-          title: "Class Created",
-          description: `Class "${formData.name}" has been created successfully.`
-        });
-        onSubmit(responseData);
-      } else {
-        throw new Error('Failed to create class');
-      }
+      onSubmit(response);
     } catch (error: any) {
+      console.error('Create class error:', error);
+      const errorMessage = error?.response?.data?.message || 
+                          error?.message || 
+                          (typeof error === 'string' ? error : 'Failed to create class.');
+      
       toast({
         title: "Creation Failed",
-        description: error?.response?.data?.message || "Failed to create class.",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
@@ -239,6 +239,16 @@ const CreateClassForm = ({ onSubmit, onCancel }: CreateClassFormProps) => {
                   <SelectItem value="REMEDIAL">Remedial</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+            <div>
+              <Label htmlFor="classTeacherId" className="text-xs">Class Teacher ID</Label>
+              <Input
+                id="classTeacherId"
+                placeholder="Enter teacher ID or select below"
+                value={formData.classTeacherId}
+                onChange={(e) => handleInputChange('classTeacherId', e.target.value)}
+                className="h-8 text-sm"
+              />
             </div>
           </CardContent>
         </Card>

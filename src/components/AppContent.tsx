@@ -751,7 +751,10 @@ const AppContent = ({ initialPage }: AppContentProps) => {
   };
 
   if (!user) {
-    return <Login onLogin={() => {}} loginFunction={login} />;
+    return <Login onLogin={(userData) => {
+      // Login success is handled by the auth context
+      console.log('User logged in successfully:', userData);
+    }} loginFunction={login} />;
   }
 
   // If organizations page is active with login data, render organization navigation

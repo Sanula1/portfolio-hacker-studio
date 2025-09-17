@@ -1,41 +1,26 @@
-
 import React from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAuth, type UserRole } from '@/contexts/AuthContext';
 import { AccessControl } from '@/utils/permissions';
-import { 
-  Building, 
-  Users, 
-  Phone, 
-  Mail, 
-  MapPin, 
-  Calendar,
-  Edit,
-  Settings
-} from 'lucide-react';
-
+import { Building, Users, Phone, Mail, MapPin, Calendar, Edit, Settings } from 'lucide-react';
 const InstituteDetails = () => {
-  const { user, selectedInstitute } = useAuth();
-
+  const {
+    user,
+    selectedInstitute
+  } = useAuth();
   if (!selectedInstitute) {
-    return (
-      <div className="text-center py-12">
+    return <div className="text-center py-12">
         <p className="text-gray-500 dark:text-gray-400">No institute selected</p>
-      </div>
-    );
+      </div>;
   }
-
   const userRole = (user?.role || 'Student') as UserRole;
   const canEdit = AccessControl.hasPermission(userRole, 'edit-institute');
-
   const handleEdit = () => {
     console.log('Edit institute:', selectedInstitute);
   };
-
-  return (
-    <div className="space-y-6">
+  return <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
@@ -45,17 +30,12 @@ const InstituteDetails = () => {
             Detailed information about {selectedInstitute.name}
           </p>
         </div>
-        {canEdit && (
-          <Button onClick={handleEdit} className="flex items-center gap-2">
-            <Edit className="h-4 w-4" />
-            Edit Institute
-          </Button>
-        )}
+        {canEdit}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="w-full">
         {/* Main Institute Info */}
-        <div className="lg:col-span-2">
+        <div className="w-full">
           <Card>
             <CardHeader>
               <div className="flex items-center gap-3">
@@ -126,63 +106,8 @@ const InstituteDetails = () => {
         </div>
 
         {/* Stats and Status */}
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Settings className="h-5 w-5 text-blue-600" />
-                Status & Stats
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600 dark:text-gray-400">Status</span>
-                <Badge variant={selectedInstitute.isActive ? 'default' : 'secondary'}>
-                  {selectedInstitute.isActive ? 'Active' : 'Inactive'}
-                </Badge>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600 dark:text-gray-400">Total Students</span>
-                <span className="font-semibold text-gray-900 dark:text-white">1,234</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600 dark:text-gray-400">Total Teachers</span>
-                <span className="font-semibold text-gray-900 dark:text-white">78</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600 dark:text-gray-400">Total Classes</span>
-                <span className="font-semibold text-gray-900 dark:text-white">24</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-gray-600 dark:text-gray-400">Total Subjects</span>
-                <span className="font-semibold text-gray-900 dark:text-white">45</span>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Quick Actions</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <Button variant="outline" className="w-full justify-start">
-                <Users className="h-4 w-4 mr-2" />
-                View All Students
-              </Button>
-              <Button variant="outline" className="w-full justify-start">
-                <Users className="h-4 w-4 mr-2" />
-                View All Teachers
-              </Button>
-              <Button variant="outline" className="w-full justify-start">
-                <Building className="h-4 w-4 mr-2" />
-                View All Classes
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
+        
       </div>
-    </div>
-  );
+    </div>;
 };
-
 export default InstituteDetails;

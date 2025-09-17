@@ -1,95 +1,247 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import AppLayout from '@/components/layout/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, FileText, CheckCircle, AlertCircle, Calendar, DollarSign, RefreshCw } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { ArrowLeft, FileText, CheckCircle, AlertCircle, Calendar, DollarSign, RefreshCw, ExternalLink, Eye, Search, Filter, X } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate, useParams } from 'react-router-dom';
 import { institutePaymentsApi, PaymentSubmissionsResponse, PaymentSubmission } from '@/api/institutePayments.api';
+import { subjectPaymentsApi, SubjectPaymentSubmission } from '@/api/subjectPayments.api';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import VerifySubmissionDialog from '@/components/forms/VerifySubmissionDialog';
-import PaymentSubmissionsFilters, { FilterParams } from '@/components/PaymentSubmissionsFilters';
-import PaymentSubmissionsPagination from '@/components/PaymentSubmissionsPagination';
-
+import { useTableData } from '@/hooks/useTableData';
+import Paper from '@mui/material/Paper';
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableContainer from '@mui/material/TableContainer';
+import TableHead from '@mui/material/TableHead';
+import TablePagination from '@mui/material/TablePagination';
+import TableRow from '@mui/material/TableRow';
+interface Column {
+  id: string;
+  label: string;
+  minWidth?: number;
+  align?: 'right' | 'left' | 'center';
+  format?: (value: any, row?: any) => React.ReactNode;
+}
 const PaymentSubmissions = () => {
-  const { selectedInstitute, user } = useAuth();
+  const {
+    selectedInstitute,
+    selectedClass,
+    selectedSubject,
+    user
+  } = useAuth();
   const navigate = useNavigate();
-  const { paymentId } = useParams<{ paymentId: string }>();
-  const { toast } = useToast();
-  const [submissionsData, setSubmissionsData] = useState<PaymentSubmissionsResponse | null>(null);
-  const [loading, setLoading] = useState(false);
+  const {
+    paymentId
+  } = useParams<{
+    paymentId: string;
+  }>();
+  const {
+    toast
+  } = useToast();
   const [verifyDialogOpen, setVerifyDialogOpen] = useState(false);
-  const [selectedSubmission, setSelectedSubmission] = useState<PaymentSubmission | null>(null);
-  const [filters, setFilters] = useState<FilterParams>({
-    page: 1,
-    limit: 10,
-    sortBy: 'submissionDate',
-    sortOrder: 'DESC'
+  const [selectedSubmission, setSelectedSubmission] = useState<PaymentSubmission | SubjectPaymentSubmission | null>(null);
+  const [receiptModalOpen, setReceiptModalOpen] = useState(false);
+  const [selectedReceiptUrl, setSelectedReceiptUrl] = useState<string>('');
+  
+  // Determine if this is a subject payment submission or institute payment submission
+  const isSubjectPayment = selectedClass && selectedSubject;
+  
+  // Build endpoint based on type
+  const endpoint = useMemo(() => {
+    if (!paymentId || !selectedInstitute) return '';
+    
+    if (isSubjectPayment) {
+      return `/institute-class-subject-payment-submissions/payment/${paymentId}/submissions`;
+    } else {
+      return `/institute-payment-submissions/institute/${selectedInstitute.id}/payment/${paymentId}/submissions`;
+    }
+  }, [paymentId, selectedInstitute, isSubjectPayment]);
+
+  // Search state
+  const [searchValue, setSearchValue] = useState('');
+  const [searchType, setSearchType] = useState('studentName');
+
+  // Define columns for the payment submissions table
+  const columns: Column[] = useMemo(() => {
+    const baseColumns: Column[] = [{
+      id: 'id',
+      label: 'Submission ID',
+      minWidth: 120
+    }, {
+      id: isSubjectPayment ? 'username' : 'studentName',
+      label: 'Student Name',
+      minWidth: 150
+    }];
+
+    if (!isSubjectPayment) {
+      baseColumns.push({
+        id: 'userId',
+        label: 'User ID',
+        minWidth: 100
+      });
+    }
+
+    baseColumns.push({
+      id: isSubjectPayment ? 'submittedAmount' : 'paymentAmount',
+      label: 'Amount',
+      minWidth: 120,
+      align: 'right',
+      format: (value: number | string) => `Rs ${typeof value === 'string' ? parseFloat(value).toLocaleString() : value.toLocaleString()}`
+    });
+
+    if (!isSubjectPayment) {
+      baseColumns.push({
+        id: 'totalAmount',
+        label: 'Total Amount',
+        minWidth: 120,
+        align: 'right',
+        format: (value: number) => `Rs ${value.toLocaleString()}`
+      }, {
+        id: 'paymentMethod',
+        label: 'Payment Method',
+        minWidth: 130
+      });
+    }
+
+    baseColumns.push({
+      id: isSubjectPayment ? 'transactionId' : 'transactionRef',
+      label: 'Transaction Ref',
+      minWidth: 150
+    }, {
+      id: 'receipt',
+      label: 'Receipt',
+      minWidth: 100,
+      align: 'center',
+      format: (value: any, row: any) => {
+        const receiptUrl = row.receiptUrl;
+        const hasAttachment = isSubjectPayment ? !!receiptUrl : row.hasAttachment && !!receiptUrl;
+        return hasAttachment ? <Button onClick={() => handleViewReceipt(receiptUrl)} size="sm" variant="outline">
+              <Eye className="h-4 w-4 mr-1" />
+              View
+            </Button> : null;
+      }
+    }, {
+      id: 'paymentDate',
+      label: 'Payment Date',
+      minWidth: 120,
+      format: (value: string) => new Date(value).toLocaleDateString()
+    });
+
+    if (!isSubjectPayment) {
+      baseColumns.push({
+        id: 'remarks',
+        label: 'Remarks',
+        minWidth: 150
+      });
+    } else {
+      baseColumns.push({
+        id: 'notes',
+        label: 'Notes',
+        minWidth: 150
+      });
+    }
+
+    baseColumns.push({
+      id: 'status',
+      label: 'Status',
+      minWidth: 120,
+      format: (value: string) => <Badge className={getStatusColor(value)}>
+            {getStatusIcon(value)}
+            <span className="ml-2">{value}</span>
+          </Badge>
+    }, {
+      id: 'actions',
+      label: 'Actions',
+      minWidth: 120,
+      align: 'center',
+      format: (value: any, row: any) => canVerifySubmissions && row.status === 'PENDING' ? <Button onClick={() => handleVerifySubmission(row)} size="sm" variant="outline">
+              Verify
+            </Button> : null
+    });
+
+    return baseColumns;
+  }, [isSubjectPayment]);
+
+  // Use the table data hook for pagination and data management
+  const {
+    state: {
+      data: submissions,
+      loading,
+      error
+    },
+    actions: {
+      refresh,
+      updateFilters
+    },
+    pagination: {
+      page,
+      limit,
+      totalCount
+    }
+  } = useTableData<PaymentSubmission | SubjectPaymentSubmission>({
+    endpoint,
+    pagination: {
+      defaultLimit: 10,
+      availableLimits: [10, 25, 50]
+    },
+    autoLoad: !!endpoint
   });
 
-  const loadSubmissions = async (appliedFilters = filters) => {
-    if (!selectedInstitute || !paymentId) return;
-    
-    setLoading(true);
-    try {
-      const response = await institutePaymentsApi.getPaymentSubmissions(
-        selectedInstitute.id, 
-        paymentId, 
-        appliedFilters
-      );
-      setSubmissionsData(response);
-    } catch (error) {
-      console.error('Failed to load submissions:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load payment submissions",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Client-side filtered submissions (live, no refresh)
+  const filteredSubmissions = useMemo(() => {
+    if (!searchValue.trim()) return submissions;
+    const q = searchValue.trim().toLowerCase();
 
-  // Auto-load on mount and filter changes
-  useEffect(() => {
-    loadSubmissions();
-  }, [selectedInstitute, paymentId, filters]);
-
-  const handleFiltersChange = (newFilters: FilterParams) => {
-    setFilters(newFilters);
-  };
-
-  const handleApplyFilters = () => {
-    loadSubmissions(filters);
-  };
-
-  const handleClearFilters = () => {
-    const clearedFilters: FilterParams = {
-      page: 1,
-      limit: 10,
-      sortBy: 'submissionDate',
-      sortOrder: 'DESC'
-    };
-    setFilters(clearedFilters);
-  };
-
-  const handlePageChange = (page: number) => {
-    setFilters(prev => ({ ...prev, page }));
-  };
-
-  const handleLimitChange = (limit: number) => {
-    setFilters(prev => ({ ...prev, limit, page: 1 }));
-  };
-
-  const handleVerifySubmission = (submission: PaymentSubmission) => {
-    setSelectedSubmission(submission);
-    setVerifyDialogOpen(true);
+    return submissions.filter((row) => {
+      if (!row) return false;
+      switch (searchType) {
+        case 'submissionId': {
+          const id = String((row as any).id ?? '');
+          return id.toLowerCase().includes(q);
+        }
+        case 'studentName': {
+          const name = String((row as any)[isSubjectPayment ? 'username' : 'studentName'] ?? '');
+          return name.toLowerCase().includes(q);
+        }
+        case 'userId': {
+          const uid = String((row as any).userId ?? '');
+          return uid.toLowerCase().includes(q);
+        }
+        case 'amount': {
+          const amt = (row as any)[isSubjectPayment ? 'submittedAmount' : 'paymentAmount'];
+          if (amt == null) return false;
+          return String(amt).toLowerCase().includes(q);
+        }
+        default:
+          return true;
+      }
+    });
+  }, [submissions, searchType, searchValue, isSubjectPayment]);
+  const clearSearch = () => {
+    setSearchValue('');
+    setSearchType('studentName');
   };
 
   // Check if current user can verify submissions (only institute admins)
   const canVerifySubmissions = user?.userType === 'INSTITUTE_ADMIN';
-
+  const handleVerifySubmission = (submission: PaymentSubmission | SubjectPaymentSubmission) => {
+    setSelectedSubmission(submission);
+    setVerifyDialogOpen(true);
+  };
+  const handleViewReceipt = (receiptUrl: string) => {
+    if (receiptUrl) {
+      setSelectedReceiptUrl(receiptUrl);
+      setReceiptModalOpen(true);
+    }
+  };
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'VERIFIED':
@@ -102,7 +254,6 @@ const PaymentSubmissions = () => {
         return 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-900 dark:text-gray-300';
     }
   };
-
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'VERIFIED':
@@ -115,18 +266,24 @@ const PaymentSubmissions = () => {
         return <AlertCircle className="h-4 w-4" />;
     }
   };
-
-  return (
-    <AppLayout>
+  const handlePageChange = (event: unknown, newPage: number) => {
+    updateFilters({
+      page: newPage + 1
+    });
+  };
+  const handleRowsPerPageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const newLimit = parseInt(event.target.value, 10);
+    updateFilters({
+      limit: newLimit,
+      page: 1
+    });
+  };
+  return <AppLayout>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            <Button
-              variant="ghost"
-              onClick={() => navigate(-1)}
-              className="flex items-center space-x-2"
-            >
+            <Button variant="ghost" onClick={() => navigate(-1)} className="flex items-center space-x-2">
               <ArrowLeft className="h-4 w-4" />
               <span>Back to Payments</span>
             </Button>
@@ -137,206 +294,164 @@ const PaymentSubmissions = () => {
               </p>
             </div>
           </div>
-          <Button onClick={() => loadSubmissions()} disabled={loading}>
-            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-            {loading ? 'Loading...' : 'Refresh'}
-          </Button>
+          <div className="flex items-center space-x-2">
+            <Button onClick={() => refresh()} disabled={loading}>
+              <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
+              {loading ? 'Loading...' : 'Refresh'}
+            </Button>
+          </div>
         </div>
 
-        {/* Institute Info */}
-        {selectedInstitute && (
-          <Card className="border-blue-200 bg-blue-50 dark:bg-blue-950 dark:border-blue-800">
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2 text-blue-900 dark:text-blue-100">
-                <FileText className="h-5 w-5" />
-                <span>Institute Information</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-blue-800 dark:text-blue-200">
-                <strong>Institute:</strong> {selectedInstitute.name}
-              </p>
+        {/* Search Bar */}
+        <Card>
+          <CardContent className="p-4">
+            <div className="flex items-center space-x-4">
+              <div className="flex-1">
+                <Input
+                  placeholder={`Search by ${searchType === 'submissionId' ? 'submission ID' : searchType === 'studentName' ? 'student name' : searchType === 'userId' ? 'user ID' : 'amount'}...`}
+                  value={searchValue}
+                  onChange={(e) => setSearchValue(e.target.value)}
+                  className="w-full"
+                />
+              </div>
+              <Select value={searchType} onValueChange={setSearchType}>
+                <SelectTrigger className="w-48">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="submissionId">Submission ID</SelectItem>
+                  <SelectItem value="studentName">Student Name</SelectItem>
+                  <SelectItem value="userId">User ID</SelectItem>
+                  <SelectItem value="amount">Amount</SelectItem>
+                </SelectContent>
+              </Select>
+              {searchValue && (
+                <Button variant="outline" size="sm" onClick={clearSearch}>
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Current Selection Info */}
+        {selectedInstitute && <Card>
+            <CardContent className="pt-6">
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <span className="text-sm font-medium">Institute:</span>
+                  <span className="text-sm">{selectedInstitute.name}</span>
+                </div>
+                {isSubjectPayment && selectedClass && (
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm font-medium">Class:</span>
+                    <span className="text-sm">{selectedClass.name}</span>
+                  </div>
+                )}
+                {isSubjectPayment && selectedSubject && (
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm font-medium">Subject:</span>
+                    <span className="text-sm">{selectedSubject.name}</span>
+                  </div>
+                )}
+              </div>
             </CardContent>
-          </Card>
-        )}
+          </Card>}
 
-        {/* Filters */}
-        <PaymentSubmissionsFilters
-          filters={filters}
-          onFiltersChange={handleFiltersChange}
-          onApplyFilters={handleApplyFilters}
-          onClearFilters={handleClearFilters}
-        />
-
-        {/* Submissions List */}
+        {/* Payment Submissions Table */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <FileText className="h-5 w-5" />
                 <span>Payment Submissions</span>
-                {submissionsData && (
-                  <Badge variant="secondary">
-                    {submissionsData.data.pagination.totalItems} total
-                  </Badge>
-                )}
+                <Badge variant="secondary">
+                  {totalCount} total
+                </Badge>
               </div>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {!submissionsData ? (
-              <div className="text-center py-12">
-                <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground text-lg mb-2">
-                  Loading payment submissions...
-                </p>
-              </div>
-            ) : submissionsData.data.submissions.length === 0 ? (
-              <div className="text-center py-12">
-                <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground text-lg mb-2">
-                  No submissions found
-                </p>
-                <p className="text-muted-foreground">
-                  {Object.keys(filters).length > 2 ? 
-                    'Try adjusting your filters to see more results.' : 
-                    'No payment submissions have been made for this payment.'
-                  }
-                </p>
-              </div>
-            ) : (
-              <>
-                <div className="space-y-6">
-                  {submissionsData.data.submissions.map((submission) => (
-                    <div
-                      key={submission.id}
-                      className="border rounded-lg p-6 hover:bg-muted/50 transition-colors"
-                    >
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex items-center space-x-3">
-                          <Badge className={`px-3 py-1 ${getStatusColor(submission.status)}`}>
-                            {getStatusIcon(submission.status)}
-                            <span className="ml-2">{submission.status}</span>
-                          </Badge>
-                          <div>
-                            <h3 className="font-semibold text-lg">
-                              Submission #{submission.id}
-                            </h3>
-                            <p className="text-sm text-muted-foreground">
-                              by {submission.submitterName}
-                            </p>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-2xl font-bold">
-                            ₹{submission.paymentAmount.toLocaleString()}
-                          </p>
-                          {submission.status === 'PENDING' && canVerifySubmissions && (
-                            <Button 
-                              onClick={() => handleVerifySubmission(submission)}
-                              size="sm"
-                              className="mt-2"
-                            >
-                              Verify
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                        <div className="space-y-2">
-                          <div className="flex items-center space-x-2">
-                            <DollarSign className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm font-medium">Payment Method:</span>
-                            <span className="text-sm">{submission.paymentMethod}</span>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <FileText className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm font-medium">Transaction Ref:</span>
-                            <span className="text-sm font-mono">{submission.transactionReference}</span>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <Calendar className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm font-medium">Payment Date:</span>
-                            <span className="text-sm">
-                              {new Date(submission.paymentDate).toLocaleDateString()}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="space-y-2">
-                          <div className="flex items-center space-x-2">
-                            <Calendar className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm font-medium">Submitted:</span>
-                            <span className="text-sm">
-                              {new Date(submission.createdAt).toLocaleDateString()}
-                            </span>
-                          </div>
-                          {submission.verifiedAt && (
-                            <div className="flex items-center space-x-2">
-                              <CheckCircle className="h-4 w-4 text-green-500" />
-                              <span className="text-sm font-medium">Verified:</span>
-                              <span className="text-sm">
-                                {new Date(submission.verifiedAt).toLocaleDateString()}
-                              </span>
+            {error ? <div className="text-center py-12">
+                <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
+                <p className="text-destructive text-lg mb-2">Error loading submissions</p>
+                <p className="text-muted-foreground">{error}</p>
+              </div> : <Paper sx={{
+            width: '100%',
+            overflow: 'hidden'
+          }}>
+                <TableContainer sx={{
+              height: 'calc(100vh - 400px)',
+              minHeight: 400
+            }}>
+                  <Table stickyHeader aria-label="payment submissions table">
+                    <TableHead>
+                      <TableRow>
+                        {columns.map(column => <TableCell key={column.id} align={column.align} style={{
+                      minWidth: column.minWidth
+                    }} sx={{
+                      fontWeight: 'bold',
+                      backgroundColor: 'rgba(0, 0, 0, 0.04)'
+                    }}>
+                            {column.label}
+                          </TableCell>)}
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {loading ? <TableRow>
+                          <TableCell colSpan={columns.length} align="center">
+                            <div className="py-12 text-center">
+                              <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-muted-foreground" />
+                              <p className="text-muted-foreground">Loading submissions...</p>
                             </div>
-                          )}
-                          {submission.verifierName && (
-                            <div className="flex items-center space-x-2">
-                              <span className="text-sm font-medium">Verified by:</span>
-                              <span className="text-sm">{submission.verifierName}</span>
+                          </TableCell>
+                        </TableRow> : filteredSubmissions.length === 0 ? <TableRow>
+                          <TableCell colSpan={columns.length} align="center">
+                            <div className="py-12 text-center">
+                              <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                              <p className="text-muted-foreground text-lg mb-2">No submissions found</p>
+                              <p className="text-muted-foreground">No payment submissions have been made for this payment.</p>
                             </div>
-                          )}
-                        </div>
-                      </div>
-
-                      {submission.paymentRemarks && (
-                        <div className="mt-4 p-3 bg-muted rounded-lg">
-                          <p className="text-sm font-medium mb-1">Payment Remarks:</p>
-                          <p className="text-sm">{submission.paymentRemarks}</p>
-                        </div>
-                      )}
-
-                      {submission.rejectionReason && (
-                        <div className="mt-4 p-3 bg-red-50 dark:bg-red-950 rounded-lg">
-                          <p className="text-sm font-medium mb-1 text-red-800 dark:text-red-200">Rejection Reason:</p>
-                          <p className="text-sm text-red-700 dark:text-red-300">{submission.rejectionReason}</p>
-                        </div>
-                      )}
-
-                      {submission.notes && (
-                        <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-950 rounded-lg">
-                          <p className="text-sm font-medium mb-1">Admin Notes:</p>
-                          <p className="text-sm">{submission.notes}</p>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-
-                {/* Pagination */}
-                <PaymentSubmissionsPagination
-                  pagination={submissionsData.data.pagination}
-                  onPageChange={handlePageChange}
-                  onLimitChange={handleLimitChange}
-                />
-              </>
-            )}
+                          </TableCell>
+                        </TableRow> : filteredSubmissions.map((row, index) => <TableRow hover role="checkbox" tabIndex={-1} key={row.id || index}>
+                            {columns.map(column => {
+                      const value = row[column.id as keyof PaymentSubmission];
+                      return <TableCell key={column.id} align={column.align}>
+                                  {column.format ? column.format(value, row) : value || '-'}
+                                </TableCell>;
+                    })}
+                          </TableRow>)}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+                <TablePagination rowsPerPageOptions={[25, 50, 100]} component="div" count={totalCount} rowsPerPage={limit} page={page} onPageChange={handlePageChange} onRowsPerPageChange={handleRowsPerPageChange} labelRowsPerPage="Submissions per page:" />
+              </Paper>}
           </CardContent>
         </Card>
 
         {/* Verify Dialog */}
         {selectedInstitute && (
-          <VerifySubmissionDialog
-            open={verifyDialogOpen}
-            onOpenChange={setVerifyDialogOpen}
-            submission={selectedSubmission}
-            instituteId={selectedInstitute.id}
-            onSuccess={() => loadSubmissions()}
+          <VerifySubmissionDialog 
+            open={verifyDialogOpen} 
+            onOpenChange={setVerifyDialogOpen} 
+            submission={selectedSubmission as PaymentSubmission} 
+            instituteId={selectedInstitute.id} 
+            onSuccess={() => refresh()} 
           />
         )}
-      </div>
-    </AppLayout>
-  );
-};
 
+        {/* Receipt Viewer Modal */}
+        <Dialog open={receiptModalOpen} onOpenChange={setReceiptModalOpen}>
+          <DialogContent className="max-w-4xl max-h-[90vh]">
+            <DialogHeader>
+              <DialogTitle>Payment Receipt</DialogTitle>
+            </DialogHeader>
+            <div className="w-full h-[70vh]">
+              {selectedReceiptUrl && <iframe src={selectedReceiptUrl} className="w-full h-full border rounded" title="Payment Receipt" />}
+            </div>
+          </DialogContent>
+        </Dialog>
+      </div>
+    </AppLayout>;
+};
 export default PaymentSubmissions;

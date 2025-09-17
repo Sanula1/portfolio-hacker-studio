@@ -91,7 +91,7 @@ class ChildAttendanceApi {
       startDate: '2025-09-01',
       endDate: '2025-09-07',
       page: 1,
-      limit: 5,
+      limit: 50, // Default to 50 as requested
       ...queryParams
     };
 

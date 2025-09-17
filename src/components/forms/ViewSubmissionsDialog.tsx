@@ -193,13 +193,13 @@ const ViewSubmissionsDialog = ({ open, onOpenChange, payment, instituteId }: Vie
                               Submission #{submission.id}
                             </h3>
                             <p className="text-sm text-muted-foreground">
-                              by {submission.submitterName}
+                              by {submission.username}
                             </p>
                           </div>
                         </div>
                         <div className="text-right">
                           <p className="text-xl font-bold">
-                            ₹{submission.paymentAmount.toLocaleString()}
+                            ₹{submission.submittedAmount.toLocaleString()}
                           </p>
                         </div>
                       </div>
@@ -208,13 +208,13 @@ const ViewSubmissionsDialog = ({ open, onOpenChange, payment, instituteId }: Vie
                         <div className="space-y-2">
                           <div className="flex items-center space-x-2">
                             <DollarSign className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm font-medium">Payment Method:</span>
-                            <span className="text-sm">{submission.paymentMethod}</span>
+                            <span className="text-sm font-medium">Transaction ID:</span>
+                            <span className="text-sm font-mono">{submission.transactionId}</span>
                           </div>
                           <div className="flex items-center space-x-2">
                             <FileText className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm font-medium">Transaction Ref:</span>
-                            <span className="text-sm font-mono">{submission.transactionReference}</span>
+                            <span className="text-sm font-medium">User Type:</span>
+                            <span className="text-sm">{submission.userType}</span>
                           </div>
                           <div className="flex items-center space-x-2">
                             <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -227,47 +227,45 @@ const ViewSubmissionsDialog = ({ open, onOpenChange, payment, instituteId }: Vie
                         <div className="space-y-2">
                           <div className="flex items-center space-x-2">
                             <Calendar className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm font-medium">Submitted:</span>
+                            <span className="text-sm font-medium">Uploaded:</span>
                             <span className="text-sm">
-                              {new Date(submission.createdAt).toLocaleDateString()}
+                              {new Date(submission.uploadedAt).toLocaleDateString()}
                             </span>
                           </div>
                           {submission.verifiedAt && (
                             <div className="flex items-center space-x-2">
-                              <CheckCircle className="h-4 w-4 text-green-500" />
+                              <CheckCircle className="h-4 w-4 text-muted-foreground" />
                               <span className="text-sm font-medium">Verified:</span>
                               <span className="text-sm">
                                 {new Date(submission.verifiedAt).toLocaleDateString()}
                               </span>
                             </div>
                           )}
-                          {submission.verifierName && (
-                            <div className="flex items-center space-x-2">
-                              <span className="text-sm font-medium">Verified by:</span>
-                              <span className="text-sm">{submission.verifierName}</span>
-                            </div>
-                          )}
                         </div>
                       </div>
 
-                      {submission.paymentRemarks && (
+                      {submission.notes && (
                         <div className="mt-4 p-3 bg-muted rounded-lg">
-                          <p className="text-sm font-medium mb-1">Payment Remarks:</p>
-                          <p className="text-sm">{submission.paymentRemarks}</p>
+                          <p className="text-sm font-medium mb-1">Notes:</p>
+                          <p className="text-sm">{submission.notes}</p>
                         </div>
                       )}
-
+                      
                       {submission.rejectionReason && (
-                        <div className="mt-4 p-3 bg-red-50 dark:bg-red-950 rounded-lg">
-                          <p className="text-sm font-medium mb-1 text-red-800 dark:text-red-200">Rejection Reason:</p>
+                        <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 rounded-lg">
+                          <p className="text-sm font-medium mb-1 text-red-700 dark:text-red-300">Rejection Reason:</p>
                           <p className="text-sm text-red-700 dark:text-red-300">{submission.rejectionReason}</p>
                         </div>
                       )}
 
-                      {submission.notes && (
-                        <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-950 rounded-lg">
-                          <p className="text-sm font-medium mb-1">Admin Notes:</p>
-                          <p className="text-sm">{submission.notes}</p>
+                      {submission.receiptUrl && (
+                        <div className="mt-4">
+                          <button
+                            onClick={() => window.open(submission.receiptUrl, '_blank')}
+                            className="text-blue-600 hover:text-blue-800 text-sm underline"
+                          >
+                            View Receipt
+                          </button>
                         </div>
                       )}
                     </CardContent>

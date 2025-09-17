@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import * as React from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import Paper from '@mui/material/Paper';
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
@@ -17,6 +18,14 @@ import { instituteStudentsApi, StudentAttendanceRecord, StudentAttendanceRespons
 import { childAttendanceApi, ChildAttendanceRecord } from '@/api/childAttendance.api';
 import AttendanceFilters, { AttendanceFilterParams } from '@/components/AttendanceFilters';
 
+interface AttendanceColumn {
+  id: string;
+  label: string;
+  minWidth?: number;
+  align?: 'right' | 'left' | 'center';
+  format?: (value: any, record?: any) => React.ReactNode;
+}
+
 const Attendance = () => {
   const { selectedInstitute, selectedClass, selectedSubject, currentInstituteId, currentClassId, currentSubjectId, user } = useAuth();
   const { toast } = useToast();
@@ -25,11 +34,13 @@ const Attendance = () => {
   const [childAttendanceRecords, setChildAttendanceRecords] = useState<ChildAttendanceRecord[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [dataLoaded, setDataLoaded] = useState(false);
-  const [currentPage, setCurrentPage] = useState(0);
-  const [totalItems, setTotalItems] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(50);
-  const [rowsPerPageOptions] = useState([25, 50, 100]);
+  
+  // Enhanced pagination state with default of 50 and available options [25, 50, 100]
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(50);
+  const [totalRecords, setTotalRecords] = useState(0);
+  const rowsPerPageOptions = [25, 50, 100];
+  
   const [filters, setFilters] = useState<AttendanceFilterParams>({});
 
   // Check permissions and get view type based on role and context
@@ -89,438 +100,158 @@ const Attendance = () => {
 
   const { hasPermission, title, viewType, description } = getPermissionInfo();
 
+  // Define columns based on view type
+  const getColumns = (): AttendanceColumn[] => {
+    if (viewType === 'student') {
+      // For parent viewing child attendance
+      return [
+        { id: 'attendanceId', label: 'Attendance ID', minWidth: 120 },
+        { id: 'studentName', label: 'Student Name', minWidth: 170 },
+        { id: 'instituteName', label: 'Institute', minWidth: 170 },
+        { id: 'className', label: 'Class', minWidth: 100 },
+        { id: 'subjectName', label: 'Subject', minWidth: 130 },
+        { id: 'markedAt', label: 'Date & Time', minWidth: 150, format: (value) => new Date(value).toLocaleString() },
+        { id: 'markingMethod', label: 'Method', minWidth: 100 },
+        { 
+          id: 'status', 
+          label: 'Status', 
+          minWidth: 100,
+          format: (value) => (
+            <Badge variant={value === 'present' ? 'default' : value === 'late' ? 'secondary' : 'destructive'}>
+              {value?.toUpperCase()}
+            </Badge>
+          )
+        },
+        { id: 'markedBy', label: 'Marked By', minWidth: 130 }
+      ];
+    } else {
+      // For institute/class/subject attendance
+      return [
+        { id: 'studentCardId', label: 'Student ID', minWidth: 120 },
+        { id: 'studentName', label: 'Student Name', minWidth: 170 },
+        { id: 'instituteName', label: 'Institute', minWidth: 170 },
+        { id: 'className', label: 'Class', minWidth: 100 },
+        { id: 'subjectName', label: 'Subject', minWidth: 130 },
+        { id: 'lastAttendanceDate', label: 'Last Attendance', minWidth: 150, format: (value) => value ? new Date(value).toLocaleDateString() : 'Never' },
+        { id: 'attendanceCount', label: 'Total Days', minWidth: 100, align: 'right' as const },
+        { 
+          id: 'studentDetails', 
+          label: 'Status', 
+          minWidth: 100,
+          format: (value) => (
+            <Badge variant={value?.isActive ? 'default' : 'destructive'}>
+              {value?.isActive ? 'ACTIVE' : 'INACTIVE'}
+            </Badge>
+          )
+        }
+      ];
+    }
+  };
+
   const handleFiltersChange = (newFilters: AttendanceFilterParams) => {
     setFilters(newFilters);
   };
 
   const handleApplyFilters = () => {
     console.log('Applying filters:', filters);
-    setCurrentPage(0);
-    // Always reload data when filters are applied
+    setPage(0);
     loadStudentAttendanceData();
   };
 
   const handleClearFilters = () => {
-    const clearedFilters = {};
-    setFilters(clearedFilters);
-    setCurrentPage(0);
-    // Automatically reload data when filters are cleared
-    setTimeout(() => {
-      loadStudentAttendanceData();
-    }, 100);
+    setFilters({});
+    setPage(0);
+    loadStudentAttendanceData();
   };
 
-  const loadStudentAttendanceData = async () => {
-    if (!hasPermission) {
-      toast({
-        title: "Access Denied",
-        description: "You don't have permission to view attendance records or required selections are missing.",
-        variant: "destructive"
-      });
-      return;
-    }
+  const handleChangePage = (event: unknown, newPage: number) => {
+    setPage(newPage);
+  };
 
-    setIsLoading(true);
-    console.log('Loading attendance data for view type:', viewType);
-    console.log('Active filters:', filters);
+  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setRowsPerPage(+event.target.value);
+    setPage(0);
+  };
+
+  // Enhanced data loading with proper pagination
+  const loadStudentAttendanceData = useCallback(async () => {
+    if (!hasPermission) return;
     
+    setIsLoading(true);
     try {
-      if (viewType === 'student' && user?.id) {
-        // Load student's own attendance with filters
-        const requestParams = {
-          studentId: user.id,
-          startDate: filters.startDate || '2025-09-01',
-          endDate: filters.endDate || '2025-09-07',
-          page: currentPage + 1, // API expects 1-based pagination
-          limit: itemsPerPage,
-          ...(filters.status && { status: filters.status }),
-          ...(filters.markingMethod && { markingMethod: filters.markingMethod }),
-          ...(filters.searchTerm && { search: filters.searchTerm })
-        };
+      const apiParams = {
+        page: page + 1, // API expects 1-based pagination
+        limit: rowsPerPage,
+        ...filters
+      };
 
-        console.log('Child attendance request params:', requestParams);
-        const result = await childAttendanceApi.getChildAttendance(requestParams);
+      let response: StudentAttendanceResponse;
 
-        console.log('Child attendance data loaded successfully:', result);
-        
-        // Apply client-side filtering for student name if provided
-        let filteredData = result.data || [];
-        if (filters.studentName) {
-          filteredData = filteredData.filter(record => 
-            record.studentName?.toLowerCase().includes(filters.studentName!.toLowerCase())
-          );
-        }
-        if (filters.searchTerm) {
-          filteredData = filteredData.filter(record => 
-            record.studentName?.toLowerCase().includes(filters.searchTerm!.toLowerCase()) ||
-            record.instituteName?.toLowerCase().includes(filters.searchTerm!.toLowerCase()) ||
-            record.className?.toLowerCase().includes(filters.searchTerm!.toLowerCase()) ||
-            record.subjectName?.toLowerCase().includes(filters.searchTerm!.toLowerCase())
-          );
-        }
-        
-        setChildAttendanceRecords(filteredData);
-        setTotalItems(filteredData.length);
-        setTotalPages(Math.ceil(filteredData.length / itemsPerPage));
+      if (viewType === 'institute' && currentInstituteId) {
+        response = await instituteStudentsApi.getInstituteStudentAttendance(currentInstituteId, apiParams);
+      } else if (viewType === 'class' && currentInstituteId && currentClassId) {
+        response = await instituteStudentsApi.getClassStudentAttendance(currentInstituteId, currentClassId, apiParams);
+      } else if (viewType === 'subject' && currentInstituteId && currentClassId && currentSubjectId) {
+        response = await instituteStudentsApi.getSubjectStudentAttendance(currentInstituteId, currentClassId, currentSubjectId, apiParams);
+      } else {
+        console.warn('Invalid view type or missing context for attendance data');
+        return;
+      }
+
+      if (response.success) {
+        setStudentAttendanceRecords(response.data);
+        setTotalRecords(response.pagination.totalRecords);
         setDataLoaded(true);
         
         toast({
           title: "Data Loaded",
-          description: `Successfully loaded ${filteredData.length} attendance records.`
+          description: `Loaded ${response.data.length} attendance records`,
         });
       } else {
-        // Admin/Teacher views
-        if (!currentInstituteId) {
-          toast({
-            title: "Missing Selection",
-            description: "Please select an institute to view attendance records.",
-            variant: "destructive"
-          });
-          return;
-        }
-
-        let result: StudentAttendanceResponse;
-        
-        const params = {
-          page: currentPage + 1, // API expects 1-based pagination
-          limit: itemsPerPage,
-          ...(filters.startDate && { startDate: filters.startDate }),
-          ...(filters.endDate && { endDate: filters.endDate }),
-          ...(filters.status && { status: filters.status }),
-          ...(filters.markingMethod && { markingMethod: filters.markingMethod }),
-          ...(filters.searchTerm && { search: filters.searchTerm })
-        };
-
-        console.log('API request params with filters:', params);
-
-        // Call appropriate API based on view type
-        if (viewType === 'institute') {
-          result = await instituteStudentsApi.getInstituteStudentAttendance(currentInstituteId, params);
-        } else if (viewType === 'class' && currentClassId) {
-          result = await instituteStudentsApi.getClassStudentAttendance(currentInstituteId, currentClassId, params);
-        } else if (viewType === 'subject' && currentClassId && currentSubjectId) {
-          result = await instituteStudentsApi.getSubjectStudentAttendance(currentInstituteId, currentClassId, currentSubjectId, params);
-        } else {
-          throw new Error('Invalid view configuration');
-        }
-
-        console.log('Student attendance data loaded successfully:', result);
-        
-        // Apply client-side filtering for additional filters not handled by API
-        let filteredData = result.data || [];
-        if (filters.studentName) {
-          filteredData = filteredData.filter(record => 
-            record.studentName?.toLowerCase().includes(filters.studentName!.toLowerCase())
-          );
-        }
-        
-        // Apply sorting if specified
-        if (filters.sortBy) {
-          filteredData.sort((a, b) => {
-            let aValue: any, bValue: any;
-            
-            switch (filters.sortBy) {
-              case 'studentName':
-                aValue = a.studentName || '';
-                bValue = b.studentName || '';
-                break;
-              case 'lastAttendanceDate':
-                aValue = new Date(a.lastAttendanceDate);
-                bValue = new Date(b.lastAttendanceDate);
-                break;
-              case 'attendanceCount':
-                aValue = a.attendanceCount || 0;
-                bValue = b.attendanceCount || 0;
-                break;
-              default:
-                return 0;
-            }
-            
-            if (filters.sortOrder === 'asc') {
-              return aValue > bValue ? 1 : -1;
-            } else {
-              return aValue < bValue ? 1 : -1;
-            }
-          });
-        }
-        
-        setStudentAttendanceRecords(filteredData);
-        setTotalItems(result.pagination.totalRecords || filteredData.length);
-        setTotalPages(result.pagination.totalPages || Math.ceil(filteredData.length / itemsPerPage));
-        setDataLoaded(true);
-        
-        toast({
-          title: "Data Loaded",
-          description: `Successfully loaded ${filteredData.length} student attendance records.`
-        });
+        throw new Error(response.message || 'Failed to load attendance data');
       }
     } catch (error) {
-      console.error('Failed to load attendance data:', error);
-      
-      // Check if it's a configuration error
-      const errorMessage = error instanceof Error ? error.message : "Failed to load attendance data from server.";
-      
-      if (errorMessage.includes('No API base URL configured')) {
-        toast({
-          title: "Configuration Required",
-          description: "Please configure your API settings in Settings page first.",
-          variant: "destructive"
-        });
-      } else if (errorMessage.includes('ngrok') || errorMessage.includes('browser warning')) {
-        toast({
-          title: "Ngrok Configuration Issue",
-          description: "The ngrok tunnel is showing a browser warning. Visit the ngrok URL in a browser first to accept the warning.",
-          variant: "destructive"
-        });
-      } else if (errorMessage.includes('HTML instead of JSON')) {
-        toast({
-          title: "API Configuration Error",
-          description: "The server is returning HTML instead of JSON. Check your API endpoint configuration.",
-          variant: "destructive"
-        });
-      } else {
-        toast({
-          title: "Load Failed",
-          description: errorMessage,
-          variant: "destructive"
-        });
-      }
+      console.error('Error loading attendance data:', error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to load attendance data",
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [currentInstituteId, currentClassId, currentSubjectId, viewType, hasPermission, page, rowsPerPage, filters, toast]);
 
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-    // Always reload data with current filters when page changes
-    loadStudentAttendanceData();
-  };
-
-  const handleItemsPerPageChange = (items: number) => {
-    setItemsPerPage(items);
-    setCurrentPage(0);
-    // Always reload data with current filters when items per page changes
-    loadStudentAttendanceData();
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  };
-
-  const formatTime = (dateString: string) => {
-    return new Date(dateString).toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
-    });
-  };
+  // Load data when dependencies change
+  useEffect(() => {
+    if (hasPermission) {
+      loadStudentAttendanceData();
+    }
+  }, [page, rowsPerPage, currentInstituteId, currentClassId, currentSubjectId, viewType]);
 
   const getCurrentSelection = () => {
-    if (viewType === 'student') {
-      const selections = [];
-      if (selectedInstitute) selections.push(`Institute: ${selectedInstitute.name}`);
-      return selections.join(', ') || 'No Institute Selected';
-    }
-    
-    const selections = [];
-    if (selectedInstitute) selections.push(`Institute: ${selectedInstitute.name}`);
-    if (selectedClass) selections.push(`Class: ${selectedClass.name}`);
-    if (selectedSubject) selections.push(`Subject: ${selectedSubject.name}`);
-    return selections.join(', ');
-  };
-
-  // Define columns for attendance data table
-  const getColumns = () => {
-    if (viewType === 'student') {
-      // Student view - show their attendance records
-      return [
-        {
-          key: 'attendanceId',
-          header: 'Attendance ID',
-          render: (value: string) => (
-            <span className="font-mono text-xs text-muted-foreground">{value}</span>
-          )
-        },
-        {
-          key: 'instituteName',
-          header: 'Institute',
-          render: (value: string) => (
-            <span className="font-medium text-foreground">{value}</span>
-          )
-        },
-        {
-          key: 'className',
-          header: 'Class',
-          render: (value: string) => (
-            <span className="text-muted-foreground">{value || '-'}</span>
-          )
-        },
-        {
-          key: 'subjectName',
-          header: 'Subject',
-          render: (value: string) => (
-            <span className="text-muted-foreground">{value || '-'}</span>
-          )
-        },
-        {
-          key: 'status',
-          header: 'Status',
-          render: (value: string) => (
-            <Badge
-              variant={value === 'present' ? 'default' : value === 'absent' ? 'destructive' : 'secondary'}
-            >
-              {value?.charAt(0).toUpperCase() + value?.slice(1) || 'Unknown'}
-            </Badge>
-          )
-        },
-        {
-          key: 'markedAt',
-          header: 'Marked At',
-          render: (value: string) => (
-            <div className="space-y-1">
-              <div className="text-sm text-muted-foreground">{formatDate(value)}</div>
-              <div className="text-xs text-muted-foreground">{formatTime(value)}</div>
-            </div>
-          )
-        },
-        {
-          key: 'markedBy',
-          header: 'Marked By',
-          render: (value: string) => (
-            <span className="text-sm text-muted-foreground">{value || 'System'}</span>
-          )
-        },
-        {
-          key: 'markingMethod',
-          header: 'Method',
-          render: (value: string) => (
-            <Badge variant="outline">
-              {value?.toUpperCase() || 'UNKNOWN'}
-            </Badge>
-          )
-        },
-        {
-          key: 'address',
-          header: 'Address',
-          render: (value: string) => (
-            <span className="text-sm text-muted-foreground">{value || 'N/A'}</span>
-          )
-        }
-      ];
-    }
-
-    // Admin/Teacher views
-    const baseColumns = [
-      {
-        key: 'studentId',
-        header: 'Student ID',
-        render: (value: string) => (
-          <span className="font-medium text-foreground">{value}</span>
-        )
-      },
-      {
-        key: 'studentName',
-        header: 'Student Name',
-        render: (value: string) => (
-          <span className="font-medium text-foreground">{value}</span>
-        )
-      },
-      {
-        key: 'studentEmail',
-        header: 'Email',
-        render: (value: any, row: any) => (
-          <span className="text-muted-foreground">{row.studentDetails?.email || '-'}</span>
-        )
-      },
-      {
-        key: 'studentPhone',
-        header: 'Phone',
-        render: (value: any, row: any) => (
-          <span className="text-muted-foreground">{row.studentDetails?.phoneNumber || '-'}</span>
-        )
-      }
-    ];
-
-    // Add class name column if we're viewing institute level
-    if (viewType === 'institute' || viewType === 'subject') {
-      baseColumns.push({
-        key: 'className',
-        header: 'Class',
-        render: (value: string) => (
-          <span className="text-muted-foreground">{value || '-'}</span>
-        )
-      });
-    }
-
-    // Add subject name column if we're viewing class level
-    if (viewType === 'class') {
-      baseColumns.push({
-        key: 'subjectName',
-        header: 'Subject',
-        render: (value: string) => (
-          <span className="text-muted-foreground">{value || '-'}</span>
-        )
-      });
-    }
-
-    // Add attendance info columns
-    baseColumns.push(
-      {
-        key: 'attendanceCount',
-        header: 'Total Attendance',
-        render: (value: string | number) => (
-          <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20">
-            {value} days
-          </Badge>
-        )
-      },
-      {
-        key: 'lastAttendanceDate',
-        header: 'Last Attendance',
-        render: (value: string) => (
-          <div className="space-y-1">
-            <div className="text-sm text-muted-foreground">{formatDate(value)}</div>
-            <div className="text-xs text-muted-foreground">{formatTime(value)}</div>
-          </div>
-        )
-      },
-      {
-        key: 'studentLocation',
-        header: 'Location',
-        render: (value: any, row: any) => (
-          <div className="text-sm text-muted-foreground">
-            <div>{row.studentDetails?.city || '-'}</div>
-            <div className="text-xs">{row.studentDetails?.district || ''}</div>
-          </div>
-        )
-      }
-    );
-
-    return baseColumns;
+    const parts = [];
+    if (selectedInstitute) parts.push(`Institute: ${selectedInstitute.name}`);
+    if (selectedClass) parts.push(`Class: ${selectedClass.name}`);
+    if (selectedSubject) parts.push(`Subject: ${selectedSubject.name}`);
+    return parts.join(' → ') || 'No selection';
   };
 
   if (!hasPermission) {
     return (
-      <div className="container mx-auto p-6">
+      <div className="p-6">
         <Card>
-          <CardContent className="text-center py-12">
-            <h3 className="text-lg font-medium text-foreground mb-2">
-              Access Denied or Missing Selection
-            </h3>
-            <p className="text-muted-foreground mb-4">
-              Please select the required context to view attendance records:
-            </p>
-            <div className="space-y-2 text-sm text-muted-foreground">
-              <p><strong>Institute Admin/Attendance Marker:</strong> Select Institute only for institute-level attendance</p>
-              <p><strong>Institute Admin/Teacher/Attendance Marker:</strong> Select Institute + Class for class-level attendance</p>
-              <p><strong>Institute Admin/Teacher/Attendance Marker:</strong> Select Institute + Class + Subject for subject-level attendance</p>
-            </div>
-            <div className="mt-4 text-sm text-muted-foreground">
-              Current Selection: {getCurrentSelection() || 'None'}
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="h-5 w-5" />
+              {title}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-center py-12">
+              <Users className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+              <h3 className="text-lg font-medium mb-2">{title}</h3>
+              <p className="text-muted-foreground">{description}</p>
             </div>
           </CardContent>
         </Card>
@@ -528,77 +259,18 @@ const Attendance = () => {
     );
   }
 
-  if (!dataLoaded) {
-    return (
-      <div className="container mx-auto p-6 space-y-6">
-        <div className="text-center py-12">
-          <h1 className="text-3xl font-bold text-foreground mb-2">
-            {title}
-          </h1>
-          
-          <div className="bg-muted/50 rounded-lg p-4 mb-6">
-            <div className="flex items-center gap-2 mb-2">
-              <MapPin className="h-4 w-4 text-muted-foreground" />
-              <span className="text-sm font-medium text-muted-foreground">Current Selection:</span>
-            </div>
-            <p className="text-foreground font-medium">{getCurrentSelection()}</p>
-          </div>
-          
-          <div className="bg-muted/30 rounded-lg p-4 mb-6">
-            <div className="flex items-center gap-2 mb-2">
-              <Users className="h-4 w-4 text-primary" />
-              <span className="text-sm font-medium text-foreground">View Type:</span>
-            </div>
-            <p className="text-muted-foreground text-sm">{description}</p>
-          </div>
-
-          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-6">
-            <div className="flex items-center gap-2 mb-2">
-              <Users className="h-4 w-4 text-amber-600" />
-              <span className="text-sm font-medium text-amber-800">API Configuration</span>
-            </div>
-            <p className="text-amber-700 text-sm">
-              If you get a 404 error, please configure your API Base URL in Settings. 
-              For local development, use http://localhost:3000
-            </p>
-          </div>
-          
-          <Button 
-            onClick={loadStudentAttendanceData} 
-            disabled={isLoading}
-            className="bg-primary hover:bg-primary/90"
-          >
-            {isLoading ? (
-              <>
-                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                Loading Data...
-              </>
-            ) : (
-              <>
-                <RefreshCw className="h-4 w-4 mr-2" />
-                View Attendance
-              </>
-            )}
-          </Button>
-        </div>
-      </div>
-    );
-  }
+  const columns = getColumns();
+  const displayData = viewType === 'student' ? childAttendanceRecords : studentAttendanceRecords;
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="space-y-6 p-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">
-            {title}
-          </h1>
-          <div className="flex items-center gap-2 mt-2">
-            <MapPin className="h-4 w-4 text-muted-foreground" />
-            <p className="text-muted-foreground">
-              Current Selection: {getCurrentSelection()}
-            </p>
-          </div>
+          <h1 className="text-2xl font-bold text-foreground">{title}</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            Current Selection: {getCurrentSelection()}
+          </p>
         </div>
         <Button 
           onClick={loadStudentAttendanceData} 
@@ -637,8 +309,8 @@ const Attendance = () => {
                 <Users className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Total Students</p>
-                <p className="text-2xl font-bold text-foreground">{totalItems}</p>
+                <p className="text-sm text-muted-foreground">Total Records</p>
+                <p className="text-2xl font-bold text-foreground">{totalRecords}</p>
               </div>
             </div>
           </CardContent>
@@ -666,42 +338,48 @@ const Attendance = () => {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Current Page</p>
-                <p className="text-lg font-medium text-foreground">{currentPage} of {totalPages}</p>
+                <p className="text-lg font-medium text-foreground">{page + 1} of {Math.ceil(totalRecords / rowsPerPage)}</p>
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* MUI Data Table */}
+      {/* Enhanced MUI Data Table with Fixed Height */}
       <Paper sx={{ width: '100%', overflow: 'hidden' }}>
-        <TableContainer sx={{ height: 'calc(100vh - 280px)' }}>
+        <TableContainer sx={{ height: 600 }}> {/* Fixed height for consistent display */}
           <Table stickyHeader aria-label="attendance table">
             <TableHead>
               <TableRow>
-                {getColumns().map((column) => (
-                  <TableCell key={column.key}>
-                    {column.header}
+                {columns.map((column) => (
+                  <TableCell
+                    key={column.id}
+                    align={column.align}
+                    style={{ minWidth: column.minWidth }}
+                  >
+                    {column.label}
                   </TableCell>
                 ))}
               </TableRow>
             </TableHead>
             <TableBody>
-              {(viewType === 'student' ? childAttendanceRecords : studentAttendanceRecords)
-                .slice(currentPage * itemsPerPage, currentPage * itemsPerPage + itemsPerPage)
-                .map((record, index) => (
-                <TableRow hover role="checkbox" tabIndex={-1} key={index}>
-                  {getColumns().map((column) => (
-                    <TableCell key={column.key}>
-                      {column.render ? column.render(record[column.key], record) : record[column.key]}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))}
-              {(viewType === 'student' ? childAttendanceRecords : studentAttendanceRecords).length === 0 && (
+              {displayData.length > 0 ? (
+                displayData.map((record, index) => (
+                  <TableRow hover role="checkbox" tabIndex={-1} key={index}>
+                    {columns.map((column) => {
+                      const value = (record as any)[column.id];
+                      return (
+                        <TableCell key={column.id} align={column.align}>
+                          {column.format ? column.format(value, record) : value}
+                        </TableCell>
+                      );
+                    })}
+                  </TableRow>
+                ))
+              ) : (
                 <TableRow>
-                  <TableCell colSpan={getColumns().length} align="center">
-                    <div className="py-12 text-center text-gray-500">
+                  <TableCell colSpan={columns.length} align="center">
+                    <div className="py-12 text-center text-muted-foreground">
                       <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
                       <p className="text-lg">No attendance records found</p>
                       <p className="text-sm">{getCurrentSelection()}</p>
@@ -715,22 +393,13 @@ const Attendance = () => {
         <TablePagination
           rowsPerPageOptions={rowsPerPageOptions}
           component="div"
-          count={totalItems}
-          rowsPerPage={itemsPerPage}
-          page={currentPage}
-          onPageChange={(event: unknown, newPage: number) => handlePageChange(newPage)}
-          onRowsPerPageChange={(event: React.ChangeEvent<HTMLInputElement>) => {
-            handleItemsPerPageChange(parseInt(event.target.value, 10));
-          }}
+          count={totalRecords}
+          rowsPerPage={rowsPerPage}
+          page={page}
+          onPageChange={handleChangePage}
+          onRowsPerPageChange={handleChangeRowsPerPage}
         />
       </Paper>
-
-      {/* Filters */}
-      <AttendanceFilters
-        onFiltersChange={handleFiltersChange}
-        onApplyFilters={handleApplyFilters}
-        onClearFilters={handleClearFilters}
-      />
     </div>
   );
 };

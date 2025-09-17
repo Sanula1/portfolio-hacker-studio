@@ -158,7 +158,7 @@ const ClassSelector = () => {
           limit: limit 
         };
       } else if (userRole === 'Teacher') {
-        endpoint = `/institute-class-subjects/institute/${currentInstituteId}/teacher/${user?.id}`;
+        endpoint = `/institute-classes/${currentInstituteId}/teacher/${user?.id}`;
         params = { page, limit };
       } else if (userRole === 'InstituteAdmin' || userRole === 'AttendanceMarker') {
         endpoint = `/institute-classes/institute/${currentInstituteId}`;
@@ -255,50 +255,38 @@ const ClassSelector = () => {
         }
       }));
     } else if (userRole === 'Teacher') {
-      let teacherClassSubjects: TeacherClassSubjectData[] = [];
+      // Handle new teacher classes response with proper pagination
+      let teacherClassAssignments: any[] = [];
       
       if (Array.isArray(result)) {
-        teacherClassSubjects = result;
+        teacherClassAssignments = result;
         pagination.total = result.length;
         pagination.totalPages = 1;
       } else if (result.data && Array.isArray(result.data)) {
-        teacherClassSubjects = result.data;
-        if (result.meta) {
-          pagination.total = result.meta.total || result.data.length;
-          pagination.totalPages = result.meta.totalPages || 1;
-        }
+        teacherClassAssignments = result.data;
+        // Use the new response structure pagination
+        pagination.total = result.total || result.data.length;
+        pagination.totalPages = result.totalPages || Math.ceil(pagination.total / (result.limit || 10));
       }
 
-      const uniqueClasses = new Map<string, ClassData>();
-      
-      teacherClassSubjects.forEach((item: TeacherClassSubjectData) => {
-        if (!uniqueClasses.has(item.classId)) {
-          uniqueClasses.set(item.classId, {
-            id: item.classId,
-            name: item.class.name,
-            code: item.class.code,
-            description: `${item.class.name} - Teaching ${item.subject.name}`,
-            specialty: 'Teacher Assignment',
-            classType: 'Teaching',
-            academicYear: 'Current',
-            isActive: item.isActive,
-            capacity: 0,
-            classTeacherId: item.class.classTeacherId,
-            imageUrl: undefined,
-            _count: {
-              students: 0,
-              subjects: 1
-            }
-          });
-        } else {
-          const existingClass = uniqueClasses.get(item.classId)!;
-          if (existingClass._count) {
-            existingClass._count.subjects += 1;
-          }
+      classesArray = teacherClassAssignments.map((item: any): ClassData => ({
+        id: item.class.id,
+        name: item.class.name,
+        code: item.class.code,
+        description: `${item.class.name} - ${item.class.specialty} (${item.teacherRole})`,
+        specialty: item.class.specialty,
+        classType: item.class.classType,
+        academicYear: item.class.academicYear,
+        isActive: item.isActive,
+        capacity: 0, // Not provided in teacher response
+        grade: item.class.grade,
+        instituteId: item.instituteId,
+        imageUrl: item.class.imageUrl,
+        _count: {
+          students: 0, // Not provided in teacher response
+          subjects: 0  // Not provided in teacher response
         }
-      });
-
-      classesArray = Array.from(uniqueClasses.values());
+      }));
     } else {
       if (Array.isArray(result)) {
         classesArray = result;

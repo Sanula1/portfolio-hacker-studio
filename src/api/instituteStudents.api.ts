@@ -136,7 +136,7 @@ class InstituteStudentsApi {
   ): Promise<StudentAttendanceResponse> {
     const queryParams = {
       page: 1,
-      limit: 20,
+      limit: 50, // Default to 50 as requested
       ...params
     };
 
@@ -156,7 +156,7 @@ class InstituteStudentsApi {
   ): Promise<StudentAttendanceResponse> {
     const queryParams = {
       page: 1,
-      limit: 20,
+      limit: 50, // Default to 50 as requested
       ...params
     };
 
@@ -177,7 +177,7 @@ class InstituteStudentsApi {
   ): Promise<StudentAttendanceResponse> {
     const queryParams = {
       page: 1,
-      limit: 20,
+      limit: 50, // Default to 50 as requested
       ...params
     };
 

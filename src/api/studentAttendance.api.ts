@@ -60,8 +60,8 @@ export const studentAttendanceApi = {
     const queryParams = new URLSearchParams();
     if (params.startDate) queryParams.append('startDate', params.startDate);
     if (params.endDate) queryParams.append('endDate', params.endDate);
-    if (params.page) queryParams.append('page', params.page.toString());
-    if (params.limit) queryParams.append('limit', params.limit.toString());
+    queryParams.append('page', (params.page || 1).toString());
+    queryParams.append('limit', (params.limit || 50).toString()); // Default to 50
 
     const url = `${baseUrl}/api/attendance/student/${params.studentId}?${queryParams.toString()}`;
     

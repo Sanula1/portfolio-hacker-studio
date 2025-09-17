@@ -1,5 +1,13 @@
-
-import React, { useState, useEffect } from 'react';
+import * as React from 'react';
+import { useState } from 'react';
+import Paper from '@mui/material/Paper';
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableContainer from '@mui/material/TableContainer';
+import TableHead from '@mui/material/TableHead';
+import TablePagination from '@mui/material/TablePagination';
+import TableRow from '@mui/material/TableRow';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,12 +16,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { RefreshCw, Video, Plus, Search, Filter, Calendar, Clock, ExternalLink, MapPin, Users, Edit } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { getBaseUrl } from '@/contexts/utils/auth.api';
-import { DataCardView } from '@/components/ui/data-card-view';
-import DataTable from '@/components/ui/data-table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import CreateLectureForm from '@/components/forms/CreateLectureForm';
 import UpdateLectureForm from '@/components/forms/UpdateLectureForm';
+import { useTableData } from '@/hooks/useTableData';
 
 interface TeacherLecture {
   id: string;
@@ -39,27 +45,18 @@ interface TeacherLecture {
   updatedAt: string;
 }
 
-interface LectureResponse {
-  data: TeacherLecture[];
-  meta: {
-    page: number;
-    limit: string;
-    total: string;
-    totalPages: number;
-    hasPreviousPage: boolean;
-    hasNextPage: boolean;
-    previousPage: number | null;
-    nextPage: number | null;
-  };
+interface Column {
+  id: 'title' | 'lectureType' | 'startTime' | 'endTime' | 'venue' | 'maxParticipants' | 'status' | 'actions';
+  label: string;
+  minWidth?: number;
+  align?: 'right' | 'left' | 'center';
+  format?: (value: any, row?: TeacherLecture) => React.ReactNode;
 }
 
 const TeacherLectures = () => {
   const { user, selectedInstitute, selectedClass, selectedSubject } = useAuth();
   const { toast } = useToast();
   
-  const [lectures, setLectures] = useState<TeacherLecture[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [dataLoaded, setDataLoaded] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
@@ -81,168 +78,39 @@ const TeacherLectures = () => {
     );
   }
 
-  const getApiHeaders = () => {
-    const token = localStorage.getItem('access_token');
-    return {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-      'ngrok-skip-browser-warning': 'true'
-    };
-  };
+  // Table data hook with pagination
+  const tableData = useTableData<TeacherLecture>({
+    endpoint: '/institute-class-subject-lectures',
+    defaultParams: {
+      instituteId: selectedInstitute?.id,
+      classId: selectedClass?.id,
+      subjectId: selectedSubject?.id,
+      instructorId: user?.id
+    },
+    dependencies: [selectedInstitute?.id, selectedClass?.id, selectedSubject?.id, user?.id],
+    pagination: { defaultLimit: 50, availableLimits: [25, 50, 100] },
+    autoLoad: false
+  });
 
-  const fetchLectures = async () => {
-    if (!selectedInstitute?.id || !selectedClass?.id || !selectedSubject?.id || !user?.id) {
-      return;
-    }
+  const { state: { data: lectures, loading }, pagination, actions } = tableData;
 
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({
-        page: '1',
-        limit: '10',
-        instituteId: selectedInstitute.id,
-        classId: selectedClass.id,
-        subjectId: selectedSubject.id,
-        instructorId: user.id
-      });
-
-      const response = await fetch(
-        `${getBaseUrl()}/institute-class-subject-lectures?${params}`,
-        { headers: getApiHeaders() }
-      );
-      
-      if (response.ok) {
-        const data: LectureResponse = await response.json();
-        setLectures(data.data);
-        setDataLoaded(true);
-        
-        toast({
-          title: "Lectures Loaded",
-          description: `Successfully loaded ${data.data.length} lectures.`
-        });
-      } else {
-        throw new Error('Failed to fetch lectures');
-      }
-    } catch (error) {
-      console.error('Error fetching lectures:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load lectures",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCreateLecture = async (lectureData: any) => {
-    if (!selectedInstitute?.id || !selectedClass?.id || !selectedSubject?.id || !user?.id) {
-      toast({
-        title: "Error",
-        description: "Missing required information",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    try {
-      setLoading(true);
-      
-      const createData = {
-        instituteId: selectedInstitute.id,
-        classId: selectedClass.id,
-        subjectId: selectedSubject.id,
-        instructorId: user.id,
-        lectures: {
-          title: lectureData.title,
-          lectureType: lectureData.lectureType,
-          startTime: lectureData.startTime,
-          endTime: lectureData.endTime,
-          description: lectureData.description,
-          venue: lectureData.venue,
-          meetingLink: lectureData.meetingLink,
-          meetingId: lectureData.meetingId,
-          recodingUrl: lectureData.recordingUrl, // Note: API uses "recodingUrl" (typo in API)
-          maxParticipants: lectureData.maxParticipants,
-          meetingPassword: lectureData.meetingPassword
-        }
-      };
-
-      const response = await fetch(
-        `${getBaseUrl()}/institute-class-subject-lectures`,
-        {
-          method: 'POST',
-          headers: getApiHeaders(),
-          body: JSON.stringify(createData)
-        }
-      );
-      
-      if (response.ok) {
-        const newLecture = await response.json();
-        
-        toast({
-          title: "Lecture Created",
-          description: `Lecture "${newLecture.title}" has been created successfully.`
-        });
-        
-        setIsCreateDialogOpen(false);
-        fetchLectures(); // Refresh the list
-      } else {
-        throw new Error('Failed to create lecture');
-      }
-    } catch (error) {
-      console.error('Error creating lecture:', error);
-      toast({
-        title: "Error",
-        description: "Failed to create lecture",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleEditLecture = (lecture: TeacherLecture) => {
-    setSelectedLecture(lecture);
-    setIsUpdateDialogOpen(true);
-  };
-
-  const handleUpdateLecture = () => {
-    setIsUpdateDialogOpen(false);
-    setSelectedLecture(null);
-    fetchLectures(); // Refresh the list
-  };
-
-  // Removed automatic API call - users must click Refresh to load data
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return 'default';
-      case 'scheduled':
-        return 'default';
-      case 'cancelled':
-        return 'destructive';
-      default:
-        return 'secondary';
-    }
-  };
-
-  const lectureColumns = [
+  const columns: readonly Column[] = [
     {
-      key: 'title',
-      header: 'Title',
-      render: (value: string, row: TeacherLecture) => (
+      id: 'title',
+      label: 'Title',
+      minWidth: 200,
+      format: (value: string, row: TeacherLecture) => (
         <div>
           <div className="font-medium">{value}</div>
-          <div className="text-sm text-gray-500 truncate">{row.description}</div>
+          <div className="text-sm text-gray-500 truncate">{row?.description || ''}</div>
         </div>
       )
     },
     {
-      key: 'lectureType',
-      header: 'Type',
-      render: (value: 'online' | 'physical') => (
+      id: 'lectureType',
+      label: 'Type',
+      minWidth: 120,
+      format: (value: 'online' | 'physical') => (
         <Badge variant={value === 'online' ? 'default' : 'secondary'}>
           {value === 'online' ? (
             <>
@@ -259,9 +127,10 @@ const TeacherLectures = () => {
       )
     },
     {
-      key: 'startTime',
-      header: 'Start Time',
-      render: (value: string) => (
+      id: 'startTime',
+      label: 'Start Time',
+      minWidth: 150,
+      format: (value: string) => (
         <div className="flex items-center gap-1">
           <Calendar className="h-4 w-4" />
           {new Date(value).toLocaleString()}
@@ -269,9 +138,10 @@ const TeacherLectures = () => {
       )
     },
     {
-      key: 'endTime',
-      header: 'End Time',
-      render: (value: string) => (
+      id: 'endTime',
+      label: 'End Time',
+      minWidth: 150,
+      format: (value: string) => (
         <div className="flex items-center gap-1">
           <Clock className="h-4 w-4" />
           {new Date(value).toLocaleString()}
@@ -279,14 +149,16 @@ const TeacherLectures = () => {
       )
     },
     {
-      key: 'venue',
-      header: 'Venue',
-      render: (value: string | undefined) => value || '-'
+      id: 'venue',
+      label: 'Venue',
+      minWidth: 120,
+      format: (value: string | undefined) => value || '-'
     },
     {
-      key: 'maxParticipants',
-      header: 'Max Participants',
-      render: (value: number | undefined) => value ? (
+      id: 'maxParticipants',
+      label: 'Max Participants',
+      minWidth: 150,
+      format: (value: number | undefined) => value ? (
         <div className="flex items-center gap-1">
           <Users className="h-4 w-4" />
           {value}
@@ -294,18 +166,21 @@ const TeacherLectures = () => {
       ) : '-'
     },
     {
-      key: 'status',
-      header: 'Status',
-      render: (value: string) => (
+      id: 'status',
+      label: 'Status',
+      minWidth: 100,
+      format: (value: string) => (
         <Badge variant={getStatusColor(value)}>
           {value.toUpperCase()}
         </Badge>
       )
     },
     {
-      key: 'actions',
-      header: 'Actions',
-      render: (value: any, row: TeacherLecture) => (
+      id: 'actions',
+      label: 'Actions',
+      minWidth: 200,
+      align: 'center',
+      format: (value: any, row: TeacherLecture) => (
         <div className="flex items-center gap-2">
           {row.recordingUrl && (
             <Button
@@ -331,6 +206,30 @@ const TeacherLectures = () => {
       )
     }
   ];
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return 'default';
+      case 'scheduled':
+        return 'default';
+      case 'cancelled':
+        return 'destructive';
+      default:
+        return 'secondary';
+    }
+  };
+
+  const handleEditLecture = (lecture: TeacherLecture) => {
+    setSelectedLecture(lecture);
+    setIsUpdateDialogOpen(true);
+  };
+
+  const handleUpdateLecture = () => {
+    setIsUpdateDialogOpen(false);
+    setSelectedLecture(null);
+    actions.refresh(); // Refresh the list
+  };
 
   const filteredLectures = lectures.filter(lecture => {
     const matchesSearch = !searchTerm || 
@@ -368,7 +267,7 @@ const TeacherLectures = () => {
     );
   }
 
-  if (!dataLoaded) {
+  if (!lectures.length && !loading) {
     return (
       <div className="container mx-auto p-6 space-y-6">
         <div className="text-center py-12">
@@ -383,7 +282,7 @@ const TeacherLectures = () => {
             Click the button below to load your lectures
           </p>
           <Button 
-            onClick={fetchLectures} 
+            onClick={() => actions.loadData()} 
             disabled={loading}
             className="bg-blue-600 hover:bg-blue-700"
           >
@@ -436,7 +335,7 @@ const TeacherLectures = () => {
             Filters
           </Button>
           <Button 
-            onClick={fetchLectures} 
+            onClick={() => actions.refresh()} 
             disabled={loading}
             variant="outline"
             size="sm"
@@ -513,7 +412,7 @@ const TeacherLectures = () => {
         </Card>
       )}
 
-      {filteredLectures.length === 0 ? (
+      {filteredLectures.length === 0 && !loading ? (
         <Card>
           <CardContent className="text-center py-12">
             <Video className="h-16 w-16 mx-auto mb-4 text-gray-400" />
@@ -523,35 +422,79 @@ const TeacherLectures = () => {
             <p className="text-gray-600 dark:text-gray-400">
               {searchTerm || statusFilter !== 'all' || typeFilter !== 'all'
                 ? 'No lectures match your current filters.' 
-                : 'No lectures have been scheduled for this subject yet.'}
+                : 'No lectures have been created for this subject yet.'}
             </p>
           </CardContent>
         </Card>
       ) : (
-        <>
-          {/* Desktop Table View */}
-          <div className="hidden md:block">
-            <DataTable
-              title=""
-              data={filteredLectures}
-              columns={lectureColumns}
-              searchPlaceholder="Search lectures..."
-              allowAdd={false}
-              allowEdit={false}
-              allowDelete={false}
-            />
-          </div>
-
-          {/* Mobile Card View */}
-          <div className="md:hidden">
-            <DataCardView
-              data={filteredLectures}
-              columns={lectureColumns}
-              allowEdit={false}
-              allowDelete={false}
-            />
-          </div>
-        </>
+        <Paper sx={{ 
+          width: '100%', 
+          height: 'calc(100vh - 250px)',
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column'
+        }}>
+          <TableContainer sx={{ 
+            height: 'calc(100% - 52px)', 
+            flexGrow: 1 
+          }}>
+            <Table stickyHeader aria-label="lectures table">
+              <TableHead>
+                <TableRow>
+                  {columns.map((column) => (
+                    <TableCell
+                      key={column.id}
+                      align={column.align}
+                      style={{ minWidth: column.minWidth }}
+                      sx={{
+                        fontWeight: 'bold',
+                        backgroundColor: 'rgba(0, 0, 0, 0.04)'
+                      }}
+                    >
+                      {column.label}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {filteredLectures.map((row, index) => (
+                  <TableRow hover role="checkbox" tabIndex={-1} key={row.id || index}>
+                    {columns.map((column) => {
+                      const value = row[column.id];
+                      return (
+                        <TableCell key={column.id} align={column.align}>
+                          {column.format ? column.format(value, row) : value || '-'}
+                        </TableCell>
+                      );
+                    })}
+                  </TableRow>
+                ))}
+                {filteredLectures.length === 0 && loading && (
+                  <TableRow>
+                    <TableCell colSpan={columns.length} align="center">
+                      <div className="py-12 text-center text-gray-500">
+                        <RefreshCw className="h-8 w-8 mx-auto mb-4 animate-spin" />
+                        <p className="text-lg">Loading lectures...</p>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+          <TablePagination
+            rowsPerPageOptions={[25, 50, 100]}
+            component="div"
+            count={pagination.totalCount}
+            rowsPerPage={pagination.limit}
+            page={pagination.page}
+            onPageChange={(event, newPage) => actions.setPage(newPage)}
+            onRowsPerPageChange={(event) => {
+              actions.setLimit(parseInt(event.target.value, 10));
+              actions.setPage(0);
+            }}
+          />
+        </Paper>
       )}
 
       {/* Create Lecture Dialog */}
@@ -564,7 +507,7 @@ const TeacherLectures = () => {
             onClose={() => setIsCreateDialogOpen(false)}
             onSuccess={() => {
               setIsCreateDialogOpen(false);
-              fetchLectures();
+              actions.refresh();
             }}
           />
         </DialogContent>
@@ -585,6 +528,7 @@ const TeacherLectures = () => {
           )}
         </DialogContent>
       </Dialog>
+
     </div>
   );
 };

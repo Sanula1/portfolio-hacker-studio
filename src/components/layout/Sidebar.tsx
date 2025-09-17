@@ -367,6 +367,34 @@ const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) =
             alwaysShow: false
           },
           {
+            id: 'lectures',
+            label: 'Lectures',
+            icon: Video,
+            permission: 'view-lectures',
+            alwaysShow: false
+          },
+          {
+            id: 'homework',
+            label: 'Homework',
+            icon: Notebook,
+            permission: 'view-homework',
+            alwaysShow: false
+          },
+          {
+            id: 'exams',
+            label: 'Exams',
+            icon: Award,
+            permission: 'view-exams',
+            alwaysShow: false
+          },
+          {
+            id: 'exam-results',
+            label: 'Exam Results',
+            icon: ClipboardList,
+            permission: 'view-results',
+            alwaysShow: false
+          },
+          {
             id: 'subject-payments',
             label: 'Subject Payments',
             icon: CreditCard,
@@ -448,13 +476,6 @@ const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) =
             label: 'Select Subject',
             icon: BookOpen,
             permission: 'view-subjects',
-            alwaysShow: false
-          },
-          {
-            id: 'institute-lectures',
-            label: 'Institute Lectures',
-            icon: Video,
-            permission: 'view-lectures',
             alwaysShow: false
           }
         ];
@@ -1473,11 +1494,12 @@ const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) =
 
       {/* Sidebar */}
       <div className={`
-        fixed md:static inset-y-0 left-0 z-50
+        fixed inset-y-0 left-0 z-50 md:relative
         w-72 sm:w-80 md:w-64 lg:w-72 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700
-        transform transition-transform duration-300 ease-in-out
+        transform transition-transform duration-300 ease-in-out md:transform-none
         ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
         flex flex-col h-screen
+        overflow-hidden
       `}>
         {/* Header */}
         <div className="flex items-center justify-between p-3 sm:p-4 border-b border-gray-200 dark:border-gray-700">

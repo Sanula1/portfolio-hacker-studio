@@ -1,5 +1,13 @@
-
-import React, { useState, useEffect } from 'react';
+import * as React from 'react';
+import { useState } from 'react';
+import Paper from '@mui/material/Paper';
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableContainer from '@mui/material/TableContainer';
+import TableHead from '@mui/material/TableHead';
+import TablePagination from '@mui/material/TablePagination';
+import TableRow from '@mui/material/TableRow';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -8,13 +16,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { RefreshCw, BookOpen, Plus, Search, Filter, Calendar, Clock, FileText, Edit, Eye } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { getBaseUrl } from '@/contexts/utils/auth.api';
-import { DataCardView } from '@/components/ui/data-card-view';
-import DataTable from '@/components/ui/data-table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import CreateHomeworkForm from '@/components/forms/CreateHomeworkForm';
 import UpdateHomeworkForm from '@/components/forms/UpdateHomeworkForm';
 import { useNavigate } from 'react-router-dom';
+import { useTableData } from '@/hooks/useTableData';
 
 interface TeacherHomework {
   id: string;
@@ -49,14 +55,12 @@ interface TeacherHomework {
   };
 }
 
-interface HomeworkResponse {
-  data: TeacherHomework[];
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
-  hasNext: boolean;
-  hasPrev: boolean;
+interface Column {
+  id: 'title' | 'startDate' | 'endDate' | 'referenceLink' | 'isActive' | 'actions';
+  label: string;
+  minWidth?: number;
+  align?: 'right' | 'left' | 'center';
+  format?: (value: any, row?: TeacherHomework) => React.ReactNode;
 }
 
 const TeacherHomework = () => {
@@ -64,13 +68,9 @@ const TeacherHomework = () => {
   const { user, selectedInstitute, selectedClass, selectedSubject } = useAuth();
   const { toast } = useToast();
   
-  const [homework, setHomework] = useState<TeacherHomework[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [dataLoaded, setDataLoaded] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
-  
   const [selectedHomework, setSelectedHomework] = useState<TeacherHomework | null>(null);
   
   // Filter states
@@ -88,152 +88,39 @@ const TeacherHomework = () => {
     );
   }
 
-  const getApiHeaders = () => {
-    const token = localStorage.getItem('access_token');
-    return {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-      'ngrok-skip-browser-warning': 'true'
-    };
-  };
+  // Table data hook with pagination
+  const tableData = useTableData<TeacherHomework>({
+    endpoint: '/institute-class-subject-homeworks',
+    defaultParams: {
+      instituteId: selectedInstitute?.id,
+      classId: selectedClass?.id,
+      subjectId: selectedSubject?.id,
+      teacherId: user?.id
+    },
+    dependencies: [selectedInstitute?.id, selectedClass?.id, selectedSubject?.id, user?.id],
+    pagination: { defaultLimit: 50, availableLimits: [25, 50, 100] },
+    autoLoad: false
+  });
 
-  const fetchHomework = async () => {
-    if (!selectedInstitute?.id || !selectedClass?.id || !selectedSubject?.id || !user?.id) {
-      return;
-    }
+  const { state: { data: homework, loading }, pagination, actions } = tableData;
 
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({
-        instituteId: selectedInstitute.id,
-        classId: selectedClass.id,
-        subjectId: selectedSubject.id,
-        teacherId: user.id,
-        page: '1',
-        limit: '10'
-      });
-
-      const response = await fetch(
-        `${getBaseUrl()}/institute-class-subject-homeworks?${params}`,
-        { headers: getApiHeaders() }
-      );
-      
-      if (response.ok) {
-        const data: HomeworkResponse = await response.json();
-        setHomework(data.data || []);
-        setDataLoaded(true);
-        
-        toast({
-          title: "Homework Loaded",
-          description: `Successfully loaded ${data.data?.length || 0} homework items.`
-        });
-      } else {
-        throw new Error('Failed to fetch homework');
-      }
-    } catch (error) {
-      console.error('Error fetching homework:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load homework",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCreateHomework = async (homeworkData: any) => {
-    if (!selectedInstitute?.id || !selectedClass?.id || !selectedSubject?.id || !user?.id) {
-      toast({
-        title: "Error",
-        description: "Missing required information",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    try {
-      setLoading(true);
-      
-      const createData = {
-        instituteId: selectedInstitute.id,
-        classId: selectedClass.id,
-        subjectId: selectedSubject.id,
-        teacherId: user.id,
-        title: homeworkData.title,
-        description: homeworkData.description,
-        startDate: homeworkData.startDate,
-        endDate: homeworkData.endDate,
-        referenceLink: homeworkData.referenceLink,
-        isActive: true
-      };
-
-      const response = await fetch(
-        `${getBaseUrl()}/institute-class-subject-homeworks`,
-        {
-          method: 'POST',
-          headers: getApiHeaders(),
-          body: JSON.stringify(createData)
-        }
-      );
-      
-      if (response.ok) {
-        const newHomework = await response.json();
-        
-        toast({
-          title: "Homework Created",
-          description: `Homework "${newHomework.title}" has been created successfully.`
-        });
-        
-        setIsCreateDialogOpen(false);
-        fetchHomework(); // Refresh the list
-      } else {
-        throw new Error('Failed to create homework');
-      }
-    } catch (error) {
-      console.error('Error creating homework:', error);
-      toast({
-        title: "Error",
-        description: "Failed to create homework",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Removed automatic API call - users must click Refresh to load data
-
-  const handleEditHomework = (homework: TeacherHomework) => {
-    setSelectedHomework(homework);
-    setIsUpdateDialogOpen(true);
-  };
-
-  const handleViewSubmissions = (homework: TeacherHomework) => {
-    navigate(`/homework/${homework.id}/submissions`);
-  };
-
-  const handleUpdateHomework = () => {
-    setIsUpdateDialogOpen(false);
-    setSelectedHomework(null);
-    fetchHomework(); // Refresh the list
-  };
-
-  const homeworkColumns = [
+  const columns: readonly Column[] = [
     {
-      key: 'title',
-      header: 'Title',
-      render: (value: string, row: TeacherHomework) => (
+      id: 'title',
+      label: 'Title',
+      minWidth: 200,
+      format: (value: string, row: TeacherHomework) => (
         <div>
           <div className="font-medium">{value}</div>
-          <div className="text-sm text-gray-500 truncate">{row.description}</div>
+          <div className="text-sm text-gray-500 truncate">{row?.description || ''}</div>
         </div>
       )
     },
     {
-      key: 'startDate',
-      header: 'Start Date',
-      render: (value: string) => (
+      id: 'startDate',
+      label: 'Start Date',
+      minWidth: 150,
+      format: (value: string) => (
         <div className="flex items-center gap-1">
           <Calendar className="h-4 w-4" />
           {new Date(value).toLocaleDateString()}
@@ -241,9 +128,10 @@ const TeacherHomework = () => {
       )
     },
     {
-      key: 'endDate',
-      header: 'Due Date',
-      render: (value: string | undefined) => value ? (
+      id: 'endDate',
+      label: 'Due Date',
+      minWidth: 150,
+      format: (value: string | undefined) => value ? (
         <div className="flex items-center gap-1">
           <Clock className="h-4 w-4" />
           {new Date(value).toLocaleDateString()}
@@ -251,9 +139,10 @@ const TeacherHomework = () => {
       ) : '-'
     },
     {
-      key: 'referenceLink',
-      header: 'Reference',
-      render: (value: string | undefined) => value ? (
+      id: 'referenceLink',
+      label: 'Reference',
+      minWidth: 120,
+      format: (value: string | undefined) => value ? (
         <a 
           href={value} 
           target="_blank" 
@@ -265,18 +154,21 @@ const TeacherHomework = () => {
       ) : '-'
     },
     {
-      key: 'isActive',
-      header: 'Status',
-      render: (value: boolean) => (
+      id: 'isActive',
+      label: 'Status',
+      minWidth: 100,
+      format: (value: boolean) => (
         <Badge variant={value ? 'default' : 'secondary'}>
           {value ? 'Active' : 'Inactive'}
         </Badge>
       )
     },
     {
-      key: 'actions',
-      header: 'Actions',
-      render: (value: any, row: TeacherHomework) => (
+      id: 'actions',
+      label: 'Actions',
+      minWidth: 200,
+      align: 'center',
+      format: (value: any, row: TeacherHomework) => (
         <div className="flex items-center gap-2">
           <Button
             size="sm"
@@ -300,6 +192,21 @@ const TeacherHomework = () => {
       )
     }
   ];
+
+  const handleEditHomework = (homework: TeacherHomework) => {
+    setSelectedHomework(homework);
+    setIsUpdateDialogOpen(true);
+  };
+
+  const handleViewSubmissions = (homework: TeacherHomework) => {
+    navigate(`/homework/${homework.id}/submissions`);
+  };
+
+  const handleUpdateHomework = () => {
+    setIsUpdateDialogOpen(false);
+    setSelectedHomework(null);
+    actions.refresh(); // Refresh the list
+  };
 
   const filteredHomework = homework.filter(hw => {
     const matchesSearch = !searchTerm || 
@@ -337,7 +244,7 @@ const TeacherHomework = () => {
     );
   }
 
-  if (!dataLoaded) {
+  if (!homework.length && !loading) {
     return (
       <div className="container mx-auto p-6 space-y-6">
         <div className="text-center py-12">
@@ -352,7 +259,7 @@ const TeacherHomework = () => {
             Click the button below to load your homework
           </p>
           <Button 
-            onClick={fetchHomework} 
+            onClick={() => actions.loadData()} 
             disabled={loading}
             className="bg-blue-600 hover:bg-blue-700"
           >
@@ -405,7 +312,7 @@ const TeacherHomework = () => {
             Filters
           </Button>
           <Button 
-            onClick={fetchHomework} 
+            onClick={() => actions.refresh()} 
             disabled={loading}
             variant="outline"
             size="sm"
@@ -470,7 +377,7 @@ const TeacherHomework = () => {
         </Card>
       )}
 
-      {filteredHomework.length === 0 ? (
+      {filteredHomework.length === 0 && !loading ? (
         <Card>
           <CardContent className="text-center py-12">
             <BookOpen className="h-16 w-16 mx-auto mb-4 text-gray-400" />
@@ -485,30 +392,74 @@ const TeacherHomework = () => {
           </CardContent>
         </Card>
       ) : (
-        <>
-          {/* Desktop Table View */}
-          <div className="hidden md:block">
-            <DataTable
-              title=""
-              data={filteredHomework}
-              columns={homeworkColumns}
-              searchPlaceholder="Search homework..."
-              allowAdd={false}
-              allowEdit={false}
-              allowDelete={false}
-            />
-          </div>
-
-          {/* Mobile Card View */}
-          <div className="md:hidden">
-            <DataCardView
-              data={filteredHomework}
-              columns={homeworkColumns}
-              allowEdit={false}
-              allowDelete={false}
-            />
-          </div>
-        </>
+        <Paper sx={{ 
+          width: '100%', 
+          height: 'calc(100vh - 250px)',
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column'
+        }}>
+          <TableContainer sx={{ 
+            height: 'calc(100% - 52px)', 
+            flexGrow: 1 
+          }}>
+            <Table stickyHeader aria-label="homework table">
+              <TableHead>
+                <TableRow>
+                  {columns.map((column) => (
+                    <TableCell
+                      key={column.id}
+                      align={column.align}
+                      style={{ minWidth: column.minWidth }}
+                      sx={{
+                        fontWeight: 'bold',
+                        backgroundColor: 'rgba(0, 0, 0, 0.04)'
+                      }}
+                    >
+                      {column.label}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {filteredHomework.map((row, index) => (
+                  <TableRow hover role="checkbox" tabIndex={-1} key={row.id || index}>
+                    {columns.map((column) => {
+                      const value = row[column.id];
+                      return (
+                        <TableCell key={column.id} align={column.align}>
+                          {column.format ? column.format(value, row) : value || '-'}
+                        </TableCell>
+                      );
+                    })}
+                  </TableRow>
+                ))}
+                {filteredHomework.length === 0 && loading && (
+                  <TableRow>
+                    <TableCell colSpan={columns.length} align="center">
+                      <div className="py-12 text-center text-gray-500">
+                        <RefreshCw className="h-8 w-8 mx-auto mb-4 animate-spin" />
+                        <p className="text-lg">Loading homework...</p>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+          <TablePagination
+            rowsPerPageOptions={[25, 50, 100]}
+            component="div"
+            count={pagination.totalCount}
+            rowsPerPage={pagination.limit}
+            page={pagination.page}
+            onPageChange={(event, newPage) => actions.setPage(newPage)}
+            onRowsPerPageChange={(event) => {
+              actions.setLimit(parseInt(event.target.value, 10));
+              actions.setPage(0);
+            }}
+          />
+        </Paper>
       )}
 
       {/* Create Homework Dialog */}
@@ -521,7 +472,7 @@ const TeacherHomework = () => {
             onClose={() => setIsCreateDialogOpen(false)}
             onSuccess={() => {
               setIsCreateDialogOpen(false);
-              fetchHomework();
+              actions.refresh();
             }}
           />
         </DialogContent>

@@ -4,7 +4,13 @@ import AppContent from '@/components/AppContent';
 const Index = () => {
   console.log('Index component rendering');
   
-  return <AppContent />;
+  // Add error boundary to catch any rendering errors
+  try {
+    return <AppContent initialPage="dashboard" />;
+  } catch (error) {
+    console.error('Error in Index component:', error);
+    return <div>Error loading application. Please check console for details.</div>;
+  }
 };
 
 export default Index;

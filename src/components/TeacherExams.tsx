@@ -1,4 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import * as React from 'react';
+import { useState } from 'react';
+import Paper from '@mui/material/Paper';
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableContainer from '@mui/material/TableContainer';
+import TableHead from '@mui/material/TableHead';
+import TablePagination from '@mui/material/TablePagination';
+import TableRow from '@mui/material/TableRow';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -7,14 +16,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { RefreshCw, FileText, Plus, Search, Filter, Calendar, Clock, ExternalLink, MapPin, BarChart3 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { getBaseUrl } from '@/contexts/utils/auth.api';
-import { DataCardView } from '@/components/ui/data-card-view';
-import DataTable from '@/components/ui/data-table';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import CreateExamForm from '@/components/forms/CreateExamForm';
 import CreateResultsForm from '@/components/forms/CreateResultsForm';
 import { UpdateExamForm } from '@/components/forms/UpdateExamForm';
 import { ExamResultsDialog } from '@/components/ExamResultsDialog';
+import { useTableData } from '@/hooks/useTableData';
 
 interface TeacherExam {
   id: string;
@@ -45,23 +52,18 @@ interface TeacherExam {
   creator: {};
 }
 
-interface ExamResponse {
-  data: TeacherExam[];
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
-  hasPrevious: boolean;
-  hasNext: boolean;
+interface Column {
+  id: 'title' | 'examType' | 'durationMinutes' | 'totalMarks' | 'scheduleDate' | 'venue' | 'status' | 'actions';
+  label: string;
+  minWidth?: number;
+  align?: 'right' | 'left' | 'center';
+  format?: (value: any, row?: TeacherExam) => React.ReactNode;
 }
 
 const TeacherExams = () => {
   const { user, selectedInstitute, selectedClass, selectedSubject } = useAuth();
   const { toast } = useToast();
   
-  const [exams, setExams] = useState<TeacherExam[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [dataLoaded, setDataLoaded] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isCreateResultsDialogOpen, setIsCreateResultsDialogOpen] = useState(false);
@@ -85,197 +87,39 @@ const TeacherExams = () => {
     );
   }
 
-  const getApiHeaders = () => {
-    const token = localStorage.getItem('access_token');
-    return {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-      'ngrok-skip-browser-warning': 'true'
-    };
-  };
+  // Table data hook with pagination
+  const tableData = useTableData<TeacherExam>({
+    endpoint: '/institute-class-subject-exams',
+    defaultParams: {
+      instituteId: selectedInstitute?.id,
+      classId: selectedClass?.id,
+      subjectId: selectedSubject?.id,
+      teacherId: user?.id
+    },
+    dependencies: [selectedInstitute?.id, selectedClass?.id, selectedSubject?.id, user?.id],
+    pagination: { defaultLimit: 50, availableLimits: [25, 50, 100] },
+    autoLoad: false
+  });
 
-  const fetchExams = async () => {
-    if (!selectedInstitute?.id || !selectedClass?.id || !selectedSubject?.id || !user?.id) {
-      toast({
-        title: "Missing Selection",
-        description: "Please select institute, class, and subject first.",
-        variant: "destructive"
-      });
-      return;
-    }
+  const { state: { data: exams, loading }, pagination, actions } = tableData;
 
-    setLoading(true);
-    try {
-      const params = new URLSearchParams({
-        instituteId: selectedInstitute.id,
-        classId: selectedClass.id,
-        subjectId: selectedSubject.id,
-        teacherId: user.id,
-        page: '1',
-        limit: '10'
-      });
-
-      console.log('Fetching teacher exams with params:', Object.fromEntries(params));
-
-      const response = await fetch(
-        `${getBaseUrl()}/institute-class-subject-exams?${params}`,
-        { headers: getApiHeaders() }
-      );
-      
-      if (response.ok) {
-        const data: ExamResponse = await response.json();
-        console.log('Teacher exams response:', data);
-        setExams(data.data);
-        setDataLoaded(true);
-        
-        toast({
-          title: "My Exams Loaded",
-          description: `Successfully loaded ${data.data.length} of your exams.`
-        });
-      } else {
-        throw new Error('Failed to fetch teacher exams');
-      }
-    } catch (error) {
-      console.error('Error fetching teacher exams:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load your exams",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCreateExam = async (examData: any) => {
-    if (!selectedInstitute?.id || !selectedClass?.id || !selectedSubject?.id || !user?.id) {
-      toast({
-        title: "Error",
-        description: "Missing required information",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    try {
-      setLoading(true);
-      
-      const createData = {
-        instituteId: selectedInstitute.id,
-        classId: selectedClass.id,
-        subjectId: selectedSubject.id,
-        title: examData.title,
-        description: examData.description,
-        examType: examData.examType,
-        duration: examData.duration,
-        maxMarks: examData.maxMarks,
-        passingMarks: examData.passingMarks,
-        examDate: examData.examDate,
-        startTime: examData.startTime,
-        endTime: examData.endTime,
-        venue: examData.venue,
-        examLink: examData.examLink,
-        instructions: examData.instructions,
-        status: 'scheduled',
-        createdBy: user.id,
-        toWhom: 'everyone',
-        isActive: true
-      };
-
-      const response = await fetch(
-        `${getBaseUrl()}/institute-class-subject-exams`,
-        {
-          method: 'POST',
-          headers: getApiHeaders(),
-          body: JSON.stringify(createData)
-        }
-      );
-      
-      if (response.ok) {
-        const newExam = await response.json();
-        
-        toast({
-          title: "Exam Created",
-          description: `Exam "${newExam.title}" has been created successfully.`
-        });
-        
-        setIsCreateDialogOpen(false);
-        fetchExams(); // Refresh the list
-      } else {
-        throw new Error('Failed to create exam');
-      }
-    } catch (error) {
-      console.error('Error creating exam:', error);
-      toast({
-        title: "Error",
-        description: "Failed to create exam",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleCreateResults = () => {
-    console.log('Create results clicked');
-    setIsCreateResultsDialogOpen(true);
-  };
-
-  const handleViewExam = (exam: TeacherExam) => {
-    setSelectedExam(exam);
-    setIsExamResultsDialogOpen(true);
-  };
-
-  const handleEditExam = (exam: TeacherExam) => {
-    setSelectedExam(exam);
-    setIsUpdateDialogOpen(true);
-  };
-
-  const handleUpdateExam = () => {
-    setIsUpdateDialogOpen(false);
-    setSelectedExam(null);
-    fetchExams(); // Refresh the list
-  };
-
-  const formatDuration = (minutes: number) => {
-    const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
-    if (hours > 0) {
-      return `${hours}h ${mins}m`;
-    }
-    return `${mins}m`;
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return 'default';
-      case 'scheduled':
-        return 'default';
-      case 'draft':
-        return 'secondary';
-      case 'cancelled':
-        return 'destructive';
-      default:
-        return 'secondary';
-    }
-  };
-
-  const examColumns = [
+  const columns: readonly Column[] = [
     {
-      key: 'title',
-      header: 'Title',
-      render: (value: string, row: TeacherExam) => (
+      id: 'title',
+      label: 'Title',
+      minWidth: 200,
+      format: (value: string, row: TeacherExam) => (
         <div>
           <div className="font-medium">{value}</div>
-          <div className="text-sm text-gray-500 truncate">{row.description}</div>
+          <div className="text-sm text-gray-500 truncate">{row?.description || ''}</div>
         </div>
       )
     },
     {
-      key: 'examType',
-      header: 'Type',
-      render: (value: 'online' | 'physical') => (
+      id: 'examType',
+      label: 'Type',
+      minWidth: 120,
+      format: (value: 'online' | 'physical') => (
         <Badge variant={value === 'online' ? 'default' : 'secondary'}>
           {value === 'online' ? (
             <>
@@ -292,9 +136,10 @@ const TeacherExams = () => {
       )
     },
     {
-      key: 'durationMinutes',
-      header: 'Duration',
-      render: (value: number) => (
+      id: 'durationMinutes',
+      label: 'Duration',
+      minWidth: 100,
+      format: (value: number) => (
         <div className="flex items-center gap-1">
           <Clock className="h-4 w-4" />
           {formatDuration(value)}
@@ -302,14 +147,16 @@ const TeacherExams = () => {
       )
     },
     {
-      key: 'totalMarks',
-      header: 'Marks',
-      render: (value: string, row: TeacherExam) => `${value}/${row.passingMarks}`
+      id: 'totalMarks',
+      label: 'Marks',
+      minWidth: 100,
+      format: (value: string, row: TeacherExam) => `${value}/${row?.passingMarks || '0'}`
     },
     {
-      key: 'scheduleDate',
-      header: 'Date',
-      render: (value: string) => (
+      id: 'scheduleDate',
+      label: 'Date',
+      minWidth: 150,
+      format: (value: string) => (
         <div className="flex items-center gap-1">
           <Calendar className="h-4 w-4" />
           {new Date(value).toLocaleDateString()}
@@ -317,23 +164,27 @@ const TeacherExams = () => {
       )
     },
     {
-      key: 'venue',
-      header: 'Venue',
-      render: (value: string | undefined) => value || '-'
+      id: 'venue',
+      label: 'Venue',
+      minWidth: 120,
+      format: (value: string | undefined) => value || '-'
     },
     {
-      key: 'status',
-      header: 'Status',
-      render: (value: string) => (
+      id: 'status',
+      label: 'Status',
+      minWidth: 100,
+      format: (value: string) => (
         <Badge variant={getStatusColor(value)}>
           {value.toUpperCase()}
         </Badge>
       )
     },
     {
-      key: 'actions',
-      header: 'Actions',
-      render: (value: any, row: TeacherExam) => (
+      id: 'actions',
+      label: 'Actions',
+      minWidth: 200,
+      align: 'center',
+      format: (value: any, row: TeacherExam) => (
         <div className="flex items-center gap-2">
           {row.examLink && (
             <Button
@@ -368,6 +219,51 @@ const TeacherExams = () => {
       )
     }
   ];
+
+  const formatDuration = (minutes: number) => {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    if (hours > 0) {
+      return `${hours}h ${mins}m`;
+    }
+    return `${mins}m`;
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'completed':
+        return 'default';
+      case 'scheduled':
+        return 'default';
+      case 'draft':
+        return 'secondary';
+      case 'cancelled':
+        return 'destructive';
+      default:
+        return 'secondary';
+    }
+  };
+
+  const handleCreateResults = () => {
+    console.log('Create results clicked');
+    setIsCreateResultsDialogOpen(true);
+  };
+
+  const handleViewExam = (exam: TeacherExam) => {
+    setSelectedExam(exam);
+    setIsExamResultsDialogOpen(true);
+  };
+
+  const handleEditExam = (exam: TeacherExam) => {
+    setSelectedExam(exam);
+    setIsUpdateDialogOpen(true);
+  };
+
+  const handleUpdateExam = () => {
+    setIsUpdateDialogOpen(false);
+    setSelectedExam(null);
+    actions.refresh(); // Refresh the list
+  };
 
   const filteredExams = exams.filter(exam => {
     const matchesSearch = !searchTerm || 
@@ -405,7 +301,7 @@ const TeacherExams = () => {
     );
   }
 
-  if (!dataLoaded) {
+  if (!exams.length && !loading) {
     return (
       <div className="container mx-auto p-6 space-y-6">
         <div className="text-center py-12">
@@ -420,7 +316,7 @@ const TeacherExams = () => {
             Click the button below to load your exams for this subject
           </p>
           <Button 
-            onClick={fetchExams} 
+            onClick={() => actions.loadData()} 
             disabled={loading}
             className="bg-blue-600 hover:bg-blue-700"
           >
@@ -481,7 +377,7 @@ const TeacherExams = () => {
             Filters
           </Button>
           <Button 
-            onClick={fetchExams} 
+            onClick={() => actions.refresh()} 
             disabled={loading}
             variant="outline"
             size="sm"
@@ -528,8 +424,8 @@ const TeacherExams = () => {
                 <SelectContent>
                   <SelectItem value="all">All Status</SelectItem>
                   <SelectItem value="scheduled">Scheduled</SelectItem>
-                  <SelectItem value="draft">Draft</SelectItem>
                   <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="draft">Draft</SelectItem>
                   <SelectItem value="cancelled">Cancelled</SelectItem>
                 </SelectContent>
               </Select>
@@ -559,7 +455,7 @@ const TeacherExams = () => {
         </Card>
       )}
 
-      {filteredExams.length === 0 ? (
+      {filteredExams.length === 0 && !loading ? (
         <Card>
           <CardContent className="text-center py-12">
             <FileText className="h-16 w-16 mx-auto mb-4 text-gray-400" />
@@ -569,35 +465,79 @@ const TeacherExams = () => {
             <p className="text-gray-600 dark:text-gray-400">
               {searchTerm || statusFilter !== 'all' || typeFilter !== 'all'
                 ? 'No exams match your current filters.' 
-                : 'You have not created any exams for this subject yet.'}
+                : 'No exams have been created for this subject yet.'}
             </p>
           </CardContent>
         </Card>
       ) : (
-        <>
-          {/* Desktop Table View */}
-          <div className="hidden md:block">
-            <DataTable
-              title=""
-              data={filteredExams}
-              columns={examColumns}
-              searchPlaceholder="Search my exams..."
-              allowAdd={false}
-              allowEdit={false}
-              allowDelete={false}
-            />
-          </div>
-
-          {/* Mobile Card View */}
-          <div className="md:hidden">
-            <DataCardView
-              data={filteredExams}
-              columns={examColumns}
-              allowEdit={false}
-              allowDelete={false}
-            />
-          </div>
-        </>
+        <Paper sx={{ 
+          width: '100%', 
+          height: 'calc(100vh - 250px)',
+          overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column'
+        }}>
+          <TableContainer sx={{ 
+            height: 'calc(100% - 52px)', 
+            flexGrow: 1 
+          }}>
+            <Table stickyHeader aria-label="exams table">
+              <TableHead>
+                <TableRow>
+                  {columns.map((column) => (
+                    <TableCell
+                      key={column.id}
+                      align={column.align}
+                      style={{ minWidth: column.minWidth }}
+                      sx={{
+                        fontWeight: 'bold',
+                        backgroundColor: 'rgba(0, 0, 0, 0.04)'
+                      }}
+                    >
+                      {column.label}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {filteredExams.map((row, index) => (
+                  <TableRow hover role="checkbox" tabIndex={-1} key={row.id || index}>
+                    {columns.map((column) => {
+                      const value = row[column.id];
+                      return (
+                        <TableCell key={column.id} align={column.align}>
+                          {column.format ? column.format(value, row) : value || '-'}
+                        </TableCell>
+                      );
+                    })}
+                  </TableRow>
+                ))}
+                {filteredExams.length === 0 && loading && (
+                  <TableRow>
+                    <TableCell colSpan={columns.length} align="center">
+                      <div className="py-12 text-center text-gray-500">
+                        <RefreshCw className="h-8 w-8 mx-auto mb-4 animate-spin" />
+                        <p className="text-lg">Loading exams...</p>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </TableContainer>
+          <TablePagination
+            rowsPerPageOptions={[25, 50, 100]}
+            component="div"
+            count={pagination.totalCount}
+            rowsPerPage={pagination.limit}
+            page={pagination.page}
+            onPageChange={(event, newPage) => actions.setPage(newPage)}
+            onRowsPerPageChange={(event) => {
+              actions.setLimit(parseInt(event.target.value, 10));
+              actions.setPage(0);
+            }}
+          />
+        </Paper>
       )}
 
       {/* Create Exam Dialog */}
@@ -610,7 +550,7 @@ const TeacherExams = () => {
             onClose={() => setIsCreateDialogOpen(false)}
             onSuccess={() => {
               setIsCreateDialogOpen(false);
-              fetchExams();
+              actions.refresh();
             }}
           />
         </DialogContent>
@@ -620,13 +560,13 @@ const TeacherExams = () => {
       <Dialog open={isCreateResultsDialogOpen} onOpenChange={setIsCreateResultsDialogOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>Create Results</DialogTitle>
+            <DialogTitle>Create Exam Results</DialogTitle>
           </DialogHeader>
           <CreateResultsForm
             onClose={() => setIsCreateResultsDialogOpen(false)}
             onSuccess={() => {
               setIsCreateResultsDialogOpen(false);
-              fetchExams();
+              actions.refresh();
             }}
           />
         </DialogContent>
@@ -649,14 +589,21 @@ const TeacherExams = () => {
       </Dialog>
 
       {/* Exam Results Dialog */}
-      <ExamResultsDialog
-        isOpen={isExamResultsDialogOpen}
-        onClose={() => {
-          setIsExamResultsDialogOpen(false);
-          setSelectedExam(null);
-        }}
-        exam={selectedExam}
-      />
+      <Dialog open={isExamResultsDialogOpen} onOpenChange={setIsExamResultsDialogOpen}>
+        <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Exam Results</DialogTitle>
+          </DialogHeader>
+          {selectedExam && (
+            <ExamResultsDialog
+              exam={selectedExam}
+              isOpen={isExamResultsDialogOpen}
+              onClose={() => setIsExamResultsDialogOpen(false)}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 };

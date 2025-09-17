@@ -111,12 +111,31 @@ const Classes = () => {
       );
 
       if (response.ok) {
-        const data: ApiResponse = await response.json();
-        setClasses(data.data);
-        setTotalCount(data.meta.total); // Set total count for pagination
+        const data = await response.json();
+        let classesArray = [];
+        let totalCount = 0;
+        
+        // Handle different response structures
+        if (Array.isArray(data)) {
+          // Direct array response
+          classesArray = data;
+          totalCount = data.length;
+        } else if (data.data && Array.isArray(data.data)) {
+          // Paginated response with meta
+          classesArray = data.data;
+          totalCount = data.meta?.total || data.data.length;
+        } else {
+          // Fallback
+          classesArray = [];
+          totalCount = 0;
+        }
+        
+        setClasses(classesArray);
+        setTotalCount(totalCount);
+        
         toast({
           title: "Classes Loaded",
-          description: `Successfully loaded ${data.data.length} classes.`
+          description: `Successfully loaded ${classesArray.length} classes.`
         });
       } else {
         throw new Error('Failed to fetch classes');
@@ -136,6 +155,13 @@ const Classes = () => {
   const handleCreateClass = async (responseData: any) => {
     console.log('Class created successfully:', responseData);
     setIsCreateDialogOpen(false);
+    // Show success toast with the message from the response
+    if (responseData?.message) {
+      toast({
+        title: "Success",
+        description: responseData.message
+      });
+    }
     fetchClasses(); // Refresh data
   };
 

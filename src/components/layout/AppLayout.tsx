@@ -50,21 +50,23 @@ const AppLayout = ({ children, currentPage: propCurrentPage, onPageChange }: App
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      <div className="flex w-full">
+    <div className="h-screen bg-background flex overflow-hidden">
+      <div className="flex-shrink-0">
         <Sidebar
           isOpen={isSidebarOpen}
           onClose={handleSidebarClose}
           currentPage={currentPage}
           onPageChange={handlePageChange}
         />
-        
-        <div className="flex-1 min-h-screen">
+      </div>
+      
+      <div className="flex-1 flex flex-col min-w-0 h-full">
+        <div className="flex-shrink-0">
           <Header onMenuClick={handleMenuClick} />
-          <main className="flex-1">
-            {children}
-          </main>
         </div>
+        <main className="flex-1 overflow-auto">
+          {children}
+        </main>
       </div>
     </div>
   );

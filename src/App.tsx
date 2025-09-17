@@ -23,6 +23,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import UpdateHomework from '@/pages/UpdateHomework';
 import UpdateLecture from '@/pages/UpdateLecture';
 import CardDemo from '@/pages/CardDemo';
+import ExamResults from '@/pages/ExamResults';
 import ErrorBoundary from '@/components/ErrorBoundary';
 
 const queryClient = new QueryClient();
@@ -91,6 +92,7 @@ const App = () => {
               <Route path="/homework/:homeworkId/submissions" element={<HomeworkSubmissionDetails />} />
               <Route path="/exams" element={<Index />} />
               <Route path="/results" element={<Index />} />
+              <Route path="/exam-results" element={<ExamResults />} />
               
               {/* Selection Routes */}
               <Route path="/select-institute" element={<Index />} />
@@ -122,12 +124,12 @@ const App = () => {
               <Route path="/payments" element={<Payments />} />
               <Route path="/payments/create" element={<CreatePayment />} />
               <Route path="/payment-submissions/:paymentId" element={<PaymentSubmissions />} />
+              <Route path="/payment-submissions" element={<PaymentSubmissionsPage />} />
               <Route path="/my-submissions" element={<MySubmissions />} />
               <Route path="/institute-payments" element={<InstitutePayments />} />
               <Route path="/subject-payments" element={<SubjectPayments />} />
               <Route path="/subject-submissions" element={<SubjectSubmissions />} />
               <Route path="/subject-pay-submission" element={<SubjectPaymentSubmissions />} />
-              <Route path="/payment-submissions" element={<PaymentSubmissionsPage />} />
               
               {/* Catch-all route for 404 */}
               <Route path="*" element={<NotFound />} />

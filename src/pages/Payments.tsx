@@ -158,10 +158,7 @@ const Payments = () => {
   };
 
   const formatAmount = (amount: string) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(parseFloat(amount));
+    return `Rs ${parseFloat(amount).toLocaleString()}`;
   };
 
   const handleDownloadSlip = (payment: PaymentRecord) => {

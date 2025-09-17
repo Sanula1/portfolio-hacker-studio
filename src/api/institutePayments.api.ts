@@ -7,7 +7,7 @@ export interface InstitutePayment {
   description: string;
   amount: number;
   dueDate: string;
-  targetType: 'PARENTS' | 'STUDENT';
+  targetType: 'PARENTS' | 'STUDENT' | 'BOTH';
   priority: 'MANDATORY' | 'OPTIONAL';
   status: 'ACTIVE' | 'INACTIVE';
   paymentInstructions?: string;
@@ -35,34 +35,21 @@ export interface InstitutePayment {
 export interface PaymentSubmission {
   id: string;
   paymentId: string;
-  paymentType?: string;
-  description?: string;
-  dueDate?: string;
-  priority?: string;
-  paymentAmount: number;
-  paymentMethod: string;
-  transactionReference: string;
+  userId: string;
+  userType: string;
+  username: string;
   paymentDate: string;
+  receiptUrl: string;
+  receiptFilename: string;
+  transactionId: string;
+  submittedAmount: string;
   status: 'PENDING' | 'VERIFIED' | 'REJECTED';
-  verifiedAt?: string;
-  rejectionReason?: string;
-  lateFeeApplied?: number;
-  totalAmountPaid?: number;
-  receiptFileName?: string;
-  receiptFileUrl?: string;
-  receiptFileSize?: number;
-  receiptFileType?: string;
-  paymentRemarks?: string;
-  createdAt: string;
-  submittedBy?: string;
-  submitterName?: string;
-  verifiedBy?: string;
-  verifierName?: string;
-  notes?: string;
+  verifiedBy: string | null;
+  verifiedAt: string | null;
+  rejectionReason: string | null;
+  notes: string;
+  uploadedAt: string;
   updatedAt: string;
-  canResubmit?: boolean;
-  canDelete?: boolean;
-  daysSinceSubmission?: number;
 }
 
 export interface InstitutePaymentsResponse {
@@ -181,13 +168,26 @@ export interface SubmitPaymentRequest {
 
 class InstitutePaymentsApi {
   // Get all institute payments (for InstituteAdmin)
-  async getInstitutePayments(instituteId: string): Promise<InstitutePaymentsResponse> {
-    return apiClient.get(`/institute-payments/institute/${instituteId}/payments`);
+  async getInstitutePayments(instituteId: string, params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    status?: 'ACTIVE' | 'INACTIVE';
+    priority?: 'MANDATORY' | 'OPTIONAL';
+    targetType?: 'PARENTS' | 'STUDENT' | 'BOTH';
+  }): Promise<InstitutePaymentsResponse> {
+    return apiClient.get(`/institute-payments/institute/${instituteId}/payments`, params);
   }
 
   // Get student's applicable payments (for Student)
-  async getStudentPayments(instituteId: string): Promise<StudentPaymentsResponse> {
-    return apiClient.get(`/institute-payments/institute/${instituteId}/my-payments`);
+  async getStudentPayments(instituteId: string, params?: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    status?: 'ACTIVE' | 'INACTIVE';
+    priority?: 'MANDATORY' | 'OPTIONAL';
+  }): Promise<StudentPaymentsResponse> {
+    return apiClient.get(`/institute-payments/institute/${instituteId}/my-payments`, params);
   }
 
   // Get payment submissions for a specific payment (for InstituteAdmin)

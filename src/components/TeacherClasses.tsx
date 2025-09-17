@@ -8,6 +8,8 @@ import { useToast } from '@/hooks/use-toast';
 import { getBaseUrl } from '@/contexts/utils/auth.api';
 import { DataCardView } from '@/components/ui/data-card-view';
 import DataTable from '@/components/ui/data-table';
+import { useTableData } from '@/hooks/useTableData';
+import PaymentSubmissionsPagination from '@/components/PaymentSubmissionsPagination';
 
 interface TeacherClass {
   id: string;
@@ -50,9 +52,15 @@ const TeacherClasses = () => {
   const { user, selectedInstitute, setSelectedClass } = useAuth();
   const { toast } = useToast();
   
+  const [dataLoaded, setDataLoaded] = useState(false);
+
+  // Manual state for classes since useTableData might not work with this specific API
   const [classes, setClasses] = useState<TeacherClass[]>([]);
   const [loading, setLoading] = useState(false);
-  const [dataLoaded, setDataLoaded] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
 
   // Role check - only teachers can access this component
   if (user?.role !== 'Teacher') {
@@ -74,6 +82,7 @@ const TeacherClasses = () => {
     };
   };
 
+
   const fetchTeacherClasses = async () => {
     if (!selectedInstitute?.id || !user?.id) {
       toast({
@@ -87,10 +96,10 @@ const TeacherClasses = () => {
     setLoading(true);
     try {
       const params = new URLSearchParams({
-        page: '1',
-        limit: '10',
+        page: currentPage.toString(),
+        limit: itemsPerPage.toString(),
         instituteId: selectedInstitute.id,
-        grade: '11', // From the API example
+        grade: '11',
         isActive: 'true',
         classTeacherId: user.id
       });
@@ -103,6 +112,8 @@ const TeacherClasses = () => {
       if (response.ok) {
         const data: ApiResponse = await response.json();
         setClasses(data.data);
+        setTotalItems(data.meta.total);
+        setTotalPages(data.meta.totalPages);
         setDataLoaded(true);
         
         toast({
@@ -204,7 +215,7 @@ const TeacherClasses = () => {
           <Button 
             onClick={fetchTeacherClasses} 
             disabled={loading || !selectedInstitute}
-            className="bg-blue-600 hover:bg-blue-700"
+            className="bg-primary hover:bg-primary/90"
           >
             {loading ? (
               <>
@@ -299,6 +310,31 @@ const TeacherClasses = () => {
             />
           </div>
         </>
+      )}
+
+      {/* Pagination Controls - Always show when data is loaded */}
+      {dataLoaded && (
+        <PaymentSubmissionsPagination
+          pagination={{
+            currentPage: currentPage,
+            totalPages: totalPages,
+            totalItems: totalItems,
+            itemsPerPage: itemsPerPage,
+            hasNextPage: currentPage < totalPages,
+            hasPreviousPage: currentPage > 1
+          }}
+          onPageChange={(page) => {
+            setCurrentPage(page);
+            // Auto-refresh when page changes
+            setTimeout(() => fetchTeacherClasses(), 100);
+          }}
+          onLimitChange={(limit) => {
+            setItemsPerPage(limit);
+            setCurrentPage(1); // Reset to first page
+            // Auto-refresh when limit changes
+            setTimeout(() => fetchTeacherClasses(), 100);
+          }}
+        />
       )}
     </div>
   );
