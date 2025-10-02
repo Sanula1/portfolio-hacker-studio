@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Camera, QrCode, UserCheck, CheckCircle, MapPin, X, BarChart3, Smartphone, AlertCircle } from 'lucide-react';
 import jsQR from 'jsqr';
 import { childAttendanceApi, MarkAttendanceByCardRequest, MarkAttendanceRequest } from '@/api/childAttendance.api';
+import AppLayout from '@/components/layout/AppLayout';
 
 interface AttendanceAlert {
   id: string;
@@ -609,7 +610,8 @@ const QRAttendance = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <AppLayout>
+      <div className="min-h-screen bg-background">
       {/* Attendance Alerts */}
       <div className="fixed top-4 left-4 z-50 space-y-2 max-w-sm">
         {attendanceAlerts.map((alert) => (
@@ -961,7 +963,8 @@ const QRAttendance = () => {
           </div>
         </DialogContent>
       </Dialog>
-    </div>
+      </div>
+    </AppLayout>
   );
 };
 

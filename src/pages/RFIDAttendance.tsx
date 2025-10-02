@@ -4,15 +4,17 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Wifi } from 'lucide-react';
+import { Wifi, ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { useNavigate } from 'react-router-dom';
 import { childAttendanceApi, MarkAttendanceByCardRequest } from '@/api/childAttendance.api';
 import AppLayout from '@/components/layout/AppLayout';
 
 const RFIDAttendance = () => {
   const { selectedInstitute, selectedClass, selectedSubject, currentInstituteId, user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [rfidCardId, setRfidCardId] = useState('');
   const [status, setStatus] = useState<'present' | 'absent' | 'late'>('present');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -101,14 +103,24 @@ const RFIDAttendance = () => {
       <div className="min-h-screen bg-background p-4 sm:p-6 lg:p-8">
         <div className="max-w-5xl mx-auto space-y-6">
           {/* Header */}
-          <div className="space-y-1">
-            <h1 className="text-2xl font-semibold text-foreground flex items-center gap-2">
-              <Wifi className="h-6 w-6" />
-              RFID Scanner
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              Tap your RFID card or enter the ID manually to mark attendance
-            </p>
+          <div className="flex items-center gap-4">
+            <Button 
+              variant="outline" 
+              onClick={() => navigate('/qr-attendance')} 
+              className="flex items-center gap-2"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back
+            </Button>
+            <div className="flex-1 space-y-1">
+              <h1 className="text-2xl font-semibold text-foreground flex items-center gap-2">
+                <Wifi className="h-6 w-6" />
+                RFID Scanner
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                Tap your RFID card or enter the ID manually to mark attendance
+              </p>
+            </div>
           </div>
 
           {/* Scanner Status Card */}
