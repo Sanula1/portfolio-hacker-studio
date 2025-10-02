@@ -91,10 +91,7 @@ export default function MUITable({
   }] : columns;
   return <div className="w-full space-y-4">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <h2 className="text-xl font-bold text-gray-900 dark:text-white">{title}</h2>
-        {canAdd}
-      </div>
+      
 
       {/* Table */}
       <Paper sx={{
@@ -120,27 +117,26 @@ export default function MUITable({
             </TableHead>
             <TableBody>
               {data.map((row, index) => {
-                console.log('Row data:', row, 'Index:', index);
-                return (
-                  <TableRow hover role="checkbox" tabIndex={-1} key={index}>
+              console.log('Row data:', row, 'Index:', index);
+              return <TableRow hover role="checkbox" tabIndex={-1} key={index}>
                     {columns.map(column => {
-                      const value = row[column.id];
-                      console.log(`Column ${column.id}:`, value, 'from row:', row);
-                      return <TableCell key={column.id} align={column.align}>
+                  const value = row[column.id];
+                  console.log(`Column ${column.id}:`, value, 'from row:', row);
+                  return <TableCell key={column.id} align={column.align}>
                         {column.format ? column.format(value, row) : value || '-'}
                       </TableCell>;
-                    })}
+                })}
                     {hasActions && <TableCell align="center">
                       <div className="flex justify-center items-center gap-1 flex-wrap">
                         {/* Institute Admin Actions */}
-                        {onEdit && user?.role === 'InstituteAdmin' && <Button variant="outline" size="sm" onClick={() => onEdit(row)} title={sectionType === 'lectures' ? 'Edit Lectures' : sectionType === 'homework' ? 'Edit Homework' : 'Edit Exam'} className="h-8 px-3 text-xs mr-1">
+                         {onEdit && user?.role === 'InstituteAdmin' && <Button variant="outline" size="sm" onClick={() => onEdit(row)} title={sectionType === 'lectures' ? 'Edit Lectures' : sectionType === 'homework' ? 'Edit Homework' : 'Edit Exam'} className="h-8 px-3 text-xs mr-1">
                             <Edit className="h-3 w-3 mr-1" />
-                            {sectionType === 'lectures' ? 'Edit Lectures' : sectionType === 'homework' ? 'Edit Homework' : 'Edit'}
+                            Edit
                           </Button>}
                         
-                        {onView && user?.role === 'InstituteAdmin' && sectionType !== 'lectures' && <Button variant="outline" size="sm" onClick={() => onView(row)} title={sectionType === 'homework' ? 'View Submissions' : 'View Results'} className="h-8 px-3 text-xs">
+                         {onView && user?.role === 'InstituteAdmin' && sectionType !== 'lectures' && <Button variant="outline" size="sm" onClick={() => onView(row)} title={sectionType === 'homework' ? 'View Submissions' : 'View Results'} className="h-8 px-3 text-xs">
                             <Eye className="h-3 w-3 mr-1" />
-                            {sectionType === 'homework' ? 'View Submissions' : 'View Results'}
+                            View
                           </Button>}
                         
                         {/* Student Actions */}
@@ -161,9 +157,8 @@ export default function MUITable({
                           </Button>)}
                       </div>
                     </TableCell>}
-                  </TableRow>
-                );
-              })}
+                  </TableRow>;
+            })}
               {data.length === 0 && <TableRow>
                   <TableCell colSpan={allColumns.length} align="center">
                     <div className="py-12 text-center text-gray-500">
@@ -175,15 +170,7 @@ export default function MUITable({
             </TableBody>
           </Table>
         </TableContainer>
-        <TablePagination 
-          rowsPerPageOptions={rowsPerPageOptions}
-          component="div" 
-          count={totalCount} 
-          rowsPerPage={rowsPerPage} 
-          page={page} 
-          onPageChange={handleChangePage} 
-          onRowsPerPageChange={handleChangeRowsPerPage} 
-        />
+        <TablePagination rowsPerPageOptions={rowsPerPageOptions} component="div" count={totalCount} rowsPerPage={rowsPerPage} page={page} onPageChange={handleChangePage} onRowsPerPageChange={handleChangeRowsPerPage} />
       </Paper>
     </div>;
 }

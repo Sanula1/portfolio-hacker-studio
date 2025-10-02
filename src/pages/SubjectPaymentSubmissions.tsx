@@ -8,6 +8,14 @@ import { FileText, CheckCircle, AlertCircle, Calendar, DollarSign, Clock, XCircl
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { getBaseUrl } from '@/contexts/utils/auth.api';
+import Paper from '@mui/material/Paper';
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableContainer from '@mui/material/TableContainer';
+import TableHead from '@mui/material/TableHead';
+import TablePagination from '@mui/material/TablePagination';
+import TableRow from '@mui/material/TableRow';
 
 interface PaymentSubmission {
   id: string;
@@ -102,12 +110,36 @@ interface SubmissionsResponse {
   };
 }
 
+interface Column {
+  id: string;
+  label: string;
+  minWidth?: number;
+  align?: 'right' | 'left' | 'center';
+  format?: (value: any) => string;
+}
+
+const columns: readonly Column[] = [
+  { id: 'paymentTitle', label: 'Payment Title', minWidth: 150 },
+  { id: 'description', label: 'Description', minWidth: 150 },
+  { id: 'submittedAmount', label: 'Amount', minWidth: 120, align: 'right' },
+  { id: 'transactionId', label: 'Transaction ID', minWidth: 150 },
+  { id: 'paymentDate', label: 'Payment Date', minWidth: 120 },
+  { id: 'status', label: 'Status', minWidth: 100, align: 'center' },
+  { id: 'priority', label: 'Priority', minWidth: 100 },
+  { id: 'uploadedAt', label: 'Submitted At', minWidth: 120 },
+  { id: 'verifiedAt', label: 'Verified At', minWidth: 120 },
+  { id: 'notes', label: 'Notes', minWidth: 150 },
+  { id: 'receipt', label: 'Receipt', minWidth: 120, align: 'center' },
+];
+
 const SubjectPaymentSubmissions = () => {
   const { user, selectedInstitute, selectedClass, selectedSubject } = useAuth();
   const { toast } = useToast();
   const [submissionsData, setSubmissionsData] = useState<SubmissionsResponse | null>(null);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('PENDING');
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(50);
 
   // Check if user is Student and has required selections
   if (!user) {
@@ -156,7 +188,7 @@ const SubjectPaymentSubmissions = () => {
     );
   }
 
-  const loadSubmissions = async () => {
+  const loadSubmissions = async (currentPage: number = 1, limit: number = 50) => {
     if (!selectedInstitute || !selectedClass || !selectedSubject) return;
     
     setLoading(true);
@@ -165,13 +197,12 @@ const SubjectPaymentSubmissions = () => {
       const token = localStorage.getItem('access_token');
       
       const response = await fetch(
-        `${baseUrl}/institute-class-subject-payment-submissions/institute/${selectedInstitute.id}/class/${selectedClass.id}/subject/${selectedSubject.id}/my-submissions`,
+        `${baseUrl}/institute-class-subject-payment-submissions/institute/${selectedInstitute.id}/class/${selectedClass.id}/subject/${selectedSubject.id}/my-submissions?page=${currentPage}&limit=${limit}`,
         {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-            'ngrok-skip-browser-warning': 'true'
+            'Content-Type': 'application/json'
           }
         }
       );
@@ -197,6 +228,18 @@ const SubjectPaymentSubmissions = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleChangePage = (event: unknown, newPage: number) => {
+    setPage(newPage);
+    loadSubmissions(newPage + 1, rowsPerPage);
+  };
+
+  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const newRowsPerPage = +event.target.value;
+    setRowsPerPage(newRowsPerPage);
+    setPage(0);
+    loadSubmissions(1, newRowsPerPage);
   };
 
   const getStatusColor = (status: string) => {
@@ -243,129 +286,115 @@ const SubjectPaymentSubmissions = () => {
     document.body.removeChild(link);
   };
 
-  const renderSubmissionCard = (submission: PaymentSubmission) => (
-    <div
-      key={submission.id}
-      className="border rounded-lg p-6 hover:bg-muted/50 transition-colors"
-    >
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex items-center space-x-3">
-          <Badge className={`px-3 py-1 ${getStatusColor(submission.status)}`}>
-            {getStatusIcon(submission.status)}
-            <span className="ml-2">{submission.status}</span>
-          </Badge>
-          <div>
-            <h3 className="font-semibold text-lg">
-              {submission.paymentPreview.title}
-            </h3>
-            <p className="text-sm text-muted-foreground">
-              {submission.paymentPreview.description}
-            </p>
-          </div>
-        </div>
-        <div className="text-right">
-          <p className="text-2xl font-bold">
-            ₹{parseFloat(submission.submittedAmount).toLocaleString()}
-          </p>
-          <p className="text-sm text-muted-foreground">
-            {submission.paymentPreview.priority}
-          </p>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-        <div className="space-y-2">
-          <div className="flex items-center space-x-2">
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium">Payment Method:</span>
-            <span className="text-sm">{submission.submissionPreview.submissionSummary.paymentMethod}</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <FileText className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium">Transaction ID:</span>
-            <span className="text-sm font-mono">{submission.transactionId}</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium">Payment Date:</span>
-            <span className="text-sm">
-              {new Date(submission.paymentDate).toLocaleDateString()}
-            </span>
-          </div>
-        </div>
-        <div className="space-y-2">
-          <div className="flex items-center space-x-2">
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium">Due Date:</span>
-            <span className="text-sm">
-              {new Date(submission.paymentPreview.lastDate).toLocaleDateString()}
-            </span>
-          </div>
-          <div className="flex items-center space-x-2">
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium">Submitted:</span>
-            <span className="text-sm">
-              {new Date(submission.uploadedAt).toLocaleDateString()}
-            </span>
-          </div>
-          {submission.verifiedAt && (
-            <div className="flex items-center space-x-2">
-              <CheckCircle className="h-4 w-4 text-green-500" />
-              <span className="text-sm font-medium">Verified:</span>
-              <span className="text-sm">
-                {new Date(submission.verifiedAt).toLocaleDateString()}
-              </span>
-            </div>
-          )}
-        </div>
-      </div>
-
-      {submission.notes && (
-        <div className="mt-4 p-3 bg-muted rounded-lg">
-          <p className="text-sm font-medium mb-1">Notes:</p>
-          <p className="text-sm">{submission.notes}</p>
-        </div>
-      )}
-
-      {submission.rejectionReason && (
-        <div className="mt-4 p-3 bg-red-50 dark:bg-red-950 rounded-lg">
-          <p className="text-sm font-medium mb-1 text-red-800 dark:text-red-200">Rejection Reason:</p>
-          <p className="text-sm text-red-700 dark:text-red-300">{submission.rejectionReason}</p>
-        </div>
-      )}
-
-      <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-950 rounded-lg">
-        <p className="text-sm font-medium mb-2">Receipt:</p>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <FileText className="h-4 w-4" />
-            <span className="text-sm">{submission.receiptFilename}</span>
-          </div>
-          <div className="flex items-center space-x-2">
-            {submission.availableActions.canView && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => handleViewReceipt(submission.receiptUrl)}
-              >
-                <Eye className="h-3 w-3 mr-1" />
-                View
-              </Button>
+  const renderTableContent = (submissions: PaymentSubmission[]) => (
+    <Paper sx={{ width: '100%', overflow: 'hidden' }}>
+      <TableContainer sx={{ height: 'calc(100vh - 450px)', minHeight: 400 }}>
+        <Table stickyHeader aria-label="submissions table">
+          <TableHead>
+            <TableRow>
+              {columns.map((column) => (
+                <TableCell
+                  key={column.id}
+                  align={column.align}
+                  style={{ minWidth: column.minWidth }}
+                >
+                  {column.label}
+                </TableCell>
+              ))}
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {submissions.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={columns.length} align="center" sx={{ py: 8 }}>
+                  <div className="text-center">
+                    <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground text-lg mb-2">
+                      No submissions found
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      Payment submissions will appear here when available.
+                    </p>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ) : (
+              submissions.map((submission) => (
+                <TableRow hover role="checkbox" tabIndex={-1} key={submission.id}>
+                  <TableCell>{submission.paymentPreview.title}</TableCell>
+                  <TableCell>{submission.paymentPreview.description}</TableCell>
+                  <TableCell align="right">
+                    Rs {parseFloat(submission.submittedAmount).toLocaleString()}
+                  </TableCell>
+                  <TableCell>{submission.transactionId}</TableCell>
+                  <TableCell>
+                    {new Date(submission.paymentDate).toLocaleDateString()}
+                  </TableCell>
+                  <TableCell align="center">
+                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium border ${getStatusColor(submission.status)}`}>
+                      {getStatusIcon(submission.status)}
+                      <span className="ml-1">{submission.status}</span>
+                    </span>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={submission.paymentPreview.priority === 'MANDATORY' ? 'destructive' : 'secondary'}>
+                      {submission.paymentPreview.priority}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    {new Date(submission.uploadedAt).toLocaleDateString()}
+                  </TableCell>
+                  <TableCell>
+                    {submission.verifiedAt 
+                      ? new Date(submission.verifiedAt).toLocaleDateString()
+                      : '-'
+                    }
+                  </TableCell>
+                  <TableCell>
+                    {submission.notes ? (
+                      <div className="max-w-32 truncate" title={submission.notes}>
+                        {submission.notes}
+                      </div>
+                    ) : '-'}
+                  </TableCell>
+                  <TableCell align="center">
+                    <div className="flex items-center space-x-1">
+                      {submission.availableActions.canView && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleViewReceipt(submission.receiptUrl)}
+                        >
+                          <Eye className="h-3 w-3" />
+                        </Button>
+                      )}
+                      {submission.availableActions.canDownloadReceipt && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleDownloadReceipt(submission.receiptUrl, submission.receiptFilename || 'receipt.pdf')}
+                        >
+                          <Download className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))
             )}
-            {submission.availableActions.canDownloadReceipt && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => handleDownloadReceipt(submission.receiptUrl, submission.receiptFilename)}
-              >
-                <Download className="h-3 w-3 mr-1" />
-                Download
-              </Button>
-            )}
-          </div>
-        </div>
-      </div>
-    </div>
+          </TableBody>
+        </Table>
+      </TableContainer>
+      <TablePagination
+        rowsPerPageOptions={[25, 50, 100]}
+        component="div"
+        count={submissionsData?.pagination.total || 0}
+        rowsPerPage={rowsPerPage}
+        page={page}
+        onPageChange={handleChangePage}
+        onRowsPerPageChange={handleChangeRowsPerPage}
+      />
+    </Paper>
   );
 
   return (
@@ -381,7 +410,7 @@ const SubjectPaymentSubmissions = () => {
               <p><strong>Subject:</strong> {selectedSubject.name}</p>
             </div>
           </div>
-          <Button onClick={loadSubmissions} disabled={loading}>
+          <Button onClick={() => loadSubmissions(1, rowsPerPage)} disabled={loading}>
             {loading ? 'Loading...' : 'Load Submissions'}
           </Button>
         </div>
@@ -470,42 +499,15 @@ const SubjectPaymentSubmissions = () => {
                 </TabsList>
                 
                 <TabsContent value="PENDING" className="mt-6">
-                  <div className="space-y-4">
-                    {filterSubmissionsByStatus('PENDING').length === 0 ? (
-                      <div className="text-center py-8">
-                        <Clock className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                        <p className="text-muted-foreground">No pending submissions</p>
-                      </div>
-                    ) : (
-                      filterSubmissionsByStatus('PENDING').map(renderSubmissionCard)
-                    )}
-                  </div>
+                  {renderTableContent(filterSubmissionsByStatus('PENDING'))}
                 </TabsContent>
                 
                 <TabsContent value="VERIFIED" className="mt-6">
-                  <div className="space-y-4">
-                    {filterSubmissionsByStatus('VERIFIED').length === 0 ? (
-                      <div className="text-center py-8">
-                        <CheckCircle className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                        <p className="text-muted-foreground">No verified submissions</p>
-                      </div>
-                    ) : (
-                      filterSubmissionsByStatus('VERIFIED').map(renderSubmissionCard)
-                    )}
-                  </div>
+                  {renderTableContent(filterSubmissionsByStatus('VERIFIED'))}
                 </TabsContent>
                 
                 <TabsContent value="REJECTED" className="mt-6">
-                  <div className="space-y-4">
-                    {filterSubmissionsByStatus('REJECTED').length === 0 ? (
-                      <div className="text-center py-8">
-                        <XCircle className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
-                        <p className="text-muted-foreground">No rejected submissions</p>
-                      </div>
-                    ) : (
-                      filterSubmissionsByStatus('REJECTED').map(renderSubmissionCard)
-                    )}
-                  </div>
+                  {renderTableContent(filterSubmissionsByStatus('REJECTED'))}
                 </TabsContent>
               </Tabs>
             )}

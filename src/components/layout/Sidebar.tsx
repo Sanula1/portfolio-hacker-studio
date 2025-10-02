@@ -28,7 +28,8 @@ import {
   Palette,
   CreditCard,
   Camera,
-  AlertCircle
+  AlertCircle,
+  Truck
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -88,6 +89,29 @@ const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) =
             icon: Building2,
             permission: 'view-organizations',
             alwaysShow: true
+          },
+          {
+            id: 'transport',
+            label: 'Transport',
+            icon: Truck,
+            permission: 'view-transport',
+            alwaysShow: true,
+            subItems: [
+              {
+                id: 'transport',
+                label: 'My Transport',
+                icon: Truck,
+                permission: 'view-transport',
+                alwaysShow: false
+              },
+              {
+                id: 'transport-attendance',
+                label: 'Transport Attendance',
+                icon: UserCheck,
+                permission: 'view-transport',
+                alwaysShow: false
+              }
+            ]
           }
         ];
       }
@@ -122,6 +146,29 @@ const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) =
             icon: Video,
             permission: 'view-lectures',
             alwaysShow: false
+          },
+          {
+            id: 'student-transport',
+            label: 'Student Transport Service',
+            icon: Truck,
+            permission: 'view-transport',
+            alwaysShow: false,
+            subItems: [
+              {
+                id: 'transport',
+                label: 'My Transport',
+                icon: Truck,
+                permission: 'view-transport',
+                alwaysShow: false
+              },
+              {
+                id: 'transport-attendance',
+                label: 'Transport Attendance',
+                icon: UserCheck,
+                permission: 'view-transport',
+                alwaysShow: false
+              }
+            ]
           }
         ];
       }
@@ -166,6 +213,13 @@ const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) =
           {
             id: 'lectures',
             label: 'Lectures',
+            icon: Video,
+            permission: 'view-lectures',
+            alwaysShow: false
+          },
+          {
+            id: 'free-lectures',
+            label: 'Free Lectures',
             icon: Video,
             permission: 'view-lectures',
             alwaysShow: false
@@ -364,34 +418,6 @@ const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) =
             label: 'Unverified Students',
             icon: AlertCircle,
             permission: 'view-students',
-            alwaysShow: false
-          },
-          {
-            id: 'lectures',
-            label: 'Lectures',
-            icon: Video,
-            permission: 'view-lectures',
-            alwaysShow: false
-          },
-          {
-            id: 'homework',
-            label: 'Homework',
-            icon: Notebook,
-            permission: 'view-homework',
-            alwaysShow: false
-          },
-          {
-            id: 'exams',
-            label: 'Exams',
-            icon: Award,
-            permission: 'view-exams',
-            alwaysShow: false
-          },
-          {
-            id: 'exam-results',
-            label: 'Exam Results',
-            icon: ClipboardList,
-            permission: 'view-results',
             alwaysShow: false
           },
           {
@@ -601,9 +627,16 @@ const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) =
 
     // Special handling for Parent role
     if (user?.role === 'Parent') {
-      // 1. Parent without child selected - only show Select Child
+      // 1. Parent without child selected - show Dashboard and Select Child
       if (!selectedChild) {
         return [
+          {
+            id: 'dashboard',
+            label: 'Dashboard',
+            icon: LayoutDashboard,
+            permission: 'view-dashboard',
+            alwaysShow: false
+          },
           {
             id: 'parents',
             label: 'Select Child',
@@ -630,6 +663,13 @@ const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) =
             icon: Award,
             permission: 'view-results',
             alwaysShow: false
+          },
+          {
+            id: 'parent-transport',
+            label: 'Transport',
+            icon: Truck,
+            permission: 'view-transport',
+            alwaysShow: true
           }
         ];
       }
@@ -1506,7 +1546,7 @@ const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) =
           <div className="flex items-center space-x-2 min-w-0">
             <School className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600 flex-shrink-0" />
             <span className="font-bold text-base sm:text-lg text-gray-900 dark:text-white truncate">
-              EduSystem
+              SurakshaLMS
             </span>
           </div>
           <div className="flex items-center space-x-1">
@@ -1581,11 +1621,11 @@ const Sidebar = ({ isOpen, onClose, currentPage, onPageChange }: SidebarProps) =
         <ScrollArea className="flex-1 px-2 sm:px-3 py-3 sm:py-4">
           <div className="space-y-2">
             {/* Main navigation items */}
-            <SidebarSection title="Main" items={menuItems.filter(item => !item.section)} />
+            <SidebarSection title="Main" items={menuItems.filter(item => !item.hasOwnProperty('section'))} />
             
             {/* Main's section for items with section property */}
-            {menuItems.some(item => item.section === "Main's") && (
-              <SidebarSection title="Main's" items={menuItems.filter(item => item.section === "Main's")} />
+            {menuItems.some(item => (item as any).section === "Main's") && (
+              <SidebarSection title="Main's" items={menuItems.filter(item => (item as any).section === "Main's")} />
             )}
             
             {/* Show attendance section for Teacher based on selection state */}

@@ -97,9 +97,9 @@ const TeacherHomework = () => {
       subjectId: selectedSubject?.id,
       teacherId: user?.id
     },
-    dependencies: [selectedInstitute?.id, selectedClass?.id, selectedSubject?.id, user?.id],
+    dependencies: [], // Remove dependencies to prevent auto-reloading on context changes
     pagination: { defaultLimit: 50, availableLimits: [25, 50, 100] },
-    autoLoad: false
+    autoLoad: false // Keep disabled
   });
 
   const { state: { data: homework, loading }, pagination, actions } = tableData;
@@ -174,19 +174,19 @@ const TeacherHomework = () => {
             size="sm"
             variant="outline"
             onClick={() => handleViewSubmissions(row)}
-            className="flex items-center gap-1"
+            className="flex items-center justify-center p-2"
+            title="View Submissions"
           >
-            <Eye className="h-3 w-3" />
-            View
+            <Eye className="h-4 w-4" />
           </Button>
           <Button
             size="sm"
             variant="default"
             onClick={() => handleEditHomework(row)}
-            className="flex items-center gap-1"
+            className="flex items-center justify-center p-2"
+            title="Edit Homework"
           >
-            <Edit className="h-3 w-3" />
-            Edit
+            <Edit className="h-4 w-4" />
           </Button>
         </div>
       )
