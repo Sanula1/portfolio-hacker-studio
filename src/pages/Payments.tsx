@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import AppLayout from '@/components/layout/AppLayout';
 import { getBaseUrl } from '@/contexts/utils/auth.api';
+import MUITable from '@/components/ui/mui-table';
+import { usePagination } from '@/hooks/usePagination';
 
 interface PaymentRecord {
   id: string;
@@ -54,11 +56,17 @@ const Payments = () => {
   const [payments, setPayments] = useState<PaymentRecord[]>([]);
   const [allPayments, setAllPayments] = useState<PaymentRecord[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'ALL' | 'PENDING' | 'VERIFIED' | 'REJECTED'>('ALL');
+  const [activeTab, setActiveTab] = useState<'PENDING' | 'VERIFIED' | 'REJECTED'>('PENDING');
   const [apiResponse, setApiResponse] = useState<PaymentApiResponse | null>(null);
+  
+  // Single pagination instance since we're loading all data
+  const pagination = usePagination({ 
+    defaultLimit: 50, 
+    availableLimits: [25, 50, 100] 
+  });
 
-  // Load payment history from API
-  const loadPaymentHistory = async () => {
+  // Load all payment history from API with pagination
+  const loadPaymentHistory = async (showToast = true) => {
     if (!user?.id) {
       toast({
         title: "Error",
@@ -68,15 +76,21 @@ const Payments = () => {
       return;
     }
 
+    const apiParams = pagination.getApiParams();
+    
     setIsLoading(true);
     try {
       const baseUrl = getBaseUrl();
-      const response = await fetch(`${baseUrl}/payment/my-payments`, {
+      const params = new URLSearchParams({
+        page: apiParams.page.toString(),
+        limit: apiParams.limit.toString()
+      });
+      
+      const response = await fetch(`${baseUrl}/payment/my-payments?${params}`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-          'ngrok-skip-browser-warning': 'true'
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`
         }
       });
 
@@ -88,35 +102,56 @@ const Payments = () => {
       console.log('Payment API Response:', data);
       
       setApiResponse(data);
-      setAllPayments(data.payments);
-      filterPaymentsByTab('ALL', data.payments);
+      setAllPayments(data.payments); // Store current page payments
       
-      toast({
-        title: "Data Loaded",
-        description: `Successfully loaded ${data.payments.length} payment records.`
-      });
+      // Filter payments based on active tab
+      filterPaymentsByStatus(data.payments, activeTab);
+      
+      // Update pagination with API response total
+      pagination.actions.setTotalCount(data.total);
+      
+      if (showToast) {
+        toast({
+          title: "Data Loaded",
+          description: `Successfully loaded ${data.payments.length} payment records.`
+        });
+      }
     } catch (error) {
       console.error('Error loading payment history:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load payment history",
-        variant: "destructive",
-      });
+      if (showToast) {
+        toast({
+          title: "Error",
+          description: "Failed to load payment history",
+          variant: "destructive",
+        });
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Filter payments by tab
-  const filterPaymentsByTab = (tab: typeof activeTab, paymentsList = allPayments) => {
-    let filtered = paymentsList;
-    
-    if (tab !== 'ALL') {
-      filtered = paymentsList.filter(payment => payment.status === tab);
-    }
-    
-    setPayments(filtered);
+  // Filter payments by status on frontend
+  const filterPaymentsByStatus = (currentPayments: PaymentRecord[], status: 'PENDING' | 'VERIFIED' | 'REJECTED') => {
+    const filteredPayments = currentPayments.filter(payment => payment.status === status);
+    setPayments(filteredPayments);
+  };
+
+  // Handle tab change - only filter existing data, no API call
+  const handleTabChange = (tab: 'PENDING' | 'VERIFIED' | 'REJECTED') => {
     setActiveTab(tab);
+    pagination.actions.reset(); // Reset pagination for new tab
+    filterPaymentsByStatus(allPayments, tab); // Only filter existing data
+  };
+
+  // Handle pagination changes - no API calls
+  const handlePageChange = (newPage: number) => {
+    pagination.actions.setPage(newPage);
+    // No API call - just update pagination state
+  };
+
+  const handleLimitChange = (newLimit: number) => {
+    pagination.actions.setLimit(newLimit);
+    // No API call - just update pagination state
   };
 
   const getStatusBadge = (status: PaymentRecord['status']) => {
@@ -163,7 +198,6 @@ const Payments = () => {
 
   const handleDownloadSlip = (payment: PaymentRecord) => {
     if (payment.paymentSlipUrl) {
-      // Open the payment slip URL in a new tab
       window.open(payment.paymentSlipUrl, '_blank');
       toast({
         title: "Opening Payment Slip",
@@ -175,6 +209,79 @@ const Payments = () => {
   const handleNewPayment = () => {
     navigate('/payments/create');
   };
+
+  // Define table columns
+  const getColumns = () => [
+    {
+      id: 'paymentAmount',
+      label: 'Amount',
+      minWidth: 120,
+      format: (value: string) => formatAmount(value)
+    },
+    {
+      id: 'paymentReference',
+      label: 'Reference',
+      minWidth: 150,
+      format: (value: string) => (
+        <span className="font-mono text-xs">{value}</span>
+      )
+    },
+    {
+      id: 'paymentMethod',
+      label: 'Method',
+      minWidth: 120,
+      format: (value: string) => value?.replace('_', ' ') || '-'
+    },
+    {
+      id: 'paymentDate',
+      label: 'Payment Date',
+      minWidth: 150,
+      format: (value: string) => formatDate(value)
+    },
+    {
+      id: 'paymentMonth',
+      label: 'Month',
+      minWidth: 100
+    },
+    {
+      id: 'status',
+      label: 'Status',
+      minWidth: 120,
+      format: (value: PaymentRecord['status']) => getStatusBadge(value)
+    },
+    {
+      id: 'notes',
+      label: 'Notes',
+      minWidth: 200,
+      format: (value: string) => (
+        <span className="text-sm text-gray-600 truncate block max-w-[200px]" title={value}>
+          {value || '-'}
+        </span>
+      )
+    },
+    {
+      id: 'rejectionReason',
+      label: 'Rejection Reason',
+      minWidth: 200,
+      format: (value: string) => (
+        <span className="text-sm text-red-600 truncate block max-w-[200px]" title={value}>
+          {value || '-'}
+        </span>
+      )
+    }
+  ];
+
+  // Custom actions for table rows
+  const getCustomActions = () => [
+    {
+      label: 'View Slip',
+      action: (row: PaymentRecord) => handleDownloadSlip(row),
+      variant: 'outline' as const
+    }
+  ].filter(action => 
+    action.label === 'View Slip' ? payments.some(p => p.paymentSlipUrl) : true
+  );
+
 
   return (
     <AppLayout currentPage="system-payment">
@@ -192,183 +299,114 @@ const Payments = () => {
           </div>
         </div>
 
-      {/* Header Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Total Spent</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              {formatAmount(
-                allPayments.filter(p => p.status === 'VERIFIED').reduce((sum, p) => sum + parseFloat(p.paymentAmount), 0).toString()
-              )}
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Verified Payments</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">
-              {allPayments.filter(p => p.status === 'VERIFIED').length}
-            </div>
-          </CardContent>
-        </Card>
-        
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Pending Payments</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-yellow-600">
-              {allPayments.filter(p => p.status === 'PENDING').length}
-            </div>
-          </CardContent>
-        </Card>
+        {/* Header Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Total Spent</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600">
+                {formatAmount(
+                  allPayments.filter(p => p.status === 'VERIFIED').reduce((sum, p) => sum + parseFloat(p.paymentAmount), 0).toString()
+                )}
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Verified Payments</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-green-600">
+                {allPayments.filter(p => p.status === 'VERIFIED').length}
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Pending Payments</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-yellow-600">
+                {allPayments.filter(p => p.status === 'PENDING').length}
+              </div>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">Rejected Payments</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-red-600">
-              {allPayments.filter(p => p.status === 'REJECTED').length}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Rejected Payments</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-red-600">
+                {allPayments.filter(p => p.status === 'REJECTED').length}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
-      {/* Action Buttons */}
-      <div className="flex justify-between items-center">
-        <Button
-          onClick={handleNewPayment}
-          className="bg-blue-600 hover:bg-blue-700 text-white"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          New Payment
-        </Button>
-        
-        <Button
-          onClick={loadPaymentHistory}
-          disabled={isLoading}
-          variant="outline"
-          size="sm"
-        >
-          <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
-          Load Payments
-        </Button>
-      </div>
+        {/* Action Buttons */}
+        <div className="flex justify-between items-center">
+          <Button
+            onClick={handleNewPayment}
+            className="bg-blue-600 hover:bg-blue-700 text-white"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            New Payment
+          </Button>
+          
+          <Button
+            onClick={() => loadPaymentHistory()}
+            disabled={isLoading}
+            variant="outline"
+            size="sm"
+          >
+            <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+        </div>
 
-      {/* Payment Tabs */}
-      <Tabs value={activeTab} onValueChange={(value) => filterPaymentsByTab(value as typeof activeTab)}>
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="ALL">All ({allPayments.length})</TabsTrigger>
-          <TabsTrigger value="PENDING">Pending ({allPayments.filter(p => p.status === 'PENDING').length})</TabsTrigger>
-          <TabsTrigger value="VERIFIED">Verified ({allPayments.filter(p => p.status === 'VERIFIED').length})</TabsTrigger>
-          <TabsTrigger value="REJECTED">Rejected ({allPayments.filter(p => p.status === 'REJECTED').length})</TabsTrigger>
-        </TabsList>
+        {/* Payment Tabs */}
+        <Tabs value={activeTab} onValueChange={(value) => handleTabChange(value as typeof activeTab)}>
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="PENDING" className="text-xs sm:text-sm">
+              <span className="hidden sm:inline">Pending</span>
+              <span className="sm:hidden">P</span>
+              <span className="ml-1">({allPayments.filter(p => p.status === 'PENDING').length})</span>
+            </TabsTrigger>
+            <TabsTrigger value="VERIFIED" className="text-xs sm:text-sm">
+              <span className="hidden sm:inline">Verified</span>
+              <span className="sm:hidden">V</span>
+              <span className="ml-1">({allPayments.filter(p => p.status === 'VERIFIED').length})</span>
+            </TabsTrigger>
+            <TabsTrigger value="REJECTED" className="text-xs sm:text-sm">
+              <span className="hidden sm:inline">Rejected</span>
+              <span className="sm:hidden">R</span>
+              <span className="ml-1">({allPayments.filter(p => p.status === 'REJECTED').length})</span>
+            </TabsTrigger>
+          </TabsList>
 
-        <TabsContent value={activeTab} className="mt-6">
-          {/* Payment List */}
-          {isLoading ? (
-            <div className="text-center py-8">
-              <RefreshCw className="h-8 w-8 animate-spin mx-auto mb-4 text-gray-400" />
-              <p className="text-gray-500">Loading payment history...</p>
-            </div>
-          ) : payments.length === 0 ? (
-            <Card>
-              <CardContent className="text-center py-8">
-                <CreditCard className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                <p className="text-gray-500">
-                  {allPayments.length === 0 ? 'No payment history found. Click "Load Payments" to fetch data.' : `No ${activeTab.toLowerCase()} payments found`}
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-4">
-              {payments.map((payment) => (
-                <Card key={payment.id} className="hover:shadow-md transition-shadow">
-                  <CardContent className="p-6">
-                    <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-3">
-                          <DollarSign className="h-5 w-5 text-green-600" />
-                          <div>
-                            <h3 className="font-semibold text-lg">
-                              {formatAmount(payment.paymentAmount)}
-                            </h3>
-                            <p className="text-sm text-gray-600">{payment.notes}</p>
-                          </div>
-                          {getStatusBadge(payment.status)}
-                        </div>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3 text-sm text-gray-600">
-                          <div className="flex items-center gap-2">
-                            <Calendar className="h-4 w-4" />
-                            <div>
-                              <div className="font-medium">Payment Date</div>
-                              <div>{formatDate(payment.paymentDate)}</div>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <CreditCard className="h-4 w-4" />
-                            <div>
-                              <div className="font-medium">Method</div>
-                              <div>{payment.paymentMethod.replace('_', ' ')}</div>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <FileText className="h-4 w-4" />
-                            <div>
-                              <div className="font-medium">Reference</div>
-                              <div className="font-mono text-xs">{payment.paymentReference}</div>
-                            </div>
-                          </div>
-                          <div>
-                            <div className="font-medium">Month</div>
-                            <div>{payment.paymentMonth}</div>
-                          </div>
-                        </div>
-
-                        {/* Additional Info for Rejected Payments */}
-                        {payment.status === 'REJECTED' && payment.rejectionReason && (
-                          <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-md">
-                            <div className="text-sm font-medium text-red-800">Rejection Reason:</div>
-                            <div className="text-sm text-red-700">{payment.rejectionReason}</div>
-                          </div>
-                        )}
-
-                        {/* Verification Info */}
-                        {payment.status === 'VERIFIED' && payment.verifiedAt && (
-                          <div className="mt-3 text-sm text-green-600">
-                            Verified on {formatDate(payment.verifiedAt)}
-                          </div>
-                        )}
-                      </div>
-                      
-                      <div className="flex flex-col gap-2">
-                        {payment.paymentSlipUrl && (
-                          <Button
-                            onClick={() => handleDownloadSlip(payment)}
-                            variant="outline"
-                            size="sm"
-                          >
-                            <Download className="h-4 w-4 mr-2" />
-                            View Slip
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          )}
-        </TabsContent>
-      </Tabs>
+          <TabsContent value={activeTab} className="mt-6">
+            <MUITable
+              title={`${activeTab} Payments`}
+              columns={getColumns()}
+              data={payments}
+              customActions={getCustomActions()}
+              page={pagination.pagination.page}
+              rowsPerPage={pagination.pagination.limit}
+              totalCount={payments.length}
+              onPageChange={handlePageChange}
+              onRowsPerPageChange={handleLimitChange}
+              rowsPerPageOptions={pagination.availableLimits}
+              allowAdd={false}
+              allowEdit={false}
+              allowDelete={false}
+            />
+          </TabsContent>
+        </Tabs>
       </div>
     </AppLayout>
   );

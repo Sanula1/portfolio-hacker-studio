@@ -37,7 +37,7 @@ const Header = ({ onMenuClick }: HeaderProps) => {
         </Button>
         
         <h1 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-white truncate">
-          EduManage
+          SurakshaLMS
         </h1>
         
         <div className="flex items-center space-x-1 sm:space-x-2">

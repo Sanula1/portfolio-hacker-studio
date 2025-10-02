@@ -9,6 +9,8 @@ import { homeworkSubmissionsApi, HomeworkSubmission } from '@/api/homeworkSubmis
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { format } from 'date-fns';
+import MUITable from '@/components/ui/mui-table';
+import { usePagination } from '@/hooks/usePagination';
 
 const StudentHomeworkSubmissions = () => {
   const [submissions, setSubmissions] = useState<HomeworkSubmission[]>([]);
@@ -16,12 +18,15 @@ const StudentHomeworkSubmissions = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [sortBy, setSortBy] = useState('submissionDate');
   const [sortOrder, setSortOrder] = useState<'ASC' | 'DESC'>('DESC');
-  const [currentPage, setCurrentPage] = useState(1);
-  const [limit, setLimit] = useState(10);
-  const [totalPages, setTotalPages] = useState(1);
-  const [total, setTotal] = useState(0);
+  const [showFilters, setShowFilters] = useState(false);
   const { toast } = useToast();
   const { user, selectedInstitute, selectedClass, selectedSubject } = useAuth();
+  
+  // Use pagination hook with default limit of 50
+  const { pagination, actions, getApiParams } = usePagination({
+    defaultLimit: 50,
+    availableLimits: [25, 50, 100]
+  });
 
   const fetchSubmissions = async () => {
     if (!selectedInstitute || !selectedClass || !selectedSubject || !user?.id) {
@@ -33,9 +38,10 @@ const StudentHomeworkSubmissions = () => {
     try {
       setLoading(true);
       
+      const apiParams = getApiParams();
       const params = {
-        page: currentPage,
-        limit,
+        page: apiParams.page,
+        limit: apiParams.limit,
         sortBy,
         sortOrder
       };
@@ -49,8 +55,7 @@ const StudentHomeworkSubmissions = () => {
       );
 
       setSubmissions(response.data);
-      setTotal(response.meta.total);
-      setTotalPages(response.meta.totalPages);
+      actions.setTotalCount(response.meta.total);
     } catch (error) {
       console.error('Error fetching student submissions:', error);
       toast({
@@ -65,11 +70,11 @@ const StudentHomeworkSubmissions = () => {
 
   useEffect(() => {
     fetchSubmissions();
-  }, [currentPage, limit, sortBy, sortOrder, selectedInstitute, selectedClass, selectedSubject, user?.id]);
+  }, [pagination.page, pagination.limit, sortBy, sortOrder, selectedInstitute, selectedClass, selectedSubject, user?.id]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    setCurrentPage(1);
+    actions.setPage(0);
     fetchSubmissions();
   };
 
@@ -77,7 +82,7 @@ const StudentHomeworkSubmissions = () => {
     setSearchTerm('');
     setSortBy('submissionDate');
     setSortOrder('DESC');
-    setCurrentPage(1);
+    actions.setPage(0);
   };
 
   const handleDownload = (url: string, filename: string) => {
@@ -95,6 +100,102 @@ const StudentHomeworkSubmissions = () => {
     submission.homework?.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
     submission.homework?.description.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  // Define columns for MUI table
+  const columns = [
+    {
+      id: 'title',
+      label: 'Homework Title',
+      minWidth: 200,
+      format: (value: any, row: HomeworkSubmission) => row.homework?.title || '-'
+    },
+    {
+      id: 'description',
+      label: 'Description',
+      minWidth: 250,
+      format: (value: any, row: HomeworkSubmission) => (
+        <div className="line-clamp-2 text-sm">
+          {row.homework?.description || '-'}
+        </div>
+      )
+    },
+    {
+      id: 'submissionDate',
+      label: 'Submission Date',
+      minWidth: 150,
+      format: (value: any, row: HomeworkSubmission) => (
+        <div className="flex items-center gap-1 text-sm">
+          <Calendar className="h-4 w-4" />
+          {format(new Date(row.submissionDate), 'MMM dd, yyyy')}
+        </div>
+      )
+    },
+    {
+      id: 'updatedAt',
+      label: 'Last Updated',
+      minWidth: 150,
+      format: (value: any, row: HomeworkSubmission) => (
+        <div className="flex items-center gap-1 text-sm">
+          <Clock className="h-4 w-4" />
+          {format(new Date(row.updatedAt), 'MMM dd, yyyy HH:mm')}
+        </div>
+      )
+    },
+    {
+      id: 'status',
+      label: 'Status',
+      minWidth: 120,
+      align: 'center' as const,
+      format: (value: any, row: HomeworkSubmission) => (
+        row.teacherCorrectionFileUrl ? (
+          <Badge variant="default" className="text-xs">
+            <CheckCircle className="h-3 w-3 mr-1" />
+            Corrected
+          </Badge>
+        ) : (
+          <Badge variant="secondary" className="text-xs">
+            <XCircle className="h-3 w-3 mr-1" />
+            Pending
+          </Badge>
+        )
+      )
+    },
+    {
+      id: 'remarks',
+      label: 'Remarks',
+      minWidth: 200,
+      format: (value: any, row: HomeworkSubmission) => (
+        row.remarks ? (
+          <div className="p-2 bg-muted rounded text-sm line-clamp-2">
+            {row.remarks}
+          </div>
+        ) : '-'
+      )
+    }
+  ];
+
+  const customActions = [
+    ...(filteredSubmissions.some(s => s.teacherCorrectionFileUrl) ? [{
+      label: 'View Correction',
+      action: (row: HomeworkSubmission) => {
+        if (row.teacherCorrectionFileUrl) {
+          handleDownload(row.teacherCorrectionFileUrl, `correction-${row.id}.pdf`);
+        }
+      },
+      icon: <Eye className="h-4 w-4" />,
+      variant: 'destructive' as const
+    }] : []),
+    ...(filteredSubmissions.some(s => s.fileUrl) ? [{
+      label: 'View My Submission',
+      action: (row: HomeworkSubmission) => {
+        if (row.fileUrl) {
+          window.open(row.fileUrl, '_blank');
+        }
+      },
+      icon: <Eye className="h-4 w-4" />,
+      variant: 'default' as const
+    }] : [])
+  ];
 
   if (loading) {
     return (
@@ -137,197 +238,121 @@ const StudentHomeworkSubmissions = () => {
             View your homework submissions and teacher corrections
           </p>
         </div>
-        <Badge variant="secondary" className="text-sm">
-          {total} Total Submissions
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Badge variant="secondary" className="text-sm">
+            {pagination.totalCount} Total Submissions
+          </Badge>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowFilters(!showFilters)}
+            className="flex items-center gap-2"
+          >
+            <Filter className="h-4 w-4" />
+            Filters
+          </Button>
+        </div>
       </div>
 
       {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Filter className="h-5 w-5" />
-            Filters & Search
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSearch} className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Search</label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                  <Input
-                    placeholder="Search homework..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
-                  />
-                </div>
-              </div>
-              
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Sort By</label>
-                <Select value={sortBy} onValueChange={setSortBy}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="submissionDate">Submission Date</SelectItem>
-                    <SelectItem value="createdAt">Created Date</SelectItem>
-                    <SelectItem value="updatedAt">Updated Date</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Order</label>
-                <Select value={sortOrder} onValueChange={(value: 'ASC' | 'DESC') => setSortOrder(value)}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="DESC">Newest First</SelectItem>
-                    <SelectItem value="ASC">Oldest First</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Per Page</label>
-                <Select value={limit.toString()} onValueChange={(value) => setLimit(parseInt(value))}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="5">5 items</SelectItem>
-                    <SelectItem value="10">10 items</SelectItem>
-                    <SelectItem value="20">20 items</SelectItem>
-                    <SelectItem value="50">50 items</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="space-y-2 flex items-end">
-                <div className="flex gap-2 w-full">
-                  <Button type="submit" className="flex-1">
-                    <Search className="h-4 w-4 mr-2" />
-                    Search
-                  </Button>
-                  <Button type="button" variant="outline" onClick={resetFilters}>
-                    Reset
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-
-      {/* Submissions List */}
-      <div className="space-y-4">
-        {filteredSubmissions.map((submission) => (
-          <Card key={submission.id} className="hover:shadow-md transition-shadow">
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold mb-2">{submission.homework?.title}</h3>
-                  <p className="text-muted-foreground text-sm mb-3 line-clamp-2">
-                    {submission.homework?.description}
-                  </p>
-                  
-                  <div className="flex flex-wrap gap-4 text-sm text-muted-foreground mb-3">
-                    <div className="flex items-center gap-1">
-                      <Calendar className="h-4 w-4" />
-                      <span>Submitted: {format(new Date(submission.submissionDate), 'MMM dd, yyyy')}</span>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Clock className="h-4 w-4" />
-                      <span>Updated: {format(new Date(submission.updatedAt), 'MMM dd, yyyy HH:mm')}</span>
-                    </div>
+      {showFilters && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Filter className="h-5 w-5" />
+              Filters & Search
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSearch} className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Search</label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                    <Input
+                      placeholder="Search homework..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10"
+                    />
                   </div>
-
-                  {submission.remarks && (
-                    <div className="mb-3 p-3 bg-muted rounded-lg">
-                      <p className="text-sm font-medium mb-1">Remarks:</p>
-                      <p className="text-sm">{submission.remarks}</p>
-                    </div>
-                  )}
                 </div>
-
-                <div className="flex items-center gap-2 ml-4">
-                  {submission.teacherCorrectionFileUrl ? (
-                    <Badge variant="default" className="text-xs">
-                      <CheckCircle className="h-3 w-3 mr-1" />
-                      Corrected
-                    </Badge>
-                  ) : (
-                    <Badge variant="secondary" className="text-xs">
-                      <XCircle className="h-3 w-3 mr-1" />
-                      Pending
-                    </Badge>
-                  )}
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Sort By</label>
+                  <Select value={sortBy} onValueChange={setSortBy}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="submissionDate">Submission Date</SelectItem>
+                      <SelectItem value="createdAt">Created Date</SelectItem>
+                      <SelectItem value="updatedAt">Updated Date</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Order</label>
+                  <Select value={sortOrder} onValueChange={(value: 'ASC' | 'DESC') => setSortOrder(value)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="DESC">Newest First</SelectItem>
+                      <SelectItem value="ASC">Oldest First</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <label className="text-sm font-medium">Per Page</label>
+                  <Select value={pagination.limit.toString()} onValueChange={(value) => actions.setLimit(parseInt(value))}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="25">25 items</SelectItem>
+                      <SelectItem value="50">50 items</SelectItem>
+                      <SelectItem value="100">100 items</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2 flex items-end">
+                  <div className="flex gap-2 w-full">
+                    <Button type="submit" className="flex-1">
+                      <Search className="h-4 w-4 mr-2" />
+                      Search
+                    </Button>
+                    <Button type="button" variant="outline" onClick={resetFilters}>
+                      Reset
+                    </Button>
+                  </div>
                 </div>
               </div>
-
-              <div className="flex flex-wrap gap-2">
-                {submission.teacherCorrectionFileUrl && (
-                  <Button 
-                    size="sm" 
-                    variant="destructive"
-                    onClick={() => handleDownload(submission.teacherCorrectionFileUrl!, `correction-${submission.id}.pdf`)}
-                  >
-                    <Eye className="h-4 w-4 mr-2" />
-                    View Correction
-                  </Button>
-                )}
-
-                {submission.fileUrl && (
-                  <Button 
-                    size="sm" 
-                    className="bg-blue-600 hover:bg-blue-700 text-white"
-                    onClick={() => window.open(submission.fileUrl, '_blank')}
-                  >
-                    <Eye className="h-4 w-4 mr-2" />
-                    View My Submission
-                  </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <div className="text-sm text-muted-foreground">
-            Showing {((currentPage - 1) * limit) + 1} to {Math.min(currentPage * limit, total)} of {total} submissions
-          </div>
-          
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
-            >
-              Previous
-            </Button>
-            
-            <span className="text-sm text-muted-foreground px-2">
-              Page {currentPage} of {totalPages}
-            </span>
-            
-            <Button
-              variant="outline"
-              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-              disabled={currentPage === totalPages}
-            >
-              Next
-            </Button>
-          </div>
-        </div>
+            </form>
+          </CardContent>
+        </Card>
       )}
+
+      {/* MUI Table for Students */}
+      <MUITable
+        title="Homework Submissions"
+        columns={columns}
+        data={filteredSubmissions}
+        customActions={customActions}
+        page={pagination.page}
+        rowsPerPage={pagination.limit}
+        totalCount={pagination.totalCount}
+        onPageChange={actions.setPage}
+        onRowsPerPageChange={actions.setLimit}
+        rowsPerPageOptions={[25, 50, 100]}
+        allowAdd={false}
+        allowEdit={false}
+        allowDelete={false}
+      />
 
       {/* Empty State */}
       {filteredSubmissions.length === 0 && !loading && (

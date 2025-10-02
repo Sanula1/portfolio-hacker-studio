@@ -30,6 +30,7 @@ interface Lecture {
   provider: string;
   lectureLink: string;
   meetingLink?: string;
+  coverImageUrl?: string | null;
   documents: Document[];
   isActive: boolean;
   createdBy: string;
@@ -83,14 +84,15 @@ const FreeLectures = () => {
   const { selectedInstitute, selectedClass, selectedSubject, selectedClassGrade, user } = useAuth();
   const [lectures, setLectures] = useState<Lesson[]>([]);
   const [subjectInfo, setSubjectInfo] = useState<FreeLecturesResponse['subjectInfo'] | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [expandedLectures, setExpandedLectures] = useState<Record<string, boolean>>({});
 
-  useEffect(() => {
+  const handleLoadLectures = () => {
     if (selectedSubject && (selectedClassGrade !== null && selectedClassGrade !== undefined)) {
       fetchFreeLectures();
     }
-  }, [selectedSubject, selectedClassGrade]);
+  };
 
   const fetchFreeLectures = async () => {
     if (!selectedSubject || selectedClassGrade === null || selectedClassGrade === undefined) return;
@@ -101,17 +103,14 @@ const FreeLectures = () => {
     try {
       const baseUrl = getAttendanceUrl() || 'http://localhost:3003';
       
-      // Use the standard lecture API endpoint with proper parameters
+      // Use the structured lectures API endpoint
       const params = new URLSearchParams({
-        instituteId: selectedInstitute?.id || '',
-        classId: selectedClass?.id || '',
-        subjectId: selectedSubject.id,
         page: '1',
-        limit: '50' // Get more lectures to group properly
+        limit: '50'
       });
 
       const response = await fetch(
-        `${baseUrl}/institute-class-subject-lectures?${params}`,
+        `${baseUrl}/api/structured-lectures/subject/${selectedSubject.id}/grade/${selectedClassGrade || selectedClass?.grade || 10}?${params}`,
         {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
@@ -121,74 +120,24 @@ const FreeLectures = () => {
       );
 
       if (!response.ok) {
+        if (response.status === 404) {
+          // Handle 404 specifically - no lectures found for this subject
+          setLectures([]);
+          setSubjectInfo(null);
+          setError(null);
+          return;
+        }
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const data = await response.json();
+      const data: FreeLecturesResponse = await response.json();
       
-      if (data.success !== false) {
-        // Transform the lecture data to match the expected format
-        const lecturesArray = Array.isArray(data.data) ? data.data : data;
-        
-        // Transform API lectures to our Lecture interface
-        const transformedLectures: Lecture[] = lecturesArray.map((lecture: any, index: number) => ({
-          _id: lecture.id || `lecture-${index}`,
-          id: lecture.id,
-          subjectId: lecture.subjectId || selectedSubject.id,
-          grade: selectedClassGrade,
-          title: lecture.title || 'Untitled Lecture',
-          description: lecture.description || 'No description available',
-          lessonNumber: Math.floor(index / 3) + 1, // Group every 3 lectures into a lesson
-          lectureNumber: (index % 3) + 1,
-          provider: lecture.instructor || lecture.instructorId || 'Unknown Instructor',
-          lectureLink: lecture.meetingLink || lecture.lectureLink || '#',
-          meetingLink: lecture.meetingLink,
-          documents: [], // No documents in standard API for now
-          isActive: lecture.isActive !== false,
-          createdBy: lecture.instructorId || lecture.createdBy || 'unknown',
-          updatedBy: lecture.instructorId || lecture.updatedBy || 'unknown',
-          createdAt: lecture.createdAt || new Date().toISOString(),
-          updatedAt: lecture.updatedAt || new Date().toISOString(),
-          status: lecture.status,
-          instructorId: lecture.instructorId,
-          instructor: lecture.instructor
-        }));
-        
-        // Group lectures by lesson number
-        const lessonsMap = new Map<number, Lecture[]>();
-        transformedLectures.forEach(lecture => {
-          const lessonNum = lecture.lessonNumber;
-          if (!lessonsMap.has(lessonNum)) {
-            lessonsMap.set(lessonNum, []);
-          }
-          lessonsMap.get(lessonNum)!.push(lecture);
-        });
-        
-        // Convert to Lesson array and sort lectures within each lesson
-        const groupedLectures: Lesson[] = Array.from(lessonsMap.entries())
-          .map(([lessonNumber, lectures]) => ({
-            lessonNumber,
-            lessonName: `Lesson ${lessonNumber}: ${selectedSubject.name}`,
-            lectures: lectures.sort((a, b) => a.lectureNumber - b.lectureNumber),
-            isExpanded: false
-          }))
-          .sort((a, b) => a.lessonNumber - b.lessonNumber);
-        
-        setLectures(groupedLectures);
-        
-        // Calculate statistics
-        const totalLectures = transformedLectures.length;
-        const activeLectures = transformedLectures.filter(l => l.isActive).length;
-        
-        setSubjectInfo({
-          subjectId: selectedSubject.id,
-          grade: selectedClassGrade,
-          totalLectures,
-          totalLessons: groupedLectures.length,
-          activeLectures
-        });
+      if (data.success && data.data) {
+        // The API already returns data in the correct format, no transformation needed
+        setLectures(data.data.map(lesson => ({ ...lesson, isExpanded: false })));
+        setSubjectInfo(data.subjectInfo);
       } else {
-        setError('Failed to load free lectures');
+        setError(data.message || 'Failed to load free lectures');
       }
     } catch (err) {
       console.error('Error fetching free lectures:', err);
@@ -214,6 +163,13 @@ const FreeLectures = () => {
           : lesson
       )
     );
+  };
+
+  const toggleLectureExpansion = (lectureId: string) => {
+    setExpandedLectures(prev => ({
+      ...prev,
+      [lectureId]: !prev[lectureId]
+    }));
   };
 
   if (!selectedSubject || selectedClassGrade === null || selectedClassGrade === undefined) {
@@ -267,11 +223,36 @@ const FreeLectures = () => {
   return (
     <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold">Free Lectures</h1>
-        <p className="text-muted-foreground">
-          {selectedInstitute?.name} • {selectedClass?.name} • {selectedSubject.name}
-        </p>
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <h1 className="text-3xl font-bold">Free Lectures</h1>
+          <p className="text-muted-foreground">
+            {selectedInstitute?.name} • {selectedClass?.name} • {selectedSubject.name}
+          </p>
+        </div>
+        
+        {/* Load Lectures Button */}
+        <Card className="bg-primary/5 border-primary/20">
+          <CardContent className="p-4 flex justify-center">
+            <Button 
+              onClick={handleLoadLectures}
+              disabled={loading}
+              size="sm"
+            >
+              {loading ? (
+                <>
+                  <Video className="h-4 w-4 mr-2 animate-pulse" />
+                  Loading Lectures...
+                </>
+              ) : (
+                <>
+                  <Video className="h-4 w-4 mr-2" />
+                  Load Free Lectures
+                </>
+              )}
+            </Button>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Subject Info Summary */}
@@ -312,7 +293,7 @@ const FreeLectures = () => {
           <CardContent className="py-8">
             <div className="text-center text-muted-foreground">
               <Video className="h-12 w-12 mx-auto mb-4 opacity-50" />
-              <p>No free lectures available for this subject.</p>
+              <p>There are no free lectures for this subject!</p>
             </div>
           </CardContent>
         </Card>
@@ -357,10 +338,147 @@ const FreeLectures = () => {
                     <div className="space-y-6">
                       {lesson.lectures.map((lecture, index) => {
                         const youtubeId = getYouTubeVideoId(lecture.lectureLink || lecture.meetingLink || '');
+                        const isExpanded = expandedLectures[lecture._id];
                         
                         return (
                           <div key={lecture._id} className="border rounded-lg overflow-hidden">
-                            <div className="p-4 space-y-4">
+                            {/* Cover Image */}
+                            {lecture.coverImageUrl && (
+                              <div className="relative w-full h-48 bg-muted">
+                                <img
+                                  src={lecture.coverImageUrl}
+                                  alt={lecture.title}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                            )}
+                            
+                            {/* Mobile View */}
+                            <div className="md:hidden p-4 space-y-3">
+                              <div className="flex items-start gap-3">
+                                <Badge variant="outline" className="shrink-0 mt-1">
+                                  {index + 1}
+                                </Badge>
+                                <div className="flex-1 min-w-0">
+                                  <h4 className="font-semibold text-sm line-clamp-2">{lecture.title}</h4>
+                                  <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                                    <Calendar className="h-3 w-3" />
+                                    {format(new Date(lecture.createdAt), 'MMM dd, yyyy')}
+                                  </div>
+                                </div>
+                              </div>
+                              
+                              <Button
+                                onClick={() => handleJoinLecture(lecture.lectureLink || lecture.meetingLink || '')}
+                                disabled={!lecture.isActive}
+                                className="w-full"
+                                size="sm"
+                              >
+                                <ExternalLink className="h-4 w-4 mr-2" />
+                                Join Lecture
+                              </Button>
+
+                              <Button
+                                variant="outline"
+                                onClick={() => toggleLectureExpansion(lecture._id)}
+                                className="w-full"
+                                size="sm"
+                              >
+                                {isExpanded ? (
+                                  <>
+                                    <ChevronUp className="h-4 w-4 mr-2" />
+                                    View Less
+                                  </>
+                                ) : (
+                                  <>
+                                    <ChevronDown className="h-4 w-4 mr-2" />
+                                    View More
+                                  </>
+                                )}
+                              </Button>
+
+                              {/* Expanded Content on Mobile */}
+                              {isExpanded && (
+                                <div className="space-y-3 pt-2">
+                                  <p className="text-sm text-muted-foreground">{lecture.description}</p>
+                                  
+                                  <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                                    <div className="flex items-center gap-1">
+                                      <User className="h-3 w-3" />
+                                      {lecture.provider}
+                                    </div>
+                                    <Badge variant={lecture.isActive ? "default" : "secondary"} className="text-xs">
+                                      {lecture.isActive ? 'Active' : 'Inactive'}
+                                    </Badge>
+                                    {lecture.status && (
+                                      <Badge variant="outline" className="text-xs">
+                                        {lecture.status}
+                                      </Badge>
+                                    )}
+                                  </div>
+
+                                  {/* YouTube Embed */}
+                                  {youtubeId && (
+                                    <>
+                                      <Separator />
+                                      <div className="space-y-2">
+                                        <h5 className="text-sm font-medium flex items-center gap-2">
+                                          <Play className="h-3 w-3" />
+                                          Lecture Video
+                                        </h5>
+                                        <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
+                                          <iframe
+                                            className="absolute top-0 left-0 w-full h-full rounded-lg"
+                                            src={`https://www.youtube.com/embed/${youtubeId}?rel=0&modestbranding=1`}
+                                            title={lecture.title}
+                                            frameBorder="0"
+                                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                            allowFullScreen
+                                          />
+                                        </div>
+                                      </div>
+                                    </>
+                                  )}
+
+                                  {/* Documents */}
+                                  {lecture.documents && lecture.documents.length > 0 && (
+                                    <>
+                                      <Separator />
+                                      <div className="space-y-2">
+                                        <h5 className="text-sm font-medium flex items-center gap-2">
+                                          <FileText className="h-3 w-3" />
+                                          Documents ({lecture.documents.length})
+                                        </h5>
+                                        <div className="grid gap-2">
+                                          {lecture.documents.map((doc) => (
+                                            <div
+                                              key={doc._id}
+                                              className="flex items-center justify-between p-2 border rounded bg-muted/50"
+                                            >
+                                              <div className="flex items-center gap-2 min-w-0 flex-1">
+                                                <FileText className="h-3 w-3 shrink-0" />
+                                                <span className="text-xs truncate">{doc.documentName}</span>
+                                              </div>
+                                              <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => handleDownloadDocument(doc.documentUrl, doc.documentName)}
+                                                className="shrink-0 ml-2"
+                                              >
+                                                View
+                                              </Button>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      </div>
+                                    </>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Desktop View */}
+                            <div className="hidden md:block p-4 space-y-4">
                               {/* Lecture Header */}
                               <div className="flex items-start justify-between">
                                 <div className="space-y-2 flex-1">
@@ -445,13 +563,13 @@ const FreeLectures = () => {
                                               • {format(new Date(doc.uploadedAt), 'MMM dd, yyyy')}
                                             </span>
                                           </div>
-                                          <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            onClick={() => handleDownloadDocument(doc.documentUrl, doc.documentName)}
-                                          >
-                                            <Download className="h-4 w-4" />
-                                          </Button>
+                                           <Button
+                                             variant="outline"
+                                             size="sm"
+                                             onClick={() => handleDownloadDocument(doc.documentUrl, doc.documentName)}
+                                           >
+                                             View
+                                           </Button>
                                         </div>
                                       ))}
                                     </div>

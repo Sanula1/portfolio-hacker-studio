@@ -54,7 +54,13 @@ export const useAppNavigation = () => {
       'enroll-subject': '/enroll-subject',
       'child-attendance': '/child-attendance',
       'child-results': '/child-results',
-      'free-lectures': '/free-lectures'
+      'free-lectures': '/free-lectures',
+      'transport': '/transport',
+      'student-transport': '/student-transport',
+      'parent-transport': '/parent-transport',
+      'transport-selection': '/transport-selection',
+      'transport-attendance': '/transport-attendance',
+      'transport-info': '/transport-info'
     };
     
     const route = routeMap[page] || `/${page}`;

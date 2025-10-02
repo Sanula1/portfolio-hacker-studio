@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Plus, RefreshCw, Users, Search, Filter, UserPlus } from 'lucide-react';
+import { Plus, RefreshCw, Users, Search, Filter, UserPlus, ChevronRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { DataCardView } from '@/components/ui/data-card-view';
@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import CreateStudentForm from '@/components/forms/CreateStudentForm';
 import AssignStudentsDialog from '@/components/forms/AssignStudentsDialog';
 import AssignSubjectStudentsDialog from '@/components/forms/AssignSubjectStudentsDialog';
+import CurrentSelection from '@/components/ui/current-selection';
 import { cachedApiClient } from '@/api/cachedClient';
 import { useApiRequest } from '@/hooks/useApiRequest';
 import { useTableData } from '@/hooks/useTableData';
@@ -105,11 +106,11 @@ const Students = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
-  // Enhanced pagination with useTableData hook
+  // Enhanced pagination with useTableData hook - DISABLE AUTO-LOADING
   const {
     state: { data: paginatedStudents, loading: tableLoading },
     pagination,
-    actions: { refresh: refreshTableData, updateFilters, setPage, setLimit },
+    actions,
     filters
   } = useTableData<Student>({
     endpoint: '/students',
@@ -118,7 +119,8 @@ const Students = () => {
     pagination: {
       defaultLimit: 50,
       availableLimits: [25, 50, 100]
-    }
+    },
+    autoLoad: false // DISABLE AUTO-LOADING - only load on explicit button clicks
   });
 
   // Check if user should use new institute-based API
@@ -130,8 +132,7 @@ const Students = () => {
     const token = localStorage.getItem('access_token');
     return {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-      'ngrok-skip-browser-warning': 'true'
+      'Authorization': `Bearer ${token}`
     };
   };
 
@@ -262,8 +263,8 @@ const Students = () => {
   // Determine which fetch function to use
   const getLoadFunction = () => {
     if (!shouldUseInstituteApi()) {
-      const currentPage = 1;
-      return () => fetchStudents(currentPage);
+      // Use the table data loading function for global students
+      return () => actions.loadData(true); // Force refresh
     }
     
     if (selectedSubject) {
@@ -272,13 +273,13 @@ const Students = () => {
       return fetchInstituteClassStudents;
     }
     
-    const currentPage = 1;
-    return () => fetchStudents(currentPage);
+    // Fallback to table data loading
+    return () => actions.loadData(true);
   };
 
   const getLoadButtonText = () => {
     if (!shouldUseInstituteApi()) {
-      return fetchStudentsRequest.loading || loading ? 'Loading Students...' : 'Load Students';
+      return tableLoading || loading ? 'Loading Students...' : 'Load Students';
     }
     
     if (selectedSubject) {
@@ -287,7 +288,7 @@ const Students = () => {
       return loading ? 'Loading Class Students...' : 'Load Class Students';
     }
     
-    return fetchStudentsRequest.loading || loading ? 'Loading Students...' : 'Load Students';
+    return tableLoading || loading ? 'Loading Students...' : 'Load Students';
   };
 
   const getCurrentSelection = () => {
@@ -473,7 +474,12 @@ const Students = () => {
 
   // Get the current dataset to filter and display
   const getCurrentStudentData = () => {
-    return shouldUseInstituteApi() ? instituteStudents : students;
+    if (!shouldUseInstituteApi()) {
+      // Use table data for global students
+      return paginatedStudents;
+    }
+    // Use institute students for institute-based views
+    return instituteStudents;
   };
 
   const filteredStudents = getCurrentStudentData().filter((student: Student | InstituteStudent) => {
@@ -518,10 +524,39 @@ const Students = () => {
   if (shouldUseInstituteApi() && (!selectedClass || !dataLoaded)) {
     return (
       <div className="container mx-auto p-6 space-y-6">
+        {/* Current Selection Display */}
+        {(selectedInstitute || selectedClass || selectedSubject) && (
+          <CurrentSelection 
+            institute={selectedInstitute}
+            class={selectedClass}
+            subject={selectedSubject}
+          />
+        )}
+        
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Students</h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-1">
+            <div className="flex items-center gap-2 mb-2">
+              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Students</h1>
+            </div>
+            {/* Breadcrumb Display */}
+            {(selectedInstitute || selectedClass) && (
+              <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 mb-1">
+                {selectedInstitute && (
+                  <>
+                    <span>Institute: {selectedInstitute.name}</span>
+                    {selectedClass && <ChevronRight className="h-4 w-4" />}
+                  </>
+                )}
+                {selectedClass && (
+                  <>
+                    <span>Class: {selectedClass.name}</span>
+                    {selectedSubject && <ChevronRight className="h-4 w-4" />}
+                  </>
+                )}
+                {selectedSubject && <span>Subject: {selectedSubject.name}</span>}
+              </div>
+            )}
+            <p className="text-gray-600 dark:text-gray-400">
               {getCurrentSelection() || 'Select institute and class to view students'}
             </p>
           </div>
@@ -578,12 +613,41 @@ const Students = () => {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
+      {/* Current Selection Display */}
+      {shouldUseInstituteApi() && (selectedInstitute || selectedClass || selectedSubject) && (
+        <CurrentSelection 
+          institute={selectedInstitute}
+          class={selectedClass}
+          subject={selectedSubject}
+        />
+      )}
+      
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Students</h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1">
+          <div className="flex items-center gap-2 mb-2">
+            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Students</h1>
+          </div>
+          {/* Breadcrumb Display */}
+          {shouldUseInstituteApi() && (selectedInstitute || selectedClass) && (
+            <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 mb-1">
+              {selectedInstitute && (
+                <>
+                  <span>Institute: {selectedInstitute.name}</span>
+                  {selectedClass && <ChevronRight className="h-4 w-4" />}
+                </>
+              )}
+              {selectedClass && (
+                <>
+                  <span>Class: {selectedClass.name}</span>
+                  {selectedSubject && <ChevronRight className="h-4 w-4" />}
+                </>
+              )}
+              {selectedSubject && <span>Subject: {selectedSubject.name}</span>}
+            </div>
+          )}
+          <p className="text-gray-600 dark:text-gray-400">
             {shouldUseInstituteApi() && getCurrentSelection() 
-              ? getCurrentSelection() 
+              ? 'Manage students for your selection' 
               : 'Manage student records and information'}
           </p>
         </div>
@@ -624,11 +688,11 @@ const Students = () => {
           </Button>
           <Button 
             onClick={getLoadFunction()} 
-            disabled={fetchStudentsRequest.loading || loading}
+            disabled={tableLoading || loading}
             variant="outline"
             size="sm"
           >
-            {fetchStudentsRequest.loading || loading ? (
+            {tableLoading || loading ? (
               <>
                 <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
                 Loading...
@@ -713,42 +777,30 @@ const Students = () => {
         </Card>
       ) : (
         <>
-          {/* Desktop MUI Table View */}
-          <div className="hidden md:block">
-            <MUITable
-              title=""
-              data={filteredStudents}
-              columns={studentColumns.map(col => ({
-                id: col.key,
-                label: col.header,
-                minWidth: 170,
-                format: col.render
-              }))}
-              onAdd={undefined}
-              onEdit={undefined}
-              onDelete={undefined}
-              onView={undefined}
-              page={pagination.page}
-              rowsPerPage={pagination.limit}
-              totalCount={filteredStudents.length}
-              onPageChange={setPage}
-              onRowsPerPageChange={setLimit}
-              sectionType="students"
-              allowAdd={false}
-              allowEdit={false}
-              allowDelete={false}
-            />
-          </div>
-
-          {/* Mobile Card View */}
-          <div className="md:hidden">
-            <DataCardView
-              data={filteredStudents}
-              columns={studentColumns}
-              allowEdit={false}
-              allowDelete={false}
-            />
-          </div>
+          {/* MUI Table View - All Screen Sizes */}
+          <MUITable
+            title=""
+            data={filteredStudents}
+            columns={studentColumns.map(col => ({
+              id: col.key,
+              label: col.header,
+              minWidth: 170,
+              format: col.render
+            }))}
+            onAdd={undefined}
+            onEdit={undefined}
+            onDelete={undefined}
+            onView={undefined}
+            page={pagination.page}
+            rowsPerPage={pagination.limit}
+            totalCount={filteredStudents.length}
+            onPageChange={actions.setPage}
+            onRowsPerPageChange={actions.setLimit}
+            sectionType="students"
+            allowAdd={false}
+            allowEdit={false}
+            allowDelete={false}
+          />
         </>
       )}
 
@@ -776,7 +828,8 @@ const Students = () => {
           open={showAssignDialog}
           onOpenChange={setShowAssignDialog}
           onAssignmentComplete={() => {
-            getLoadFunction()(); // Refresh the students list
+            // Refresh the students list using the correct load function
+            getLoadFunction()();
           }}
         />
       )}
@@ -787,7 +840,8 @@ const Students = () => {
           open={showSubjectAssignDialog}
           onOpenChange={setShowSubjectAssignDialog}
           onAssignmentComplete={() => {
-            getLoadFunction()(); // Refresh the students list
+            // Refresh the students list using the correct load function  
+            getLoadFunction()();
           }}
         />
       )}
