@@ -15,6 +15,7 @@ interface LastAttendance {
   studentCardId: string;
   studentName: string;
   attendanceId: string;
+  status: 'present' | 'absent' | 'late';
   timestamp: number;
 }
 
@@ -144,6 +145,7 @@ const RFIDAttendance = () => {
           studentCardId: rfidCardId.trim(),
           studentName: studentName,
           attendanceId: attendanceId,
+          status: status,
           timestamp: Date.now()
         });
 
@@ -267,6 +269,15 @@ const RFIDAttendance = () => {
                     <div className="space-y-1">
                       <p className="text-lg font-medium text-green-600 dark:text-green-400">
                         {lastAttendance.studentName}
+                      </p>
+                      <p className={`text-base font-semibold ${
+                        lastAttendance.status === 'present' 
+                          ? 'text-green-600 dark:text-green-400' 
+                          : lastAttendance.status === 'absent'
+                          ? 'text-red-600 dark:text-red-400'
+                          : 'text-yellow-600 dark:text-yellow-400'
+                      }`}>
+                        Status: {lastAttendance.status.toUpperCase()}
                       </p>
                       <p className="text-sm text-muted-foreground">
                         Card ID: {lastAttendance.studentCardId}
