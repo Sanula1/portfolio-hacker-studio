@@ -369,7 +369,7 @@ const QRAttendance = () => {
 
     try {
       const request: MarkAttendanceByCardRequest = {
-        studentId: studentCardId.trim(),
+        studentCardId: studentCardId.trim(),
         instituteId: currentInstituteId,
         instituteName: selectedInstitute.name,
         address: location.address,

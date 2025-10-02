@@ -1,15 +1,22 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Wifi, ArrowLeft } from 'lucide-react';
+import { Wifi, ArrowLeft, MapPin, CheckCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
 import { childAttendanceApi, MarkAttendanceByCardRequest } from '@/api/childAttendance.api';
 import AppLayout from '@/components/layout/AppLayout';
+
+interface LastAttendance {
+  studentCardId: string;
+  studentName: string;
+  attendanceId: string;
+  timestamp: number;
+}
 
 const RFIDAttendance = () => {
   const { selectedInstitute, selectedClass, selectedSubject, currentInstituteId, user } = useAuth();
@@ -19,7 +26,58 @@ const RFIDAttendance = () => {
   const [status, setStatus] = useState<'present' | 'absent' | 'late'>('present');
   const [isProcessing, setIsProcessing] = useState(false);
   const [scannerStatus, setScannerStatus] = useState('Ready to Scan');
+  const [location, setLocation] = useState<{ address: string } | null>(null);
+  const [lastAttendance, setLastAttendance] = useState<LastAttendance | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const clearTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Get user location
+  useEffect(() => {
+    const getLocation = () => {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          async (position) => {
+            const { latitude, longitude } = position.coords;
+            try {
+              const response = await fetch(
+                `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
+              );
+              const data = await response.json();
+              setLocation({ address: data.display_name || 'Unknown Location' });
+            } catch (error) {
+              console.error('Error fetching address:', error);
+              setLocation({ address: 'Location detected' });
+            }
+          },
+          (error) => {
+            console.error('Error getting location:', error);
+            setLocation({ address: 'Gate Scanner - Main Entrance' });
+          }
+        );
+      } else {
+        setLocation({ address: 'Gate Scanner - Main Entrance' });
+      }
+    };
+
+    getLocation();
+  }, []);
+
+  // Clear last attendance after 1 minute
+  useEffect(() => {
+    if (lastAttendance) {
+      if (clearTimeoutRef.current) {
+        clearTimeout(clearTimeoutRef.current);
+      }
+      clearTimeoutRef.current = setTimeout(() => {
+        setLastAttendance(null);
+      }, 60000); // 1 minute
+    }
+    return () => {
+      if (clearTimeoutRef.current) {
+        clearTimeout(clearTimeoutRef.current);
+      }
+    };
+  }, [lastAttendance]);
 
   const handleMarkAttendance = async () => {
     if (!rfidCardId.trim()) {
@@ -40,15 +98,25 @@ const RFIDAttendance = () => {
       return;
     }
 
+    // Check for duplicate
+    if (lastAttendance && lastAttendance.studentCardId === rfidCardId.trim()) {
+      toast({
+        title: "Duplicate Detected",
+        description: `Attendance already marked for ${lastAttendance.studentName}`,
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsProcessing(true);
     setScannerStatus('Processing...');
 
     try {
-      const request: MarkAttendanceByCardRequest = {
-        studentId: rfidCardId.trim(),
+      const request: any = {
+        studentCardId: rfidCardId.trim(),
         instituteId: currentInstituteId,
         instituteName: selectedInstitute.name,
-        address: `${selectedInstitute.name} - RFID Scanner`,
+        address: location?.address || 'Gate Scanner - Main Entrance',
         markingMethod: 'rfid/nfc',
         status: status
       };
@@ -68,12 +136,20 @@ const RFIDAttendance = () => {
       const result = await childAttendanceApi.markAttendanceByCard(request);
 
       if (result.success) {
+        // Store last attendance
+        setLastAttendance({
+          studentCardId: rfidCardId.trim(),
+          studentName: (result as any).studentName || 'Student',
+          attendanceId: (result as any).attendanceId || '',
+          timestamp: Date.now()
+        });
+
         toast({
           title: "Success",
-          description: `Attendance marked for student ${rfidCardId.trim()} as ${status.toUpperCase()}`,
+          description: `Attendance marked for ${(result as any).studentName || rfidCardId.trim()} as ${status.toUpperCase()}`,
         });
         setRfidCardId('');
-        setScannerStatus('Ready to Scan');
+        setScannerStatus('Attendance Marked Successfully');
         inputRef.current?.focus();
       } else {
         throw new Error(result.message || 'Failed to mark attendance');
@@ -123,14 +199,46 @@ const RFIDAttendance = () => {
             </div>
           </div>
 
+          {/* Current Selection */}
+          <Card className="border-primary/20 bg-primary/5">
+            <CardContent className="p-4">
+              <h3 className="text-sm font-medium text-muted-foreground mb-2">Current Selection</h3>
+              <div className="space-y-1">
+                <p className="text-sm">
+                  <span className="font-medium">Institute:</span> {selectedInstitute?.name || 'Not selected'}
+                </p>
+                {selectedClass && (
+                  <p className="text-sm">
+                    <span className="font-medium">Class:</span> {selectedClass.name}
+                  </p>
+                )}
+                {selectedSubject && (
+                  <p className="text-sm">
+                    <span className="font-medium">Subject:</span> {selectedSubject.name}
+                  </p>
+                )}
+                {location && (
+                  <p className="text-sm flex items-start gap-1">
+                    <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" />
+                    <span className="text-xs text-muted-foreground">{location.address}</span>
+                  </p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Scanner Status Card */}
           <Card className="border-muted">
             <CardContent className="p-12 sm:p-16">
               <div className="flex flex-col items-center justify-center space-y-6">
                 {/* WiFi Icon with Animation */}
                 <div className="relative">
-                  <div className="bg-blue-100 dark:bg-blue-950/30 rounded-full p-12">
-                    <Wifi className="h-16 w-16 text-blue-600 dark:text-blue-400" strokeWidth={2.5} />
+                  <div className={`rounded-full p-12 ${lastAttendance ? 'bg-green-100 dark:bg-green-950/30' : 'bg-blue-100 dark:bg-blue-950/30'}`}>
+                    {lastAttendance ? (
+                      <CheckCircle className="h-16 w-16 text-green-600 dark:text-green-400" strokeWidth={2.5} />
+                    ) : (
+                      <Wifi className="h-16 w-16 text-blue-600 dark:text-blue-400" strokeWidth={2.5} />
+                    )}
                   </div>
                 </div>
 
@@ -139,9 +247,23 @@ const RFIDAttendance = () => {
                   <h2 className="text-2xl font-semibold text-foreground">
                     {scannerStatus}
                   </h2>
-                  <p className="text-muted-foreground">
-                    Place your RFID card near the scanner or enter ID below
-                  </p>
+                  {lastAttendance ? (
+                    <div className="space-y-1">
+                      <p className="text-lg font-medium text-green-600 dark:text-green-400">
+                        {lastAttendance.studentName}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        Card ID: {lastAttendance.studentCardId}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Attendance ID: {lastAttendance.attendanceId}
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-muted-foreground">
+                      Place your RFID card near the scanner or enter ID below
+                    </p>
+                  )}
                 </div>
               </div>
             </CardContent>
