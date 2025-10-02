@@ -136,17 +136,33 @@ const RFIDAttendance = () => {
       const result = await childAttendanceApi.markAttendanceByCard(request);
 
       if (result.success) {
+        const studentName = (result as any).studentName || 'Student';
+        const attendanceId = (result as any).attendanceId || '';
+        
         // Store last attendance
         setLastAttendance({
           studentCardId: rfidCardId.trim(),
-          studentName: (result as any).studentName || 'Student',
-          attendanceId: (result as any).attendanceId || '',
+          studentName: studentName,
+          attendanceId: attendanceId,
           timestamp: Date.now()
         });
 
         toast({
-          title: "Success",
-          description: `Attendance marked for ${(result as any).studentName || rfidCardId.trim()} as ${status.toUpperCase()}`,
+          title: "✓ Attendance Marked Successfully",
+          description: (
+            <div className="space-y-1 text-sm">
+              <p className="font-semibold">{studentName}</p>
+              <p>Card ID: {rfidCardId.trim()}</p>
+              <p>Status: {status.toUpperCase()}</p>
+              <p>Attendance ID: {attendanceId}</p>
+              <p className="text-xs text-muted-foreground mt-2">
+                {selectedInstitute?.name}
+                {selectedClass && ` • ${selectedClass.name}`}
+                {selectedSubject && ` • ${selectedSubject.name}`}
+              </p>
+            </div>
+          ),
+          duration: 5000,
         });
         setRfidCardId('');
         setScannerStatus('Attendance Marked Successfully');
