@@ -78,7 +78,7 @@ const TeacherLectures = () => {
     );
   }
 
-  // Table data hook with pagination - Remove dependencies to prevent auto-reloading
+  // Table data hook with pagination
   const tableData = useTableData<TeacherLecture>({
     endpoint: '/institute-class-subject-lectures',
     defaultParams: {
@@ -87,9 +87,9 @@ const TeacherLectures = () => {
       subjectId: selectedSubject?.id,
       instructorId: user?.id
     },
-    dependencies: [], // Remove dependencies to prevent auto-reloading on context changes
+    dependencies: [selectedInstitute?.id, selectedClass?.id, selectedSubject?.id, user?.id],
     pagination: { defaultLimit: 50, availableLimits: [25, 50, 100] },
-    autoLoad: false // Keep disabled - only load on explicit button clicks
+    autoLoad: false
   });
 
   const { state: { data: lectures, loading }, pagination, actions } = tableData;

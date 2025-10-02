@@ -132,7 +132,8 @@ const Login = ({ onLogin, loginFunction }: LoginProps) => {
   };
 
   const getApiHeaders = () => ({
-    'Content-Type': 'application/json'
+    'Content-Type': 'application/json',
+    'ngrok-skip-browser-warning': 'true'
   });
 
   // OTP Timer function
@@ -613,7 +614,7 @@ const Login = ({ onLogin, loginFunction }: LoginProps) => {
           <div className="mx-auto w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mb-4">
             <GraduationCap className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">SurakshaLMS</h1>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">EduManage</h1>
           <p className="text-gray-600 dark:text-gray-400 mt-2">Institute Learning Management System</p>
         </div>
 

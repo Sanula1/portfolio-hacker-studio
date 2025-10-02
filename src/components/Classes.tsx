@@ -4,10 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Card, CardContent } from '@/components/ui/card';
-import { Plus, RefreshCw, GraduationCap, Image, Edit, Filter, Search, X } from 'lucide-react';
+import { Plus, RefreshCw, GraduationCap, Image, Edit } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { getBaseUrl } from '@/contexts/utils/auth.api';
@@ -68,18 +65,6 @@ const Classes = () => {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
   const [selectedClass, setSelectedClass] = useState<ClassData | null>(null);
-  
-  // Filter state
-  const [showFilters, setShowFilters] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedGrade, setSelectedGrade] = useState<string>('');
-
-  // Auto-fetch when pagination changes
-  useEffect(() => {
-    if (selectedInstitute?.id && classes.length > 0) {
-      fetchClasses();
-    }
-  }, [page, rowsPerPage]);
 
   // Removed auto-loading useEffect - data now only loads when button is clicked
 
@@ -94,7 +79,8 @@ const Classes = () => {
     const token = localStorage.getItem('access_token');
     return {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`
+      'Authorization': `Bearer ${token}`,
+      'ngrok-skip-browser-warning': 'true'
     };
   };
 
@@ -211,30 +197,6 @@ const Classes = () => {
     fetchClasses();
   };
 
-  const handleClearFilters = () => {
-    setSearchTerm('');
-    setSelectedGrade('');
-    setPage(0);
-  };
-
-  // Frontend filtering
-  const filteredClasses = classes.filter((classItem) => {
-    const matchesSearch = !searchTerm.trim() || 
-      classItem.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      classItem.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      classItem.specialty.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesGrade = !selectedGrade || classItem.grade.toString() === selectedGrade;
-    
-    return matchesSearch && matchesGrade;
-  });
-
-  // Apply pagination to filtered results
-  const paginatedClasses = filteredClasses.slice(
-    page * rowsPerPage,
-    (page + 1) * rowsPerPage
-  );
-
   const columns = [
     {
       key: 'imageUrl',
@@ -256,9 +218,9 @@ const Classes = () => {
       key: 'name',
       header: 'Class Name',
       render: (value: string, row: any) => (
-        <div className="min-w-0">
-          <div className="font-medium truncate">{value}</div>
-          <div className="text-sm text-muted-foreground truncate">{row.code}</div>
+        <div>
+          <div className="font-medium">{value}</div>
+          <div className="text-sm text-muted-foreground">{row.code}</div>
         </div>
       )
     },
@@ -360,16 +322,6 @@ const Classes = () => {
               </p>
             </div>
         <div className="flex items-center gap-2">
-          <Button 
-            onClick={() => setShowFilters(!showFilters)} 
-            variant="outline" 
-            size="sm"
-            className={showFilters ? "bg-primary/10" : ""}
-          >
-            <Filter className="h-4 w-4 mr-2" />
-            Filters
-          </Button>
-          
           <Button onClick={handleLoadData} disabled={loading} variant="outline" size="sm">
             {loading ? (
               <>
@@ -419,82 +371,9 @@ const Classes = () => {
         </div>
       </div>
 
-      {/* Filter Section */}
-      {showFilters && (
-        <Card className="border">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold flex items-center gap-2">
-                <Filter className="h-5 w-5" />
-                Filter Options
-              </h3>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowFilters(false)}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {/* Search Filter */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Search</label>
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-                  <Input
-                    placeholder="Class Name, Grade, Specialty..."
-                    value={searchTerm}
-                    onChange={(e) => {
-                      setSearchTerm(e.target.value);
-                      setPage(0); // Reset to first page when searching
-                    }}
-                    className="pl-10"
-                  />
-                </div>
-              </div>
-
-              {/* Grade Filter */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Grade</label>
-                <Select 
-                  value={selectedGrade} 
-                  onValueChange={(value) => {
-                    setSelectedGrade(value);
-                    setPage(0); // Reset to first page when grade filter changes
-                  }}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="All Grades" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13].map((grade) => (
-                      <SelectItem key={grade} value={grade.toString()}>
-                        Grade {grade}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Filter Actions */}
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Actions</label>
-                <div className="flex gap-2">
-                  <Button onClick={handleClearFilters} variant="outline" size="sm" className="flex-1">
-                    Clear
-                  </Button>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       <MUITable
         title="Classes"
-        data={paginatedClasses}
+        data={classes}
         columns={columns.map(col => ({
           id: col.key,
           label: col.header,
@@ -506,13 +385,15 @@ const Classes = () => {
         onDelete={!isInstituteAdmin && canDelete ? handleDeleteClass : undefined}
         page={page}
         rowsPerPage={rowsPerPage}
-        totalCount={filteredClasses.length} // Use filtered total count
+        totalCount={totalCount} // Use actual total count for server-side pagination
         onPageChange={(newPage: number) => {
           setPage(newPage);
+          // fetchClasses will be called automatically by useEffect
         }}
         onRowsPerPageChange={(newRowsPerPage: number) => {
           setRowsPerPage(newRowsPerPage);
           setPage(0); // Reset to first page
+          // fetchClasses will be called automatically by useEffect
         }}
         sectionType="classes"
         allowAdd={canAdd}

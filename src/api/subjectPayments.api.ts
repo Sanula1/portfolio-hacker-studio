@@ -114,11 +114,9 @@ class SubjectPaymentsApi {
   async getMySubjectSubmissions(
     instituteId: string, 
     classId: string, 
-    subjectId: string,
-    page: number = 1,
-    limit: number = 10
+    subjectId: string
   ): Promise<SubjectSubmissionsResponse> {
-    return apiClient.get(`/institute-class-subject-payment-submissions/institute/${instituteId}/class/${classId}/subject/${subjectId}/my-submissions?page=${page}&limit=${limit}`);
+    return apiClient.get(`/institute-class-subject-payment-submissions/institute/${instituteId}/class/${classId}/subject/${subjectId}/my-submissions`);
   }
 
   // Get all submissions for a specific subject payment (for Admin/Teacher)

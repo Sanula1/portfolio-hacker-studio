@@ -162,7 +162,7 @@ export const instituteClassesApi = {
     return response.data;
   },
 
-  getByInstitute: async (instituteId: string, page: number = 1, limit: number = 50): Promise<InstituteClass[]> => {
+  getByInstitute: async (instituteId: string, page: number = 1, limit: number = 10): Promise<InstituteClass[]> => {
     console.log('🚀 API call to getByInstitute with instituteId:', instituteId, 'page:', page, 'limit:', limit);
     const response = await apiClient.get(`/institute-classes/institute/${instituteId}?page=${page}&limit=${limit}`);
     console.log('📡 Full API response:', response);
@@ -173,7 +173,7 @@ export const instituteClassesApi = {
     return response.data || response;
   },
 
-  getByInstituteAndTeacher: async (instituteId: string, teacherId: string, page: number = 1, limit: number = 50): Promise<TeacherClassesResponse> => {
+  getByInstituteAndTeacher: async (instituteId: string, teacherId: string, page: number = 1, limit: number = 10): Promise<TeacherClassesResponse> => {
     console.log('🚀 API call to getByInstituteAndTeacher with:', { instituteId, teacherId, page, limit });
     const response = await apiClient.get(`/institute-classes/${instituteId}/teacher/${teacherId}?page=${page}&limit=${limit}`);
     console.log('📡 Teacher classes response:', response.data);

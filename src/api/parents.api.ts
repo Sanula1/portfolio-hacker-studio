@@ -6,8 +6,8 @@ export interface ParentCreateData {
     firstName: string;
     lastName: string;
     email: string;
+    password: string;
     phone: string;
-    userType: string;
     dateOfBirth: string;
     gender: string;
     nic?: string;
@@ -19,7 +19,9 @@ export interface ParentCreateData {
     province?: string;
     postalCode?: string;
     country?: string;
+    imageUrl?: string;
     isActive?: boolean;
+    userType: string; // Add missing userType field
   };
   occupation: string;
   workplace?: string;
@@ -43,21 +45,13 @@ export interface Parent {
     lastName: string;
     email: string;
     phoneNumber: string;
+    userType: string;
     dateOfBirth: string;
     gender: string;
     imageUrl?: string;
-    addressLine1?: string;
-    addressLine2?: string;
-    city?: string;
-    district?: string;
-    province?: string;
-    postalCode?: string;
-    country?: string;
-    userType: string;
     isActive: boolean;
     subscriptionPlan: string;
     createdAt: string;
-    updatedAt: string;
   };
 }
 
@@ -71,8 +65,6 @@ export interface InstituteParent {
   dateOfBirth?: string;
   userIdByInstitute: string | null;
   verifiedBy: string | null;
-  occupation?: string;
-  workPlace?: string;
 }
 
 export interface InstituteParentsResponse {
@@ -101,13 +93,8 @@ export const parentsApi = {
     return response.data;
   },
   
-  getInstituteParents: async (instituteId: string, params?: { page?: number; limit?: number }): Promise<InstituteParentsResponse> => {
-    const queryParams = new URLSearchParams();
-    if (params?.page) queryParams.append('page', params.page.toString());
-    if (params?.limit) queryParams.append('limit', params.limit.toString());
-    
-    const url = `/institute-users/institute/${instituteId}/users/PARENT${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
-    const response = await apiClient.get(url);
+  getInstituteParents: async (instituteId: string): Promise<InstituteParentsResponse> => {
+    const response = await apiClient.get(`/institute-users/institute/${instituteId}/users/PARENT`);
     console.log('Raw response from API client:', response);
     // Return the response directly since apiClient.handleResponse already parses the JSON
     return response;

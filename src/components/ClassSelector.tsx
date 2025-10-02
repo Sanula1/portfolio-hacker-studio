@@ -269,15 +269,7 @@ const ClassSelector = () => {
         pagination.totalPages = result.totalPages || Math.ceil(pagination.total / (result.limit || 10));
       }
 
-      // Remove duplicates by class ID - keep the first occurrence
-      const uniqueClasses = new Map();
-      teacherClassAssignments.forEach((item: any) => {
-        if (!uniqueClasses.has(item.class.id)) {
-          uniqueClasses.set(item.class.id, item);
-        }
-      });
-
-      classesArray = Array.from(uniqueClasses.values()).map((item: any): ClassData => ({
+      classesArray = teacherClassAssignments.map((item: any): ClassData => ({
         id: item.class.id,
         name: item.class.name,
         code: item.class.code,

@@ -83,7 +83,8 @@ const SubjectSelector = () => {
   const getApiHeaders = () => {
     const token = getAuthToken();
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      'ngrok-skip-browser-warning': 'true'
     };
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
@@ -236,8 +237,14 @@ const SubjectSelector = () => {
     }
   };
 
-  // REMOVED: Auto-loading useEffect that caused unnecessary API calls
-  // Data now only loads when user explicitly clicks load button
+  // Removed auto-loading useEffects - data now only loads when button is clicked
+
+  // Reset dataLoaded when institute or class changes for AttendanceMarker
+  useEffect(() => {
+    if (user?.role === 'AttendanceMarker') {
+      setDataLoaded(false);
+    }
+  }, [user?.role, currentInstituteId, currentClassId]);
   const handleSelectSubject = (subject: SubjectCardData) => {
     console.log('Selecting subject:', subject);
     setSelectedSubject({

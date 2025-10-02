@@ -508,35 +508,51 @@ const Homework = ({ apiLevel = 'institute' }: HomeworkProps) => {
             </div>
           )}
 
-          {/* MUI Table View - All Screen Sizes */}
-          <MUITable
-            title=""
-            data={homeworkData}
-            columns={homeworkColumns.map(col => ({
-              id: col.key,
-              label: col.header,
-              minWidth: 170,
-              format: col.render
-            }))}
-            onAdd={canAdd ? () => setIsCreateDialogOpen(true) : undefined}
-            onEdit={canEdit ? handleEditHomework : undefined}
-            onView={handleViewHomework}
-            page={page}
-            rowsPerPage={rowsPerPage}
-            totalCount={totalCount}
-            onPageChange={(newPage: number) => {
-              setPage(newPage);
-              handleLoadData(false);
-            }}
-            onRowsPerPageChange={(newRowsPerPage: number) => {
-              setRowsPerPage(newRowsPerPage);
-              setPage(0);
-              handleLoadData(false);
-            }}
-            sectionType="homework"
-            allowEdit={canEdit}
-            allowDelete={canDelete}
-          />
+          {/* Desktop Table View */}
+          <div className="hidden md:block">
+            <MUITable
+              title=""
+              data={homeworkData}
+              columns={homeworkColumns.map(col => ({
+                id: col.key,
+                label: col.header,
+                minWidth: 170,
+                format: col.render
+              }))}
+              onAdd={canAdd ? () => setIsCreateDialogOpen(true) : undefined}
+              onEdit={canEdit ? handleEditHomework : undefined}
+              onView={handleViewHomework}
+              page={page}
+              rowsPerPage={rowsPerPage}
+              totalCount={totalCount}
+              onPageChange={(newPage: number) => {
+                setPage(newPage);
+                handleLoadData(false);
+              }}
+              onRowsPerPageChange={(newRowsPerPage: number) => {
+                setRowsPerPage(newRowsPerPage);
+                setPage(0);
+                handleLoadData(false);
+              }}
+              sectionType="homework"
+              allowEdit={canEdit}
+              allowDelete={canDelete}
+            />
+          </div>
+
+          {/* Mobile Card View */}
+          <div className="md:hidden">
+            <DataCardView
+              data={filteredHomework}
+              columns={homeworkColumns}
+              onView={handleViewHomework}
+              onEdit={canEdit ? handleEditHomework : undefined}
+              onDelete={canDelete ? handleDeleteHomework : undefined}
+              customActions={customActions}
+              allowEdit={canEdit}
+              allowDelete={canDelete}
+            />
+          </div>
         </>
       )}
 

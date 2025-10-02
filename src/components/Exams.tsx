@@ -44,17 +44,16 @@ const Exams = ({ apiLevel = 'institute' }: ExamsProps) => {
   const {
     state: { data: examsData, loading: isLoading },
     pagination,
-    actions: { refresh, updateFilters, setPage, setLimit },
+    actions: { refresh, updateFilters },
     filters
   } = useTableData({
     endpoint: '/institute-class-subject-exams',
     defaultParams: buildDefaultParams(),
-    dependencies: [], // Remove dependencies to prevent auto-reloading on context changes
+    dependencies: [currentInstituteId, currentClassId, currentSubjectId, userRole],
     pagination: {
       defaultLimit: 50,
       availableLimits: [25, 50, 100]
-    },
-    autoLoad: false // DISABLE AUTO-LOADING - only load on explicit button clicks
+    }
   });
 
   const dataLoaded = examsData.length > 0;
@@ -106,12 +105,13 @@ const Exams = ({ apiLevel = 'institute' }: ExamsProps) => {
       }
     }
 
-    // Update filters and load data
+    // Update filters and refresh data
     const newFilters = buildDefaultParams();
     updateFilters(newFilters);
     
-    // Trigger data loading using the actions from useTableData
-    refresh();
+    if (forceRefresh) {
+      refresh();
+    }
   };
 
   const handleRefreshData = async () => {
@@ -475,37 +475,51 @@ const Exams = ({ apiLevel = 'institute' }: ExamsProps) => {
               </div>
            )}
 
-           {/* MUI Table View - All Screen Sizes */}
-          <MUITable
-            title=""
-            data={examsData}
-            columns={examsColumns.map(col => ({
-              id: col.key,
-              label: col.header,
-              minWidth: 170,
-              format: col.render
-            }))}
-            onAdd={canAdd ? () => setIsCreateDialogOpen(true) : undefined}
-            onEdit={userRole === 'InstituteAdmin' ? handleEditExam : undefined}
-            onView={undefined}
-            page={pagination.page}
-            rowsPerPage={pagination.limit}
-            totalCount={pagination.totalCount}
-            onPageChange={setPage}
-            onRowsPerPageChange={setLimit}
-            rowsPerPageOptions={[25, 50, 100]}
-            sectionType="exams"
-            allowEdit={userRole === 'InstituteAdmin'}
-            allowDelete={canDelete}
-            customActions={[
-              {
-                label: '',
-                action: handleViewResults,
-                icon: <Eye className="h-4 w-4" />,
-                variant: 'outline' as const
-              }
-            ]}
-          />
+           {/* Desktop MUI Table View */}
+          <div className="hidden md:block">
+            <MUITable
+              title=""
+              data={examsData}
+              columns={examsColumns.map(col => ({
+                id: col.key,
+                label: col.header,
+                minWidth: 170,
+                format: col.render
+              }))}
+              onAdd={canAdd ? () => setIsCreateDialogOpen(true) : undefined}
+              onEdit={userRole === 'InstituteAdmin' ? handleEditExam : undefined}
+              onView={undefined}
+              page={0}
+              rowsPerPage={50}
+              totalCount={examsData.length}
+              onPageChange={() => {}}
+              onRowsPerPageChange={() => {}}
+              sectionType="exams"
+              allowEdit={userRole === 'InstituteAdmin'}
+              allowDelete={canDelete}
+              customActions={[
+                {
+                  label: '',
+                  action: handleViewResults,
+                  icon: <Eye className="h-4 w-4" />,
+                  variant: 'outline' as const
+                }
+              ]}
+            />
+          </div>
+
+          {/* Mobile Card View */}
+          <div className="md:hidden">
+            <DataCardView
+              data={filteredExams}
+              columns={examsColumns}
+              onView={handleViewResults}
+              onEdit={canEdit ? handleEditExam : undefined}
+              onDelete={canDelete ? handleDeleteExam : undefined}
+              allowEdit={canEdit}
+              allowDelete={canDelete}
+            />
+          </div>
         </>
       )}
 

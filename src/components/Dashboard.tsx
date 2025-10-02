@@ -48,21 +48,9 @@ const Dashboard = () => {
 
   // Special handling for Parent role
   if (user?.role === 'Parent') {
-    // If no child selected, show child selector with dashboard styling
+    // If no child selected, show child selector
     if (!selectedChild) {
-      return (
-        <div className="space-y-6">
-          <div className="text-center py-8">
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
-              Select Your Child
-            </h1>
-            <p className="text-gray-600 dark:text-gray-400 text-lg mb-8">
-              Choose a child to view their academic information, attendance, and results.
-            </p>
-          </div>
-          <ParentChildrenSelector />
-        </div>
-      );
+      return <ParentChildrenSelector />;
     }
     
     // If child is selected, show child dashboard with attendance and results

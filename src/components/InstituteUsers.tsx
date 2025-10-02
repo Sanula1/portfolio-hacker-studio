@@ -17,7 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Eye, RefreshCw, GraduationCap, Users, UserCheck, Plus, UserPlus, UserCog, Filter, Search, Shield } from 'lucide-react';
+import { Eye, RefreshCw, GraduationCap, Users, UserCheck, Plus, UserPlus, UserCog, Filter, Search } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { instituteApi } from '@/api/institute.api';
@@ -27,11 +27,7 @@ import { useTableData } from '@/hooks/useTableData';
 import CreateUserForm from '@/components/forms/CreateUserForm';
 import AssignUserForm from '@/components/forms/AssignUserForm';
 import AssignParentForm from '@/components/forms/AssignParentForm';
-import AssignParentByPhoneForm from '@/components/forms/AssignParentByPhoneForm';
 import CreateStudentForm from '@/components/forms/CreateStudentForm';
-import AssignUserMethodsDialog from '@/components/forms/AssignUserMethodsDialog';
-import { usersApi, BasicUser } from '@/api/users.api';
-import UserInfoDialog from '@/components/forms/UserInfoDialog';
 
 interface InstituteUserData {
   id: string;
@@ -59,7 +55,7 @@ interface InstituteUsersResponse {
   };
 }
 
-type UserType = 'STUDENT' | 'TEACHER' | 'ATTENDANCE_MARKER' | 'INSTITUTE_ADMIN';
+type UserType = 'STUDENT' | 'TEACHER' | 'ATTENDANCE_MARKER';
 
 const InstituteUsers = () => {
   const { toast } = useToast();
@@ -69,7 +65,6 @@ const InstituteUsers = () => {
   const [showUserDialog, setShowUserDialog] = useState(false);
   const [showCreateUserDialog, setShowCreateUserDialog] = useState(false);
   const [showAssignUserDialog, setShowAssignUserDialog] = useState(false);
-  const [showAssignMethodsDialog, setShowAssignMethodsDialog] = useState(false);
   const [showAssignParentDialog, setShowAssignParentDialog] = useState(false);
   const [showCreateStudentDialog, setShowCreateStudentDialog] = useState(false);
   const [selectedStudentForParent, setSelectedStudentForParent] = useState<InstituteUserData | null>(null);
@@ -78,36 +73,25 @@ const InstituteUsers = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'verified' | 'unverified'>('all');
-  const [userInfoDialog, setUserInfoDialog] = useState<{ open: boolean; user: BasicUser | null }>({
-    open: false,
-    user: null,
-  });
 
   // Table data management for each user type
   const studentsTable = useTableData<InstituteUserData>({
     endpoint: `/institute-users/institute/${currentInstituteId}/users/STUDENT`,
-    dependencies: [], // Remove dependencies to prevent auto-reloading
+    dependencies: [currentInstituteId], // avoid auto fetch on tab switch
     pagination: { defaultLimit: 50, availableLimits: [25, 50, 100] },
     autoLoad: false
   });
 
   const teachersTable = useTableData<InstituteUserData>({
     endpoint: `/institute-users/institute/${currentInstituteId}/users/TEACHER`,
-    dependencies: [], // Remove dependencies to prevent auto-reloading
+    dependencies: [currentInstituteId], // avoid auto fetch on tab switch
     pagination: { defaultLimit: 50, availableLimits: [25, 50, 100] },
     autoLoad: false
   });
 
   const attendanceMarkersTable = useTableData<InstituteUserData>({
     endpoint: `/institute-users/institute/${currentInstituteId}/users/ATTENDANCE_MARKER`,
-    dependencies: [], // Remove dependencies to prevent auto-reloading
-    pagination: { defaultLimit: 50, availableLimits: [25, 50, 100] },
-    autoLoad: false
-  });
-
-  const instituteAdminsTable = useTableData<InstituteUserData>({
-    endpoint: `/institute-users/institute/${currentInstituteId}/users/INSTITUTE_ADMIN`,
-    dependencies: [], // Remove dependencies to prevent auto-reloading
+    dependencies: [currentInstituteId], // avoid auto fetch on tab switch
     pagination: { defaultLimit: 50, availableLimits: [25, 50, 100] },
     autoLoad: false
   });
@@ -127,31 +111,9 @@ const InstituteUsers = () => {
     { preventDuplicates: true, showLoading: false }
   );
 
-  // Use API request hook for creating students
-  const createStudentRequest = useApiRequest(
-    async (studentData: any) => {
-      return await studentsApi.create(studentData);
-    },
-    { preventDuplicates: true, showLoading: false }
-  );
-
   const handleViewUser = (user: InstituteUserData) => {
     setSelectedUser(user);
     setShowUserDialog(true);
-  };
-  const handleViewBasicUser = async (id?: string | null) => {
-    if (!id) return;
-    try {
-      const info = await usersApi.getBasicInfo(id);
-      setUserInfoDialog({ open: true, user: info });
-    } catch (error: any) {
-      console.error('Error fetching user basic info:', error);
-      toast({
-        title: 'Failed to load user',
-        description: error?.message || 'Could not fetch user information',
-        variant: 'destructive',
-      });
-    }
   };
 
   const handleCreateUser = async (userData: any) => {
@@ -189,33 +151,26 @@ const InstituteUsers = () => {
   };
 
   const handleParentAssignment = async (data: any) => {
-    // The API call is handled by the form component
-    // This function just handles the success response
-    setShowAssignParentDialog(false);
-    setSelectedStudentForParent(null);
+    if (!selectedStudentForParent) return;
     
-    // Refresh students data
-    studentsTable.actions.refresh();
-  };
-
-  const handleCreateStudent = async (studentData: any) => {
     try {
-      const response = await createStudentRequest.execute(studentData);
+      await studentsApi.assignParent(selectedStudentForParent.id, data);
       
       toast({
-        title: "Student Created",
-        description: "Student has been created successfully.",
+        title: "Parent Assigned",
+        description: "Parent has been assigned to student successfully.",
       });
       
-      setShowCreateStudentDialog(false);
+      setShowAssignParentDialog(false);
+      setSelectedStudentForParent(null);
       
       // Refresh students data
       studentsTable.actions.refresh();
     } catch (error) {
-      console.error('Error creating student:', error);
+      console.error('Error assigning parent:', error);
       toast({
         title: "Error",
-        description: "Failed to create student.",
+        description: "Failed to assign parent to student.",
         variant: "destructive"
       });
     }
@@ -229,8 +184,6 @@ const InstituteUsers = () => {
         return teachersTable;
       case 'ATTENDANCE_MARKER':
         return attendanceMarkersTable;
-      case 'INSTITUTE_ADMIN':
-        return instituteAdminsTable;
       default:
         return studentsTable;
     }
@@ -256,8 +209,6 @@ const InstituteUsers = () => {
         return 'Teachers';
       case 'ATTENDANCE_MARKER':
         return 'Attendance Markers';
-      case 'INSTITUTE_ADMIN':
-        return 'Institute Admins';
       default:
         return '';
     }
@@ -271,8 +222,6 @@ const InstituteUsers = () => {
         return Users;
       case 'ATTENDANCE_MARKER':
         return UserCheck;
-      case 'INSTITUTE_ADMIN':
-        return Shield;
       default:
         return Users;
     }
@@ -327,7 +276,7 @@ const InstituteUsers = () => {
             Filters
           </Button>
           <Button 
-            onClick={() => setShowAssignMethodsDialog(true)}
+            onClick={() => setShowAssignUserDialog(true)}
             variant="outline"
             className="flex items-center gap-2"
           >
@@ -346,7 +295,7 @@ const InstituteUsers = () => {
 
       {/* Tabs for different user types */}
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as UserType)}>
-        <TabsList className="grid w-full grid-cols-4">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="STUDENT" className="flex items-center gap-2">
             <GraduationCap className="h-4 w-4" />
             Students
@@ -358,10 +307,6 @@ const InstituteUsers = () => {
           <TabsTrigger value="ATTENDANCE_MARKER" className="flex items-center gap-2">
             <UserCheck className="h-4 w-4" />
             Attendance Markers
-          </TabsTrigger>
-          <TabsTrigger value="INSTITUTE_ADMIN" className="flex items-center gap-2">
-            <Shield className="h-4 w-4" />
-            Institute Admins
           </TabsTrigger>
         </TabsList>
 
@@ -456,35 +401,6 @@ const InstituteUsers = () => {
                 <>
                   <RefreshCw className="h-4 w-4 mr-2" />
                   Load Attendance Markers
-                </>
-              )}
-            </Button>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="INSTITUTE_ADMIN" className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="flex items-center gap-1">
-                <Shield className="h-4 w-4" />
-                {instituteAdminsTable.pagination.totalCount} Institute Admins
-              </Badge>
-            </div>
-            <Button 
-              onClick={() => instituteAdminsTable.actions.refresh()} 
-              disabled={instituteAdminsTable.state.loading}
-              variant="outline"
-              size="sm"
-            >
-              {instituteAdminsTable.state.loading ? (
-                <>
-                  <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                  Loading...
-                </>
-              ) : (
-                <>
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Load Institute Admins
                 </>
               )}
             </Button>
@@ -771,38 +687,14 @@ const InstituteUsers = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {selectedUser.fatherId && (
                       <div>
-                        <label className="text-sm font-medium text-gray-500 flex items-center justify-between">
-                          <span>Father ID</span>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            className="h-8 w-8 ml-2"
-                            onClick={() => handleViewBasicUser(selectedUser.fatherId)}
-                            aria-label="View father user details"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                        </label>
-                        <p className="text-sm mt-1">{selectedUser.fatherId}</p>
+                        <label className="text-sm font-medium text-gray-500">Father ID</label>
+                        <p className="text-sm">{selectedUser.fatherId}</p>
                       </div>
                     )}
                     {selectedUser.motherId && (
                       <div>
-                        <label className="text-sm font-medium text-gray-500 flex items-center justify-between">
-                          <span>Mother ID</span>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            className="h-8 w-8 ml-2"
-                            onClick={() => handleViewBasicUser(selectedUser.motherId)}
-                            aria-label="View mother user details"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                        </label>
-                        <p className="text-sm mt-1">{selectedUser.motherId}</p>
+                        <label className="text-sm font-medium text-gray-500">Mother ID</label>
+                        <p className="text-sm">{selectedUser.motherId}</p>
                       </div>
                     )}
                     {selectedUser.guardianId && (
@@ -860,8 +752,7 @@ const InstituteUsers = () => {
               <p className="text-sm text-muted-foreground">ID: {selectedStudentForParent.id}</p>
             </div>
           )}
-          <AssignParentByPhoneForm
-            studentId={selectedStudentForParent?.id || ''}
+          <AssignParentForm
             onSubmit={handleParentAssignment}
             onCancel={() => {
               setShowAssignParentDialog(false);
@@ -874,28 +765,11 @@ const InstituteUsers = () => {
       {/* Create Student Dialog */}
       {showCreateStudentDialog && (
         <CreateStudentForm
-          onSubmit={handleCreateStudent}
+          onSubmit={handleCreateUser}
           onCancel={() => setShowCreateStudentDialog(false)}
-          loading={createStudentRequest.loading}
+          loading={createUserRequest.loading}
         />
       )}
-
-      {/* Assign User Methods Dialog */}
-      <AssignUserMethodsDialog
-        open={showAssignMethodsDialog}
-        onClose={() => setShowAssignMethodsDialog(false)}
-        instituteId={currentInstituteId}
-        onSuccess={() => {
-          // Refresh the current tab data
-          getCurrentTable().actions.refresh();
-        }}
-      />
-
-      <UserInfoDialog 
-        open={userInfoDialog.open}
-        onClose={() => setUserInfoDialog({ open: false, user: null })}
-        user={userInfoDialog.user}
-      />
     </div>
   );
 };

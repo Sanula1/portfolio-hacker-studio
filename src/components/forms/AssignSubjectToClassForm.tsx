@@ -50,20 +50,6 @@ const AssignSubjectToClassForm: React.FC<AssignSubjectToClassFormProps> = ({
 }) => {
   const { currentInstituteId, user, selectedInstitute, selectedInstituteType } = useAuth();
   const { toast } = useToast();
-
-  // Check if user is InstituteAdmin or Teacher
-  if (user?.role !== 'Teacher' && user?.role !== 'InstituteAdmin') {
-    return (
-      <div className="p-6 text-center">
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription>
-            Access Denied: This feature is only available for Institute Admins and Teachers.
-          </AlertDescription>
-        </Alert>
-      </div>
-    );
-  }
   
   const [selectedClassId, setSelectedClassId] = useState('');
   const [selectedSubjectIds, setSelectedSubjectIds] = useState<string[]>([]);
@@ -88,7 +74,8 @@ const AssignSubjectToClassForm: React.FC<AssignSubjectToClassFormProps> = ({
     const token = getAuthToken();
     
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json'
+      'Content-Type': 'application/json',
+      'ngrok-skip-browser-warning': 'true'
     };
 
     if (token) {
@@ -150,9 +137,9 @@ const AssignSubjectToClassForm: React.FC<AssignSubjectToClassFormProps> = ({
       let url: string;
       let classData: any[] = [];
       
+      // Use teacher-specific API for Teachers only
       if (user?.role === 'Teacher' && user?.id) {
-        // Use teacher-specific API for Teachers
-        url = `${baseUrl}/institute-classes/${currentInstituteId}/teacher/${user.id}?page=1&limit=10`;
+        url = `${baseUrl}/institute-class-subjects/institute/${currentInstituteId}/teacher/${user.id}?page=1&limit=10`;
         const response = await fetch(url, {
           method: 'GET',
           headers
@@ -163,10 +150,17 @@ const AssignSubjectToClassForm: React.FC<AssignSubjectToClassFormProps> = ({
         }
         
         const result = await response.json();
-        classData = result.data || [];
-      } else if (user?.role === 'InstituteAdmin') {
-        // Use regular API for InstituteAdmin
-        url = `${baseUrl}/institute-classes/institute/${currentInstituteId}`;
+        // Extract unique classes from teacher's class-subject assignments
+        const uniqueClasses = new Map();
+        result.forEach((item: any) => {
+          if (item.class && !uniqueClasses.has(item.class.id)) {
+            uniqueClasses.set(item.class.id, item.class);
+          }
+        });
+        classData = Array.from(uniqueClasses.values());
+      } else {
+        // Use regular API for other roles
+        url = `${baseUrl}/institute-classes?instituteId=${currentInstituteId}`;
         const response = await fetch(url, {
           method: 'GET',
           headers
@@ -177,30 +171,16 @@ const AssignSubjectToClassForm: React.FC<AssignSubjectToClassFormProps> = ({
         }
         
         const result = await response.json();
-        classData = result || [];
+        classData = result.data || [];
       }
       
-      let mappedClasses: any[] = [];
-      
-      if (user?.role === 'Teacher') {
-        // For teachers, map from class-subject assignments
-        mappedClasses = classData.map((item: any) => ({
-          id: item.class.id,
-          name: item.class.name,
-          code: item.class.code,
-          grade: item.class.grade,
-          specialty: item.class.specialty
-        }));
-      } else {
-        // For InstituteAdmin, map directly from classes
-        mappedClasses = classData.map((cls: any) => ({
-          id: cls.id,
-          name: cls.name,
-          code: cls.code,
-          grade: cls.grade,
-          specialty: cls.specialty
-        }));
-      }
+      const mappedClasses = classData.map((cls: any) => ({
+        id: cls.id,
+        name: cls.name,
+        code: cls.code,
+        grade: cls.grade,
+        specialty: cls.specialty
+      }));
       
       setClasses(mappedClasses);
       setShowClassSelector(false);

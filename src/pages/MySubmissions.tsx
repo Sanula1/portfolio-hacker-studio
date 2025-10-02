@@ -1,38 +1,28 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import AppLayout from '@/components/layout/AppLayout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { FileText, CheckCircle, Calendar, DollarSign, Clock, XCircle, Eye, RefreshCw } from 'lucide-react';
+import { FileText, CheckCircle, AlertCircle, Calendar, DollarSign, Clock, XCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { institutePaymentsApi, MyPaymentSubmission, MySubmissionsResponse } from '@/api/institutePayments.api';
+import { institutePaymentsApi, MySubmissionsResponse } from '@/api/institutePayments.api';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import MUITable from '@/components/ui/mui-table';
 
 const MySubmissions = () => {
   const { selectedInstitute } = useAuth();
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState('PENDING');
-  const [loading, setLoading] = useState(false);
   const [submissionsData, setSubmissionsData] = useState<MySubmissionsResponse | null>(null);
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(50);
-
-  // Remove auto-load on mount, only load when refresh is clicked
+  const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState('PENDING');
 
   const loadSubmissions = async () => {
-    if (!selectedInstitute?.id) return;
+    if (!selectedInstitute) return;
     
     setLoading(true);
     try {
       const response = await institutePaymentsApi.getMySubmissions(selectedInstitute.id);
       setSubmissionsData(response);
-      
-      toast({
-        title: "Success",
-        description: "Submissions loaded successfully",
-      });
     } catch (error) {
       console.error('Failed to load submissions:', error);
       toast({
@@ -45,33 +35,35 @@ const MySubmissions = () => {
     }
   };
 
-  // Filter submissions by status on frontend
-  const getFilteredSubmissions = (status: string) => {
-    if (!submissionsData) return [];
-    return submissionsData.data.submissions.filter(submission => submission.status === status);
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'VERIFIED':
+        return 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900 dark:text-green-300';
+      case 'PENDING':
+        return 'bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900 dark:text-yellow-300';
+      case 'REJECTED':
+        return 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900 dark:text-red-300';
+      default:
+        return 'bg-gray-100 text-gray-800 border-gray-200 dark:bg-gray-900 dark:text-gray-300';
+    }
   };
 
-  const getStatusBadge = (status: string) => {
-    const icons = {
-      'VERIFIED': <CheckCircle className="h-4 w-4" />,
-      'PENDING': <Clock className="h-4 w-4" />,
-      'REJECTED': <XCircle className="h-4 w-4" />
-    };
-    
-    const colors = {
-      'VERIFIED': 'bg-green-100 text-green-800 border-green-200 dark:bg-green-900 dark:text-green-300',
-      'PENDING': 'bg-yellow-100 text-yellow-800 border-yellow-200 dark:bg-yellow-900 dark:text-yellow-300',
-      'REJECTED': 'bg-red-100 text-red-800 border-red-200 dark:bg-red-900 dark:text-red-300'
-    };
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'VERIFIED':
+        return <CheckCircle className="h-4 w-4" />;
+      case 'PENDING':
+        return <Clock className="h-4 w-4" />;
+      case 'REJECTED':
+        return <XCircle className="h-4 w-4" />;
+      default:
+        return <AlertCircle className="h-4 w-4" />;
+    }
+  };
 
-    return (
-      <Badge className={colors[status] || 'bg-gray-100 text-gray-800'}>
-        <div className="flex items-center space-x-1">
-          {icons[status]}
-          <span>{status}</span>
-        </div>
-      </Badge>
-    );
+  const filterSubmissionsByStatus = (status: string) => {
+    if (!submissionsData) return [];
+    return submissionsData.data.submissions.filter(submission => submission.status === status);
   };
 
   const getTabIcon = (status: string) => {
@@ -83,142 +75,117 @@ const MySubmissions = () => {
       case 'REJECTED':
         return <XCircle className="h-4 w-4" />;
       default:
-        return <Clock className="h-4 w-4" />;
+        return <AlertCircle className="h-4 w-4" />;
     }
   };
 
-  // Define table columns
-  const getColumns = () => [
-    {
-      id: 'paymentType',
-      label: 'Payment Type',
-      minWidth: 150,
-      format: (value: string) => value || '-'
-    },
-    {
-      id: 'description',
-      label: 'Description',
-      minWidth: 200,
-      format: (value: string) => value || '-'
-    },
-    {
-      id: 'priority',
-      label: 'Priority',
-      minWidth: 100,
-      format: (value: string) => (
-        <Badge variant={value === 'MANDATORY' ? 'destructive' : 'secondary'}>
-          {value}
-        </Badge>
-      )
-    },
-    {
-      id: 'paymentAmount',
-      label: 'Amount',
-      minWidth: 120,
-      align: 'right' as const,
-      format: (value: number) => `Rs ${value.toLocaleString()}`
-    },
-    {
-      id: 'totalAmountPaid',
-      label: 'Total Paid',
-      minWidth: 120,
-      align: 'right' as const,
-      format: (value: number) => `Rs ${value.toLocaleString()}`
-    },
-    {
-      id: 'lateFeeApplied',
-      label: 'Late Fee',
-      minWidth: 100,
-      align: 'right' as const,
-      format: (value: number) => value > 0 ? `Rs ${value.toLocaleString()}` : '-'
-    },
-    {
-      id: 'paymentMethod',
-      label: 'Method',
-      minWidth: 120,
-      format: (value: string) => value?.replace('_', ' ') || '-'
-    },
-    {
-      id: 'transactionReference',
-      label: 'Transaction ID',
-      minWidth: 150,
-      format: (value: string) => value || '-'
-    },
-    {
-      id: 'dueDate',
-      label: 'Due Date',
-      minWidth: 130,
-      format: (value: string) => new Date(value).toLocaleDateString()
-    },
-    {
-      id: 'paymentDate',
-      label: 'Payment Date',
-      minWidth: 130,
-      format: (value: string) => new Date(value).toLocaleDateString()
-    },
-    {
-      id: 'createdAt',
-      label: 'Submitted',
-      minWidth: 130,
-      format: (value: string) => new Date(value).toLocaleDateString()
-    },
-    {
-      id: 'verifiedAt',
-      label: 'Verified',
-      minWidth: 130,
-      format: (value: string) => value ? new Date(value).toLocaleDateString() : '-'
-    },
-    {
-      id: 'daysSinceSubmission',
-      label: 'Days Since',
-      minWidth: 100,
-      align: 'center' as const,
-      format: (value: number) => `${value} days`
-    },
-    {
-      id: 'paymentRemarks',
-      label: 'Remarks',
-      minWidth: 150,
-      format: (value: string) => value || '-'
-    },
-    {
-      id: 'status',
-      label: 'Status',
-      minWidth: 120,
-      align: 'center' as const,
-      format: (value: string) => getStatusBadge(value)
-    },
-    {
-      id: 'receiptFileUrl',
-      label: 'Receipt',
-      minWidth: 100,
-      align: 'center' as const,
-      format: (value: string) => value ? (
-        <Button 
-          variant="outline" 
-          size="sm"
-          onClick={() => window.open(value, '_blank')}
-        >
-          <Eye className="h-4 w-4 mr-1" />
-          View
-        </Button>
-      ) : '-'
-    }
-  ];
+  const renderSubmissionCard = (submission: any) => (
+    <div
+      key={submission.id}
+      className="border rounded-lg p-6 hover:bg-muted/50 transition-colors"
+    >
+      <div className="flex items-start justify-between mb-4">
+        <div className="flex items-center space-x-3">
+          <Badge className={`px-3 py-1 ${getStatusColor(submission.status)}`}>
+            {getStatusIcon(submission.status)}
+            <span className="ml-2">{submission.status}</span>
+          </Badge>
+          <div>
+            <h3 className="font-semibold text-lg">
+              {submission.paymentType}
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              {submission.description}
+            </p>
+          </div>
+        </div>
+        <div className="text-right">
+          <p className="text-2xl font-bold">
+            ₹{submission.paymentAmount.toLocaleString()}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            {submission.priority}
+          </p>
+        </div>
+      </div>
 
-  const handleViewDetails = (submission: MyPaymentSubmission) => {
-    // Could open a dialog with more details
-    console.log('View details for submission:', submission);
-  };
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <div className="space-y-2">
+          <div className="flex items-center space-x-2">
+            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium">Payment Method:</span>
+            <span className="text-sm">{submission.paymentMethod}</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <FileText className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium">Transaction Ref:</span>
+            <span className="text-sm font-mono">{submission.transactionReference}</span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium">Payment Date:</span>
+            <span className="text-sm">
+              {new Date(submission.paymentDate).toLocaleDateString()}
+            </span>
+          </div>
+        </div>
+        <div className="space-y-2">
+          <div className="flex items-center space-x-2">
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium">Due Date:</span>
+            <span className="text-sm">
+              {new Date(submission.dueDate).toLocaleDateString()}
+            </span>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Calendar className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium">Submitted:</span>
+            <span className="text-sm">
+              {new Date(submission.createdAt).toLocaleDateString()}
+            </span>
+          </div>
+          {submission.verifiedAt && (
+            <div className="flex items-center space-x-2">
+              <CheckCircle className="h-4 w-4 text-green-500" />
+              <span className="text-sm font-medium">Verified:</span>
+              <span className="text-sm">
+                {new Date(submission.verifiedAt).toLocaleDateString()}
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
 
-  const handlePageChange = (newPage: number) => {
-    setPage(newPage);
-  };
+      {submission.paymentRemarks && (
+        <div className="mt-4 p-3 bg-muted rounded-lg">
+          <p className="text-sm font-medium mb-1">Payment Remarks:</p>
+          <p className="text-sm">{submission.paymentRemarks}</p>
+        </div>
+      )}
 
-  const handleRowsPerPageChange = (newRowsPerPage: number) => {
-    setRowsPerPage(newRowsPerPage);
-    setPage(0);
-  };
+      {submission.rejectionReason && (
+        <div className="mt-4 p-3 bg-red-50 dark:bg-red-950 rounded-lg">
+          <p className="text-sm font-medium mb-1 text-red-800 dark:text-red-200">Rejection Reason:</p>
+          <p className="text-sm text-red-700 dark:text-red-300">{submission.rejectionReason}</p>
+        </div>
+      )}
+
+      {submission.receiptFileName && (
+        <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-950 rounded-lg">
+          <p className="text-sm font-medium mb-1">Receipt File:</p>
+          <div className="flex items-center space-x-2">
+            <FileText className="h-4 w-4" />
+            <span className="text-sm">{submission.receiptFileName}</span>
+            {submission.receiptFileSize && (
+              <span className="text-xs text-muted-foreground">
+                ({(submission.receiptFileSize / 1024).toFixed(1)} KB)
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <AppLayout>
@@ -233,18 +200,8 @@ const MySubmissions = () => {
               </p>
             )}
           </div>
-          <Button onClick={loadSubmissions} disabled={loading} variant="outline">
-            {loading ? (
-              <>
-                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                Loading...
-              </>
-            ) : (
-              <>
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Refresh
-              </>
-            )}
+          <Button onClick={loadSubmissions} disabled={loading}>
+            {loading ? 'Loading...' : 'Load Submissions'}
           </Button>
         </div>
 
@@ -299,82 +256,80 @@ const MySubmissions = () => {
         )}
 
         {/* Submissions Tabs */}
-        {!submissionsData ? (
-          <div className="text-center py-12">
-            <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-            <p className="text-muted-foreground text-lg mb-2">
-              {loading ? 'Loading your payment submissions...' : 'Click "Refresh" to view your payment submissions'}
-            </p>
-          </div>
-        ) : (
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="PENDING" className="flex items-center space-x-2">
-                {getTabIcon('PENDING')}
-                <span>Pending ({submissionsData.data.summary.byStatus.pending})</span>
-              </TabsTrigger>
-              <TabsTrigger value="VERIFIED" className="flex items-center space-x-2">
-                {getTabIcon('VERIFIED')}
-                <span>Verified ({submissionsData.data.summary.byStatus.verified})</span>
-              </TabsTrigger>
-              <TabsTrigger value="REJECTED" className="flex items-center space-x-2">
-                {getTabIcon('REJECTED')}
-                <span>Rejected ({submissionsData.data.summary.byStatus.rejected})</span>
-              </TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="PENDING" className="mt-6">
-              <MUITable
-                title="Pending Submissions"
-                columns={getColumns()}
-                data={getFilteredSubmissions('PENDING')}
-                page={page}
-                rowsPerPage={rowsPerPage}
-                totalCount={getFilteredSubmissions('PENDING').length}
-                onPageChange={handlePageChange}
-                onRowsPerPageChange={handleRowsPerPageChange}
-                rowsPerPageOptions={[25, 50, 100]}
-                allowAdd={false}
-                allowEdit={false}
-                allowDelete={false}
-              />
-            </TabsContent>
-            
-            <TabsContent value="VERIFIED" className="mt-6">
-              <MUITable
-                title="Verified Submissions"
-                columns={getColumns()}
-                data={getFilteredSubmissions('VERIFIED')}
-                page={page}
-                rowsPerPage={rowsPerPage}
-                totalCount={getFilteredSubmissions('VERIFIED').length}
-                onPageChange={handlePageChange}
-                onRowsPerPageChange={handleRowsPerPageChange}
-                rowsPerPageOptions={[25, 50, 100]}
-                allowAdd={false}
-                allowEdit={false}
-                allowDelete={false}
-              />
-            </TabsContent>
-            
-            <TabsContent value="REJECTED" className="mt-6">
-              <MUITable
-                title="Rejected Submissions"
-                columns={getColumns()}
-                data={getFilteredSubmissions('REJECTED')}
-                page={page}
-                rowsPerPage={rowsPerPage}
-                totalCount={getFilteredSubmissions('REJECTED').length}
-                onPageChange={handlePageChange}
-                onRowsPerPageChange={handleRowsPerPageChange}
-                rowsPerPageOptions={[25, 50, 100]}
-                allowAdd={false}
-                allowEdit={false}
-                allowDelete={false}
-              />
-            </TabsContent>
-          </Tabs>
-        )}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center space-x-2">
+              <FileText className="h-5 w-5" />
+              <span>Payment Submissions</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {!submissionsData ? (
+              <div className="text-center py-12">
+                <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                <p className="text-muted-foreground text-lg mb-2">
+                  Click "Load Submissions" to view your payment submissions
+                </p>
+              </div>
+            ) : (
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="PENDING" className="flex items-center space-x-2">
+                    {getTabIcon('PENDING')}
+                    <span>Pending ({submissionsData.data.summary.byStatus.pending})</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="VERIFIED" className="flex items-center space-x-2">
+                    {getTabIcon('VERIFIED')}
+                    <span>Verified ({submissionsData.data.summary.byStatus.verified})</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="REJECTED" className="flex items-center space-x-2">
+                    {getTabIcon('REJECTED')}
+                    <span>Rejected ({submissionsData.data.summary.byStatus.rejected})</span>
+                  </TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="PENDING" className="mt-6">
+                  <div className="space-y-4">
+                    {filterSubmissionsByStatus('PENDING').length === 0 ? (
+                      <div className="text-center py-8">
+                        <Clock className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                        <p className="text-muted-foreground">No pending submissions</p>
+                      </div>
+                    ) : (
+                      filterSubmissionsByStatus('PENDING').map(renderSubmissionCard)
+                    )}
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="VERIFIED" className="mt-6">
+                  <div className="space-y-4">
+                    {filterSubmissionsByStatus('VERIFIED').length === 0 ? (
+                      <div className="text-center py-8">
+                        <CheckCircle className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                        <p className="text-muted-foreground">No verified submissions</p>
+                      </div>
+                    ) : (
+                      filterSubmissionsByStatus('VERIFIED').map(renderSubmissionCard)
+                    )}
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="REJECTED" className="mt-6">
+                  <div className="space-y-4">
+                    {filterSubmissionsByStatus('REJECTED').length === 0 ? (
+                      <div className="text-center py-8">
+                        <XCircle className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                        <p className="text-muted-foreground">No rejected submissions</p>
+                      </div>
+                    ) : (
+                      filterSubmissionsByStatus('REJECTED').map(renderSubmissionCard)
+                    )}
+                  </div>
+                </TabsContent>
+              </Tabs>
+            )}
+          </CardContent>
+        </Card>
       </div>
     </AppLayout>
   );

@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, Eye, CheckCircle, Clock, XCircle, User, Calendar, FileText, DollarSign, Shield, RefreshCw, School, Search } from 'lucide-react';
+import { ArrowLeft, Eye, Download, CheckCircle, Clock, XCircle, User, Calendar, FileText, DollarSign, Shield, RefreshCw, School, Search } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { subjectPaymentsApi, SubjectPaymentSubmission } from '@/api/subjectPayments.api';
 import { useNavigate, useSearchParams } from 'react-router-dom';

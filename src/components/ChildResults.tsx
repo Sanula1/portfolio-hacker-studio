@@ -259,9 +259,9 @@ const ChildResults = () => {
                     <TableRow key={result.id}>
                       <TableCell>
                         <div className="flex flex-col">
-                          <span className="font-medium">{result.exam?.title || 'Unknown Exam'}</span>
+                          <span className="font-medium">{result.exam.title}</span>
                           <Badge variant="outline" className="text-xs w-fit mt-1">
-                            {result.exam?.examType || 'N/A'}
+                            {result.exam.examType}
                           </Badge>
                         </div>
                       </TableCell>

@@ -6,8 +6,6 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
-import QRAttendance from '@/components/QRAttendance';
-import RFIDAttendance from '@/pages/RFIDAttendance';
 
 import NotFound from "./pages/NotFound";
 import Payments from "./pages/Payments";
@@ -26,7 +24,6 @@ import UpdateHomework from '@/pages/UpdateHomework';
 import UpdateLecture from '@/pages/UpdateLecture';
 import CardDemo from '@/pages/CardDemo';
 import ExamResults from '@/pages/ExamResults';
-import TransportSelection from '@/pages/TransportSelection';
 import ErrorBoundary from '@/components/ErrorBoundary';
 
 const queryClient = new QueryClient();
@@ -79,8 +76,8 @@ const App = () => {
               <Route path="/daily-attendance" element={<Index />} />
               
               <Route path="/attendance-markers" element={<Index />} />
-               <Route path="/qr-attendance" element={<QRAttendance />} />
-               <Route path="/rfid-attendance" element={<RFIDAttendance />} />
+              <Route path="/qr-attendance" element={<Index />} />
+              <Route path="/rfid-attendance" element={<Index />} />
               
               {/* Academic Content Routes */}
               <Route path="/lectures" element={<Index />} />
@@ -112,14 +109,6 @@ const App = () => {
               <Route path="/teacher-homework" element={<Index />} />
               <Route path="/teacher-exams" element={<Index />} />
               <Route path="/teacher-lectures" element={<Index />} />
-              
-              {/* Transport Routes */}
-              <Route path="/transport" element={<Index />} />
-              <Route path="/student-transport" element={<Index />} />
-              <Route path="/parent-transport" element={<Index />} />
-              <Route path="/transport-selection" element={<TransportSelection />} />
-              <Route path="/transport-attendance" element={<TransportSelection />} />
-              <Route path="/transport-info" element={<TransportSelection />} />
               
               {/* Settings and Profile Routes */}
               <Route path="/profile" element={<Index />} />

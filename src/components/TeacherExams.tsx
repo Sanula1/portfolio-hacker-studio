@@ -96,9 +96,9 @@ const TeacherExams = () => {
       subjectId: selectedSubject?.id,
       teacherId: user?.id
     },
-    dependencies: [], // Remove dependencies to prevent auto-reloading on context changes
+    dependencies: [selectedInstitute?.id, selectedClass?.id, selectedSubject?.id, user?.id],
     pagination: { defaultLimit: 50, availableLimits: [25, 50, 100] },
-    autoLoad: false // Keep disabled
+    autoLoad: false
   });
 
   const { state: { data: exams, loading }, pagination, actions } = tableData;

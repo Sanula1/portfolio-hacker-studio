@@ -52,7 +52,7 @@ const Subjects = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [categoryFilter, setCategoryFilter] = useState('all');
 
-  // Enhanced pagination with useTableData hook - DISABLE AUTO-LOADING
+  // Enhanced pagination with useTableData hook
   const tableData = useTableData<SubjectData>({
     endpoint: '/subjects',
     defaultParams: {
@@ -60,12 +60,11 @@ const Subjects = () => {
         instituteType: selectedInstituteType
       })
     },
-    dependencies: [], // Remove dependencies to prevent auto-reloading
+    dependencies: [currentInstituteId, selectedInstituteType],
     pagination: {
       defaultLimit: 50,
       availableLimits: [25, 50, 100]
-    },
-    autoLoad: false // DISABLE AUTO-LOADING
+    }
   });
   const {
     state: {
@@ -258,12 +257,10 @@ const Subjects = () => {
                    Create Subject
                  </Button>}
                 
-                {(userRole === 'InstituteAdmin' || (canAssignSubjects && dataLoaded && subjectsData.length > 0)) && (
-                  <Button onClick={() => setIsAssignDialogOpen(true)} className="bg-purple-600 hover:bg-purple-700 text-white flex items-center gap-2" size="sm">
+                {canAssignSubjects && dataLoaded && subjectsData.length > 0 && <Button onClick={() => setIsAssignDialogOpen(true)} className="bg-purple-600 hover:bg-purple-700 text-white flex items-center gap-2" size="sm">
                     <Plus className="h-4 w-4" />
                     Assign Subject
-                  </Button>
-                )}
+                  </Button>}
             </div>
             
             <Button onClick={handleLoadData} disabled={isLoading} variant="outline" size="sm">

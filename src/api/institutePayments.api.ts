@@ -52,33 +52,6 @@ export interface PaymentSubmission {
   updatedAt: string;
 }
 
-export interface MyPaymentSubmission {
-  id: string;
-  paymentId: string;
-  paymentType: string;
-  description: string;
-  dueDate: string;
-  priority: string;
-  paymentAmount: number;
-  paymentMethod: string;
-  transactionReference: string;
-  paymentDate: string;
-  status: 'PENDING' | 'VERIFIED' | 'REJECTED';
-  verifiedAt: string | null;
-  rejectionReason: string | null;
-  lateFeeApplied: number;
-  totalAmountPaid: number;
-  receiptFileName: string;
-  receiptFileUrl: string;
-  receiptFileSize: number;
-  receiptFileType: string;
-  paymentRemarks: string;
-  createdAt: string;
-  canResubmit: boolean;
-  canDelete: boolean;
-  daysSinceSubmission: number;
-}
-
 export interface InstitutePaymentsResponse {
   success: boolean;
   message: string;
@@ -135,7 +108,7 @@ export interface MySubmissionsResponse {
   success: boolean;
   message: string;
   data: {
-    submissions: MyPaymentSubmission[];
+    submissions: PaymentSubmission[];
     pagination: {
       currentPage: number;
       totalPages: number;
@@ -247,15 +220,8 @@ class InstitutePaymentsApi {
   }
 
   // Get student's own submissions (for Student)
-  async getMySubmissions(instituteId: string, params?: {
-    page?: number;
-    limit?: number;
-    status?: 'PENDING' | 'VERIFIED' | 'REJECTED';
-    search?: string;
-    paymentDateFrom?: string;
-    paymentDateTo?: string;
-  }): Promise<MySubmissionsResponse> {
-    return apiClient.get(`/institute-payment-submissions/institute/${instituteId}/my-submissions`, params);
+  async getMySubmissions(instituteId: string): Promise<MySubmissionsResponse> {
+    return apiClient.get(`/institute-payment-submissions/institute/${instituteId}/my-submissions`);
   }
 
   // Create a new payment (for InstituteAdmin)
@@ -294,7 +260,8 @@ class InstitutePaymentsApi {
     const response = await fetch(url, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${authToken}`
+        'Authorization': `Bearer ${authToken}`,
+        'ngrok-skip-browser-warning': 'true'
         // Do NOT set Content-Type for FormData
       },
       body: formData

@@ -2,8 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useAppNavigation } from '@/hooks/useAppNavigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Building2, BookOpen, GraduationCap, User, Palette, Menu, X, ArrowLeft } from 'lucide-react';
 import Sidebar from '@/components/layout/Sidebar';
 import Header from '@/components/layout/Header';
 import Dashboard from '@/components/Dashboard';
@@ -62,11 +60,6 @@ import InstituteUsers from '@/components/InstituteUsers';
 import SetupGuide from '@/components/SetupGuide';
 import StudentHomeworkSubmissions from '@/components/StudentHomeworkSubmissions';
 import FreeLectures from '@/components/FreeLectures';
-import Transport from '@/components/Transport';
-import StudentTransport from '@/components/StudentTransport';
-import ParentTransport from '@/components/ParentTransport';
-import TransportSelection from '@/pages/TransportSelection';
-import TransportAttendance from '@/pages/TransportAttendance';
 
 interface AppContentProps {
   initialPage?: string;
@@ -183,37 +176,32 @@ const AppContent = ({ initialPage }: AppContentProps) => {
     const navigationItems = [
       {
         id: 'organizations',
-        title: 'Select Organizations',
-        description: 'Browse and manage organizations',
-        icon: Building2,
+        label: 'Select Organizations',
+        icon: '🏢',
         visible: true
       },
       {
         id: 'courses',
-        title: 'Courses',
-        description: 'Manage course content',
-        icon: BookOpen,
+        label: 'Courses',
+        icon: '📚',
         visible: isOrganizationManager
       },
       {
         id: 'lectures',
-        title: 'Lectures',
-        description: 'Schedule and view lectures',
-        icon: GraduationCap,
+        label: 'Lectures',
+        icon: '🎓',
         visible: isOrganizationManager
       },
       {
         id: 'profile',
-        title: 'Profile',
-        description: 'Manage your profile',
-        icon: User,
+        label: 'Profile',
+        icon: '👤',
         visible: true
       },
       {
         id: 'appearance',
-        title: 'Appearance',
-        description: 'Customize app appearance',
-        icon: Palette,
+        label: 'Appearance',
+        icon: '🎨',
         visible: true
       }
     ];
@@ -222,40 +210,11 @@ const AppContent = ({ initialPage }: AppContentProps) => {
       setOrganizationCurrentPage(pageId);
       setIsSidebarOpen(false); // Close mobile sidebar after navigation
     };
-
-    const SidebarSection = ({ title, items }: { title: string; items: any[] }) => {
-      if (items.length === 0) return null;
-
-      return (
-        <div className="mb-4 sm:mb-6">
-          <h3 className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider mb-2 px-3">
-            {title}
-          </h3>
-          <div className="space-y-1">
-            {items.map((item) => (
-              <Button
-                key={item.id}
-                variant={organizationCurrentPage === item.id ? "secondary" : "ghost"}
-                className={`w-full justify-start h-9 sm:h-10 px-3 text-sm ${
-                  organizationCurrentPage === item.id 
-                    ? 'bg-blue-100 dark:bg-blue-900 text-blue-900 dark:text-blue-100 border-r-2 border-blue-600' 
-                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
-                }`}
-                onClick={() => handleNavigation(item.id)}
-              >
-                <item.icon className="mr-3 h-4 w-4 flex-shrink-0" />
-                {item.title}
-              </Button>
-            ))}
-          </div>
-        </div>
-      );
-    };
     
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         {/* Mobile Header */}
-        <div className="md:hidden bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+        <div className="lg:hidden bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
           <div className="flex items-center justify-between p-4">
             <h2 className="font-bold text-lg text-gray-900 dark:text-white">Organization Portal</h2>
             <div className="flex items-center gap-2">
@@ -263,9 +222,11 @@ const AppContent = ({ initialPage }: AppContentProps) => {
                 variant="ghost"
                 size="sm"
                 onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                className="md:hidden"
+                className="lg:hidden"
               >
-                <Menu className="h-5 w-5" />
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
               </Button>
               <Button variant="ghost" size="sm" onClick={handleBackToMain}>
                 Back
@@ -274,86 +235,69 @@ const AppContent = ({ initialPage }: AppContentProps) => {
           </div>
         </div>
 
-        <div className="flex w-full min-h-screen">
+        <div className="flex w-full min-h-screen lg:h-screen">
           {/* Mobile Overlay */}
           {isSidebarOpen && (
             <div 
-              className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
+              className="fixed inset-0 bg-black bg-opacity-50 z-20 lg:hidden"
               onClick={() => setIsSidebarOpen(false)}
             />
           )}
 
           {/* Organization Sidebar */}
           <div className={`
-            fixed inset-y-0 left-0 z-50 md:relative
-            w-72 sm:w-80 md:w-64 lg:w-72 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700
-            transform transition-transform duration-300 ease-in-out md:transform-none
-            ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
-            flex flex-col h-screen
-            overflow-hidden
+            fixed lg:static inset-y-0 left-0 z-30 w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col
+            transform transition-transform duration-300 ease-in-out lg:translate-x-0
+            ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+            lg:w-64 lg:flex
           `}>
-            {/* Header */}
-            <div className="flex items-center justify-between p-3 sm:p-4 border-b border-gray-200 dark:border-gray-700">
-              <div className="flex items-center space-x-2 min-w-0">
-                <Building2 className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600 flex-shrink-0" />
-                <span className="font-bold text-base sm:text-lg text-gray-900 dark:text-white truncate">
-                  Organization
-                </span>
-              </div>
-              <div className="flex items-center space-x-1">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIsSidebarOpen(false)}
-                  className="h-8 w-8 p-0 hover:bg-gray-100 dark:hover:bg-gray-700"
-                  aria-label="Close Sidebar"
-                >
-                  <X className="h-4 w-4 md:hidden" />
-                  <Menu className="h-4 w-4 hidden md:block" />
-                </Button>
-              </div>
+            {/* Desktop Header */}
+            <div className="hidden lg:flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+              <h2 className="font-bold text-lg text-gray-900 dark:text-white">Organization Portal</h2>
+              <Button variant="ghost" size="sm" onClick={handleBackToMain}>
+                Back
+              </Button>
             </div>
 
-            {/* Context Info */}
-            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 border-b border-gray-200 dark:border-gray-700">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-medium text-blue-600 dark:text-blue-400">
-                  Management Hub
-                </span>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleBackToMain}
-                  className="h-6 w-6 p-0 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-800"
-                  aria-label="Back to Main"
-                >
-                  <ArrowLeft className="h-3 w-3" />
-                </Button>
-              </div>
-              <div className="text-xs text-blue-600 dark:text-blue-400">
-                <span className="font-medium">Module:</span> 
-                <span className="ml-1 truncate">Organization System</span>
-              </div>
-            </div>
-
-            {/* Navigation */}
-            <ScrollArea className="flex-1 px-2 sm:px-3 py-3 sm:py-4">
-              <div className="space-y-2">
-                {/* Main navigation items */}
-                <SidebarSection title="Quick Access" items={navigationItems.filter(item => item.visible)} />
-              </div>
-            </ScrollArea>
-
-            {/* Footer */}
-            <div className="p-3 sm:p-4 border-t border-gray-200 dark:border-gray-700">
+            {/* Mobile Header in Sidebar */}
+            <div className="lg:hidden flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
+              <h2 className="font-bold text-lg text-gray-900 dark:text-white">Navigation</h2>
               <Button
-                variant="outline"
+                variant="ghost"
                 size="sm"
-                onClick={handleBackToMain}
-                className="w-full flex items-center justify-center gap-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700 h-8 sm:h-9"
+                onClick={() => setIsSidebarOpen(false)}
               >
-                <ArrowLeft className="h-3 w-3 sm:h-4 sm:w-4" />
-                <span className="text-xs sm:text-sm">Back to Main</span>
+                <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </Button>
+            </div>
+            
+            {/* Navigation Items */}
+            <div className="flex-1 p-4 overflow-y-auto">
+              <div className="space-y-2">
+                {navigationItems.filter(item => item.visible).map((item) => (
+                  <Button
+                    key={item.id}
+                    variant={organizationCurrentPage === item.id ? 'default' : 'ghost'}
+                    className="w-full justify-start text-left"
+                    onClick={() => handleNavigation(item.id)}
+                  >
+                    <span className="mr-3 text-base">{item.icon}</span>
+                    <span className="flex-1">{item.label}</span>
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            {/* Mobile Back Button */}
+            <div className="lg:hidden p-4 border-t border-gray-200 dark:border-gray-700">
+              <Button 
+                variant="outline" 
+                className="w-full"
+                onClick={handleBackToMain}
+              >
+                Back to Main
               </Button>
             </div>
           </div>
@@ -489,25 +433,6 @@ const AppContent = ({ initialPage }: AppContentProps) => {
         // This should be handled by the auth context
       }
       
-      // Transport pages don't require institute selection
-      if (currentPage === 'transport' || currentPage === 'student-transport' || currentPage === 'parent-transport' || currentPage === 'transport-selection' || currentPage === 'transport-attendance') {
-        if (currentPage === 'transport') {
-          return <Transport />;
-        }
-        if (currentPage === 'student-transport') {
-          return <StudentTransport />;
-        }
-        if (currentPage === 'parent-transport') {
-          return <ParentTransport />;
-        }
-        if (currentPage === 'transport-selection') {
-          return <TransportSelection />;
-        }
-        if (currentPage === 'transport-attendance') {
-          return <TransportAttendance />;
-        }
-      }
-      
       if (!selectedInstitute && currentPage !== 'institutes' && currentPage !== 'select-institute') {
         return <InstituteSelector />;
       }
@@ -547,14 +472,6 @@ const AppContent = ({ initialPage }: AppContentProps) => {
           return <Appearance />;
         case 'organizations':
           return renderComponent();
-        case 'transport':
-          return <Transport />;
-        case 'student-transport':
-          return <StudentTransport />;
-        case 'transport-selection':
-          return <TransportSelection />;
-        case 'transport-attendance':
-          return <TransportAttendance />;
         default:
           return <Dashboard />;
       }
@@ -562,22 +479,6 @@ const AppContent = ({ initialPage }: AppContentProps) => {
 
     // For Parent role
     if (user?.role === 'Parent') {
-      // Transport pages don't require child or institute selection
-      if (currentPage === 'transport' || currentPage === 'parent-transport' || currentPage === 'transport-selection' || currentPage === 'transport-attendance') {
-        if (currentPage === 'transport') {
-          return <Transport />;
-        }
-        if (currentPage === 'parent-transport') {
-          return <ParentTransport />;
-        }
-        if (currentPage === 'transport-selection') {
-          return <TransportSelection />;
-        }
-        if (currentPage === 'transport-attendance') {
-          return <TransportAttendance />;
-        }
-      }
-
       if (currentPage === 'parents') {
         return <ParentChildrenSelector />;
       }
@@ -615,14 +516,6 @@ const AppContent = ({ initialPage }: AppContentProps) => {
           return <ParentChildrenSelector />;
         case 'appearance':
           return <Appearance />;
-        case 'transport':
-          return <Transport />;
-        case 'parent-transport':
-          return <ParentTransport />;
-        case 'transport-selection':
-          return <TransportSelection />;
-        case 'transport-attendance':
-          return <TransportAttendance />;
         default:
           return <ParentChildrenSelector />;
       }

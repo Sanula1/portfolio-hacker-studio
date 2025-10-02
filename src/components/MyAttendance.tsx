@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
-import { Calendar, Clock, MapPin, User, RefreshCw, AlertTriangle, TrendingUp, UserCheck, UserX, Filter } from 'lucide-react';
+import { Calendar, Clock, MapPin, User, RefreshCw, AlertTriangle, TrendingUp, UserCheck, UserX } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { studentAttendanceApi, type StudentAttendanceRecord, type StudentAttendanceResponse } from '@/api/studentAttendance.api';
@@ -18,7 +18,6 @@ const MyAttendance = () => {
   const [endDate, setEndDate] = useState('2025-09-27');
   const [currentPage, setCurrentPage] = useState(1);
   const [limit, setLimit] = useState(5);
-  const [showFilters, setShowFilters] = useState(false);
 
   const { execute: fetchAttendance, loading } = useApiRequest(studentAttendanceApi.getStudentAttendance);
 
@@ -132,79 +131,66 @@ const MyAttendance = () => {
             Your attendance records and statistics
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center gap-2"
-          >
-            <Filter className="h-4 w-4" />
-            Filters
-          </Button>
-          <Button 
-            onClick={loadStudentAttendance} 
-            disabled={loading}
-            variant="outline"
-            size="sm"
-          >
-            {loading ? (
-              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-            ) : (
-              <RefreshCw className="h-4 w-4 mr-2" />
-            )}
-            Refresh
-          </Button>
-        </div>
+        <Button 
+          onClick={loadStudentAttendance} 
+          disabled={loading}
+          variant="outline"
+          size="sm"
+        >
+          {loading ? (
+            <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+          ) : (
+            <RefreshCw className="h-4 w-4 mr-2" />
+          )}
+          Refresh
+        </Button>
       </div>
 
       {/* Date Filters and Page Settings */}
-      {showFilters && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="h-5 w-5" />
-              Filters & Settings
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
-              <div>
-                <label className="text-sm font-medium mb-2 block">Start Date</label>
-                <Input
-                  type="date"
-                  value={startDate}
-                  onChange={(e) => setStartDate(e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium mb-2 block">End Date</label>
-                <Input
-                  type="date"
-                  value={endDate}
-                  onChange={(e) => setEndDate(e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium mb-2 block">Records Per Page</label>
-                <select 
-                  className="w-full p-2 border border-input rounded-md"
-                  value={limit}
-                  onChange={(e) => setLimit(Number(e.target.value))}
-                >
-                  <option value={5}>5</option>
-                  <option value={10}>10</option>
-                  <option value={20}>20</option>
-                  <option value={50}>50</option>
-                </select>
-              </div>
-              <Button onClick={loadStudentAttendance} disabled={loading} className="md:col-span-2">
-                Apply Filters
-              </Button>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Calendar className="h-5 w-5" />
+            Filters & Settings
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+            <div>
+              <label className="text-sm font-medium mb-2 block">Start Date</label>
+              <Input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+              />
             </div>
-          </CardContent>
-        </Card>
-      )}
+            <div>
+              <label className="text-sm font-medium mb-2 block">End Date</label>
+              <Input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="text-sm font-medium mb-2 block">Records Per Page</label>
+              <select 
+                className="w-full p-2 border border-input rounded-md"
+                value={limit}
+                onChange={(e) => setLimit(Number(e.target.value))}
+              >
+                <option value={5}>5</option>
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+              </select>
+            </div>
+            <Button onClick={loadStudentAttendance} disabled={loading} className="md:col-span-2">
+              Apply Filters
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Summary Cards */}
       {attendanceData?.summary && (

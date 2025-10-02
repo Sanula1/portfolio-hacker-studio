@@ -37,16 +37,15 @@ const Lectures = ({ apiLevel = 'institute' }: LecturesProps) => {
 
   const userRole = (user?.role || 'Student') as UserRole;
   
-  // Enhanced pagination with useTableData hook - DISABLE AUTO-LOADING
+  // Enhanced pagination with useTableData hook
   const tableData = useTableData({
     endpoint: getEndpoint(),
     defaultParams: buildDefaultParams(),
-    dependencies: [], // Remove dependencies to prevent auto-reloading on context changes
+    dependencies: [currentInstituteId, currentClassId, currentSubjectId, userRole],
     pagination: {
       defaultLimit: 50,
       availableLimits: [25, 50, 100]
-    },
-    autoLoad: false // DISABLE AUTO-LOADING - only load on explicit button clicks
+    }
   });
 
   const { 
@@ -111,12 +110,13 @@ const Lectures = ({ apiLevel = 'institute' }: LecturesProps) => {
       }
     }
 
-    // Update filters and load data
+    // Update filters and refresh data
     const newFilters = buildDefaultParams();
     actions.updateFilters(newFilters);
     
-    // Always trigger data loading
-    actions.loadData(true);
+    if (forceRefresh) {
+      actions.refresh();
+    }
   };
 
   const handleRefreshData = async () => {
@@ -433,28 +433,43 @@ const Lectures = ({ apiLevel = 'institute' }: LecturesProps) => {
             </div>
           )}
 
-           {/* MUI Table View - All Screen Sizes */}
-          <MUITable
-            title=""
-            data={lecturesData}
-            columns={lecturesColumns.map(col => ({
-              id: col.key,
-              label: col.header,
-              minWidth: 170,
-              format: col.render
-            }))}
-            onAdd={canAdd ? () => setIsCreateDialogOpen(true) : undefined}
-            onEdit={userRole === 'InstituteAdmin' ? handleEditLecture : undefined}
-            onDelete={canDelete ? handleDeleteLecture : undefined}
-            page={pagination.page}
-            rowsPerPage={pagination.limit}
-            totalCount={pagination.totalCount}
-            onPageChange={(newPage: number) => actions.setPage(newPage)}
-            onRowsPerPageChange={(newLimit: number) => actions.setLimit(newLimit)}
-            sectionType="lectures"
-            allowEdit={userRole === 'InstituteAdmin'}
-            allowDelete={canDelete}
-          />
+           {/* Desktop MUI Table View */}
+          <div className="hidden md:block">
+            <MUITable
+              title=""
+              data={lecturesData}
+              columns={lecturesColumns.map(col => ({
+                id: col.key,
+                label: col.header,
+                minWidth: 170,
+                format: col.render
+              }))}
+              onAdd={canAdd ? () => setIsCreateDialogOpen(true) : undefined}
+              onEdit={userRole === 'InstituteAdmin' ? handleEditLecture : undefined}
+              onDelete={canDelete ? handleDeleteLecture : undefined}
+              page={pagination.page}
+              rowsPerPage={pagination.limit}
+              totalCount={pagination.totalCount}
+              onPageChange={(newPage: number) => actions.setPage(newPage)}
+              onRowsPerPageChange={(newLimit: number) => actions.setLimit(newLimit)}
+              sectionType="lectures"
+              allowEdit={userRole === 'InstituteAdmin'}
+              allowDelete={canDelete}
+            />
+          </div>
+
+          {/* Mobile Card View - Always show cards */}
+          <div className="md:hidden">
+            <DataCardView
+              data={filteredLectures}
+              columns={lecturesColumns}
+              onView={handleViewLecture}
+              onEdit={canEdit ? handleEditLecture : undefined}
+              onDelete={canDelete ? handleDeleteLecture : undefined}
+              allowEdit={canEdit}
+              allowDelete={canDelete}
+            />
+          </div>
         </>
       )}
 

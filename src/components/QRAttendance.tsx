@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { useNavigate } from 'react-router-dom';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -26,7 +25,6 @@ interface AttendanceAlert {
 const QRAttendance = () => {
   const { selectedInstitute, selectedClass, selectedSubject, currentInstituteId, user } = useAuth();
   const { toast } = useToast();
-  const navigate = useNavigate();
   
   const [studentId, setStudentId] = useState('');
   const [markedCount, setMarkedCount] = useState(0);
@@ -148,13 +146,6 @@ const QRAttendance = () => {
   const startCameraForMethod = async (method: 'qr' | 'barcode' | 'rfid/nfc') => {
     setSelectedMethod(method);
     setShowMethodDialog(false);
-    
-    // Navigate to RFID page if RFID/NFC is selected
-    if (method === 'rfid/nfc') {
-      navigate('/rfid-attendance');
-      return;
-    }
-    
     setIsScanning(true);
     
     // Wait for video element to be rendered
