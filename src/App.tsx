@@ -4,7 +4,7 @@ import React from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Outlet } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import QRAttendance from '@/components/QRAttendance';
 import RFIDAttendance from '@/pages/RFIDAttendance';
@@ -26,15 +26,8 @@ import UpdateHomework from '@/pages/UpdateHomework';
 import UpdateLecture from '@/pages/UpdateLecture';
 import CardDemo from '@/pages/CardDemo';
 import ExamResults from '@/pages/ExamResults';
+import TransportSelection from '@/pages/TransportSelection';
 import ErrorBoundary from '@/components/ErrorBoundary';
-import Transport from '@/pages/Transport';
-import TransportAttendance from '@/pages/TransportAttendance';
-import MyChildren from '@/pages/MyChildren';
-import ChildDashboard from '@/pages/ChildDashboard';
-import ChildResultsPage from '@/pages/ChildResultsPage';
-import ChildAttendancePage from '@/pages/ChildAttendancePage';
-import ChildTransportPage from '@/pages/ChildTransportPage';
-import AppLayout from '@/components/layout/AppLayout';
 
 const queryClient = new QueryClient();
 
@@ -61,11 +54,9 @@ const App = () => {
               <Route path="/institutes" element={<Index />} />
               <Route path="/institutes/users" element={<Index />} />
               <Route path="/institutes/classes" element={<Index />} />
-              <Route path="/verify-image" element={<Index />} />
               
               {/* Organization Routes */}
               <Route path="/organizations" element={<Index />} />
-              <Route path="/institute-organizations" element={<Index />} />
               
               {/* User Management Routes */}
               <Route path="/users" element={<Index />} />
@@ -103,8 +94,8 @@ const App = () => {
               <Route path="/homework-submissions/:homeworkId" element={<HomeworkSubmissions />} />
               <Route path="/homework/:homeworkId/submissions" element={<HomeworkSubmissionDetails />} />
               <Route path="/exams" element={<Index />} />
-              <Route path="/exams/:examId/results" element={<ExamResults />} />
               <Route path="/results" element={<Index />} />
+              <Route path="/exam-results" element={<ExamResults />} />
               
               {/* Selection Routes */}
               <Route path="/select-institute" element={<Index />} />
@@ -122,29 +113,20 @@ const App = () => {
               <Route path="/teacher-exams" element={<Index />} />
               <Route path="/teacher-lectures" element={<Index />} />
               
+              {/* Transport Routes */}
+              <Route path="/transport" element={<Index />} />
+              <Route path="/student-transport" element={<Index />} />
+              <Route path="/parent-transport" element={<Index />} />
+              <Route path="/transport-selection" element={<TransportSelection />} />
+              <Route path="/transport-attendance" element={<TransportSelection />} />
+              <Route path="/transport-info" element={<TransportSelection />} />
+              
               {/* Settings and Profile Routes */}
               <Route path="/profile" element={<Index />} />
               <Route path="/settings" element={<Index />} />
               <Route path="/appearance" element={<Index />} />
               <Route path="/institute-details" element={<Index />} />
-              <Route path="/institute-profile" element={<Index />} />
               <Route path="/gallery" element={<Index />} />
-              <Route path="/sms" element={<Index />} />
-              <Route path="/sms-history" element={<Index />} />
-              
-              {/* Transport Routes */}
-              <Route path="/transport" element={<Transport />} />
-              <Route path="/transport-attendance" element={<TransportAttendance />} />
-              <Route path="/transport/:transportId/attendance" element={<TransportAttendance />} />
-              
-              {/* My Children Routes */}
-              <Route element={<AppLayout><Outlet /></AppLayout>}>
-                <Route path="/my-children" element={<MyChildren />} />
-                <Route path="/child/:childId/dashboard" element={<ChildDashboard />} />
-                <Route path="/child/:childId/results" element={<ChildResultsPage />} />
-                <Route path="/child/:childId/attendance" element={<ChildAttendancePage />} />
-                <Route path="/child/:childId/transport" element={<ChildTransportPage />} />
-              </Route>
               
               {/* Demo Routes */}
               <Route path="/card-demo" element={<CardDemo />} />

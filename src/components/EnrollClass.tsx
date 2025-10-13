@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useInstituteRole } from '@/hooks/useInstituteRole';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -25,7 +24,6 @@ type EnrollFormValues = z.infer<typeof enrollFormSchema>;
 
 const EnrollClass = () => {
   const { selectedInstitute, user } = useAuth();
-  const effectiveRole = useInstituteRole();
   const [classes, setClasses] = useState<InstituteClass[]>([]);
   const [hasData, setHasData] = useState(false);
   const [selectedClass, setSelectedClass] = useState<InstituteClass | null>(null);
@@ -200,14 +198,14 @@ const EnrollClass = () => {
       } else if (errorMessage.toLowerCase().includes('already enrolled')) {
         toast.error("User Already Enrolled");
       } else {
-        toast.success("Enrollment Success. Please wait for verify");
+        toast.error("Enrollment failed. Please try again");
       }
       // Don't close dialog on error, let user try again
     }
   };
 
   // Only show for students
-  if (effectiveRole !== 'Student') {
+  if (user?.role !== 'Student') {
     return (
       <div className="p-6">
         <div className="text-center">

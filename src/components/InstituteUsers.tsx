@@ -17,10 +17,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Eye, RefreshCw, GraduationCap, Users, UserCheck, Plus, UserPlus, UserCog, Filter, Search, Shield, Upload, CheckCircle } from 'lucide-react';
+import { Eye, RefreshCw, GraduationCap, Users, UserCheck, Plus, UserPlus, UserCog, Filter, Search, Shield } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { useInstituteRole } from '@/hooks/useInstituteRole';
 import { instituteApi } from '@/api/institute.api';
 import { studentsApi } from '@/api/students.api';
 import { useApiRequest } from '@/hooks/useApiRequest';
@@ -33,7 +32,6 @@ import CreateStudentForm from '@/components/forms/CreateStudentForm';
 import AssignUserMethodsDialog from '@/components/forms/AssignUserMethodsDialog';
 import { usersApi, BasicUser } from '@/api/users.api';
 import UserInfoDialog from '@/components/forms/UserInfoDialog';
-import { getBaseUrl } from '@/contexts/utils/auth.api';
 
 interface InstituteUserData {
   id: string;
@@ -43,7 +41,6 @@ interface InstituteUserData {
   addressLine2?: string;
   phoneNumber?: string;
   imageUrl?: string;
-  instituteUserImageUrl?: string;
   dateOfBirth?: string;
   userIdByInstitute?: string | null;
   verifiedBy?: string | null;
@@ -85,8 +82,6 @@ const InstituteUsers = () => {
     open: false,
     user: null,
   });
-  const [uploadingUserId, setUploadingUserId] = useState<string | null>(null);
-  const [selectedImage, setSelectedImage] = useState<File | null>(null);
 
   // Table data management for each user type
   const studentsTable = useTableData<InstituteUserData>({
@@ -155,7 +150,6 @@ const InstituteUsers = () => {
         title: 'Failed to load user',
         description: error?.message || 'Could not fetch user information',
         variant: 'destructive',
-        duration: 1500
       });
     }
   };
@@ -173,7 +167,6 @@ const InstituteUsers = () => {
     toast({
       title: "User Created",
       description: "User has been created successfully.",
-      duration: 1500
     });
   };
 
@@ -184,7 +177,6 @@ const InstituteUsers = () => {
     toast({
       title: "User Assigned",
       description: "User has been assigned to institute successfully.",
-      duration: 1500
     });
     
     // Refresh the current tab data
@@ -213,7 +205,6 @@ const InstituteUsers = () => {
       toast({
         title: "Student Created",
         description: "Student has been created successfully.",
-        duration: 1500
       });
       
       setShowCreateStudentDialog(false);
@@ -225,53 +216,7 @@ const InstituteUsers = () => {
       toast({
         title: "Error",
         description: "Failed to create student.",
-        variant: "destructive",
-        duration: 1500
-      });
-    }
-  };
-
-  const handleImageUpload = async (userId: string) => {
-    if (!selectedImage || !currentInstituteId) return;
-
-    const formData = new FormData();
-    formData.append('image', selectedImage);
-
-    try {
-      const token = localStorage.getItem('access_token');
-      const response = await fetch(
-        `${getBaseUrl()}/institute-users/institute/${currentInstituteId}/users/${userId}/upload-image`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`
-          },
-          body: formData
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error('Failed to upload image');
-      }
-
-      const result = await response.json();
-      
-      toast({
-        title: "Success",
-        description: result.message || "Image uploaded successfully",
-        duration: 1500
-      });
-
-      setUploadingUserId(null);
-      setSelectedImage(null);
-      getCurrentTable().actions.refresh();
-    } catch (error) {
-      console.error('Error uploading image:', error);
-      toast({
-        title: "Error",
-        description: "Failed to upload image",
-        variant: "destructive",
-        duration: 1500
+        variant: "destructive"
       });
     }
   };
@@ -333,9 +278,7 @@ const InstituteUsers = () => {
     }
   };
 
-  const userRole = useInstituteRole();
-
-  if (userRole !== 'InstituteAdmin') {
+  if (!user || user.role !== 'InstituteAdmin') {
     return (
       <div className="text-center py-12">
         <p className="text-gray-600 dark:text-gray-400">Access denied. InstituteAdmin role required.</p>
@@ -366,20 +309,19 @@ const InstituteUsers = () => {
   const IconComponent = getUserTypeIcon(activeTab);
 
   return (
-    <div className="container mx-auto p-3 sm:p-6 space-y-4 sm:space-y-6">
-      <div className="flex flex-col gap-3 sm:gap-4">
+    <div className="container mx-auto p-6 space-y-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold">Institute Users</h1>
-          <p className="text-sm sm:text-base text-muted-foreground mt-1">
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Institute Users</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-1">
             Manage users in your institute
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex gap-2">
           <Button
             variant="outline"
             onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center gap-2 flex-1 sm:flex-none"
-            size="sm"
+            className="flex items-center gap-2"
           >
             <Filter className="h-4 w-4" />
             Filters
@@ -387,16 +329,14 @@ const InstituteUsers = () => {
           <Button 
             onClick={() => setShowAssignMethodsDialog(true)}
             variant="outline"
-            className="flex items-center gap-2 flex-1 sm:flex-none"
-            size="sm"
+            className="flex items-center gap-2"
           >
             <UserPlus className="h-4 w-4" />
             Assign User
           </Button>
           <Button 
             onClick={() => setShowCreateUserDialog(true)}
-            className="flex items-center gap-2 flex-1 sm:flex-none"
-            size="sm"
+            className="flex items-center gap-2"
           >
             <Plus className="h-4 w-4" />
             Create User
@@ -406,74 +346,57 @@ const InstituteUsers = () => {
 
       {/* Tabs for different user types */}
       <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as UserType)}>
-        <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 gap-2 p-2 h-auto bg-muted/50">
-          <TabsTrigger 
-            value="STUDENT" 
-            className="flex items-center gap-2 px-4 py-3 data-[state=active]:bg-background data-[state=active]:shadow-sm"
-          >
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="STUDENT" className="flex items-center gap-2">
             <GraduationCap className="h-4 w-4" />
-            <span>Students</span>
+            Students
           </TabsTrigger>
-          <TabsTrigger 
-            value="TEACHER" 
-            className="flex items-center gap-2 px-4 py-3 data-[state=active]:bg-background data-[state=active]:shadow-sm"
-          >
+          <TabsTrigger value="TEACHER" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
-            <span>Teachers</span>
+            Teachers
           </TabsTrigger>
-          <TabsTrigger 
-            value="ATTENDANCE_MARKER" 
-            className="flex items-center gap-2 px-4 py-3 data-[state=active]:bg-background data-[state=active]:shadow-sm"
-          >
+          <TabsTrigger value="ATTENDANCE_MARKER" className="flex items-center gap-2">
             <UserCheck className="h-4 w-4" />
-            <span className="hidden sm:inline">Markers</span>
-            <span className="sm:hidden">Markers</span>
+            Attendance Markers
           </TabsTrigger>
-          <TabsTrigger 
-            value="INSTITUTE_ADMIN" 
-            className="flex items-center gap-2 px-4 py-3 data-[state=active]:bg-background data-[state=active]:shadow-sm"
-          >
+          <TabsTrigger value="INSTITUTE_ADMIN" className="flex items-center gap-2">
             <Shield className="h-4 w-4" />
-            <span className="hidden sm:inline">Admins</span>
-            <span className="sm:hidden">Admins</span>
+            Institute Admins
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="STUDENT" className="space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Badge variant="outline" className="flex items-center gap-1">
                 <GraduationCap className="h-4 w-4" />
                 {studentsTable.pagination.totalCount} Students
               </Badge>
             </div>
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            <div className="flex items-center gap-2">
               <Button 
                 onClick={() => setShowCreateStudentDialog(true)}
-                className="flex items-center gap-2 w-full sm:w-auto"
+                className="flex items-center gap-2"
                 size="sm"
               >
                 <Plus className="h-4 w-4" />
-                <span className="hidden sm:inline">Create Student</span>
-                <span className="sm:hidden">Create</span>
+                Create Student
               </Button>
               <Button 
                 onClick={() => studentsTable.actions.refresh()} 
                 disabled={studentsTable.state.loading}
                 variant="outline"
                 size="sm"
-                className="w-full sm:w-auto"
               >
                 {studentsTable.state.loading ? (
                   <>
                     <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                    <span className="hidden sm:inline">Loading...</span>
+                    Loading...
                   </>
                 ) : (
                   <>
                     <RefreshCw className="h-4 w-4 mr-2" />
-                    <span className="hidden sm:inline">Load Students</span>
-                    <span className="sm:hidden">Load</span>
+                    Load Students
                   </>
                 )}
               </Button>
@@ -693,26 +616,6 @@ const InstituteUsers = () => {
                         <Eye className="h-4 w-4 mr-1" />
                         View
                       </Button>
-                      {userData.instituteUserImageUrl ? (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="text-green-600 hover:text-green-700 pointer-events-none"
-                          disabled
-                        >
-                          <CheckCircle className="h-4 w-4 mr-1" />
-                          Uploaded
-                        </Button>
-                      ) : (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setUploadingUserId(userData.id)}
-                        >
-                          <Upload className="h-4 w-4 mr-1" />
-                          Upload
-                        </Button>
-                      )}
                       {activeTab === 'STUDENT' && (
                         <Button
                           size="sm"
@@ -904,20 +807,8 @@ const InstituteUsers = () => {
                     )}
                     {selectedUser.guardianId && (
                       <div>
-                        <label className="text-sm font-medium text-gray-500 flex items-center justify-between">
-                          <span>Guardian ID</span>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            className="h-8 w-8 ml-2"
-                            onClick={() => handleViewBasicUser(selectedUser.guardianId)}
-                            aria-label="View guardian user details"
-                          >
-                            <Eye className="h-4 w-4" />
-                          </Button>
-                        </label>
-                        <p className="text-sm mt-1">{selectedUser.guardianId}</p>
+                        <label className="text-sm font-medium text-gray-500">Guardian ID</label>
+                        <p className="text-sm">{selectedUser.guardianId}</p>
                       </div>
                     )}
                   </div>
@@ -1005,33 +896,6 @@ const InstituteUsers = () => {
         onClose={() => setUserInfoDialog({ open: false, user: null })}
         user={userInfoDialog.user}
       />
-
-      {/* Upload Image Dialog */}
-      <Dialog open={!!uploadingUserId} onOpenChange={() => { setUploadingUserId(null); setSelectedImage(null); }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Upload User Image</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium mb-2">Select Image</label>
-              <Input
-                type="file"
-                accept="image/*"
-                onChange={(e) => setSelectedImage(e.target.files?.[0] || null)}
-              />
-            </div>
-            <Button
-              onClick={() => uploadingUserId && handleImageUpload(uploadingUserId)}
-              disabled={!selectedImage}
-              className="w-full"
-            >
-              <Upload className="h-4 w-4 mr-2" />
-              Upload Image
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };

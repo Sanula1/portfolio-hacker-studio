@@ -37,7 +37,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [selectedSubject, setSelectedSubjectState] = useState<Subject | null>(null);
   const [selectedChild, setSelectedChildState] = useState<Child | null>(null);
   const [selectedOrganization, setSelectedOrganizationState] = useState<Organization | null>(null);
-  const [selectedTransport, setSelectedTransportState] = useState<{ id: string; vehicleNumber: string; bookhireId: string } | null>(null);
   const [selectedInstituteType, setSelectedInstituteType] = useState<string | null>(null);
   const [selectedClassGrade, setSelectedClassGrade] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -48,7 +47,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [currentSubjectId, setCurrentSubjectId] = useState<string | null>(null);
   const [currentChildId, setCurrentChildId] = useState<string | null>(null);
   const [currentOrganizationId, setCurrentOrganizationId] = useState<string | null>(null);
-  const [currentTransportId, setCurrentTransportId] = useState<string | null>(null);
 
   const fetchUserInstitutes = async (userId: string, forceRefresh = false): Promise<Institute[]> => {
     try {
@@ -67,23 +65,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       console.log('Raw API institutes response:', apiInstitutes);
       
       // Ensure apiInstitutes is an array and filter out any undefined/null values
-      const validInstitutes = Array.isArray(apiInstitutes)
-        ? apiInstitutes.filter((institute: any) => institute && (institute.id || institute.instituteId))
-        : [];
+      const validInstitutes = Array.isArray(apiInstitutes) ? apiInstitutes.filter(institute => institute && institute.id) : [];
       
-      // Map API response to AuthContext Institute type with safe property access
-      const institutes = validInstitutes.map((institute: any): Institute => ({
-        id: institute.instituteId || institute.id || '',
-        name: institute.instituteName || institute.name || 'Unknown Institute',
+      // Map ApiInstitute to AuthContext Institute type with safe property access
+      const institutes = validInstitutes.map((institute: ApiInstitute): Institute => ({
+        id: institute.id || '',
+        name: institute.name || 'Unknown Institute',
         code: institute.code || '',
-        description: `${institute.instituteAddress || institute.address || ''}, ${institute.instituteCity || institute.city || ''}`.trim() || 'No description available',
-        isActive: institute.instituteIsActive !== undefined ? institute.instituteIsActive : (institute.isActive !== undefined ? institute.isActive : true),
-        type: institute.instituteType || institute.type,
-        instituteUserType: institute.instituteUserType, // Preserve raw API value
-        userRole: institute.instituteUserType, // Keep for backward compatibility
-        userIdByInstitute: institute.userIdByInstitute,
-        shortName: institute.instituteShortName || institute.name || 'Unknown Institute',
-        logo: institute.instituteLogo || ''
+        description: `${institute.address || ''}, ${institute.city || ''}`.trim() || 'No description available',
+        isActive: institute.isActive !== undefined ? institute.isActive : true,
+        type: institute.type
       }));
 
       console.log('Mapped institutes:', institutes);
@@ -156,7 +147,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setSelectedSubjectState(null);
     setSelectedChildState(null);
     setSelectedOrganizationState(null);
-    setSelectedTransportState(null);
     setSelectedInstituteType(null);
     setSelectedClassGrade(null);
     
@@ -165,7 +155,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setCurrentSubjectId(null);
     setCurrentChildId(null);
     setCurrentOrganizationId(null);
-    setCurrentTransportId(null);
     
     // Clear all cache and pending requests
     apiCache.clearAllCache();
@@ -210,11 +199,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const setSelectedOrganization = (organization: Organization | null) => {
     setSelectedOrganizationState(organization);
     setCurrentOrganizationId(organization?.id || null);
-  };
-
-  const setSelectedTransport = (transport: { id: string; vehicleNumber: string; bookhireId: string } | null) => {
-    setSelectedTransportState(transport);
-    setCurrentTransportId(transport?.id || null);
   };
 
   // Method to refresh user data from backend - only called manually
@@ -266,7 +250,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     selectedSubject,
     selectedChild,
     selectedOrganization,
-    selectedTransport,
     selectedInstituteType,
     selectedClassGrade,
     currentInstituteId,
@@ -274,7 +257,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     currentSubjectId,
     currentChildId,
     currentOrganizationId,
-    currentTransportId,
     login,
     logout,
     setSelectedInstitute,
@@ -282,7 +264,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setSelectedSubject,
     setSelectedChild,
     setSelectedOrganization,
-    setSelectedTransport,
     loadUserInstitutes,
     refreshUserData,
     validateUserToken,
