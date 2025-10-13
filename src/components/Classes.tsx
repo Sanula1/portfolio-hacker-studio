@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useInstituteRole } from '@/hooks/useInstituteRole';
 import MUITable from '@/components/ui/mui-table';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -7,7 +8,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
-import { Plus, RefreshCw, GraduationCap, Image, Edit, Filter, Search, X } from 'lucide-react';
+import { Plus, RefreshCw, GraduationCap, Image, Edit, Filter, Search, X, QrCode } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { getBaseUrl } from '@/contexts/utils/auth.api';
@@ -68,6 +69,10 @@ const Classes = () => {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
   const [selectedClass, setSelectedClass] = useState<ClassData | null>(null);
+  const [hasAttemptedLoad, setHasAttemptedLoad] = useState(false);
+  const [isViewCodeDialogOpen, setIsViewCodeDialogOpen] = useState(false);
+  const [enrollmentCodeData, setEnrollmentCodeData] = useState<any>(null);
+  const [loadingCode, setLoadingCode] = useState(false);
   
   // Filter state
   const [showFilters, setShowFilters] = useState(false);
@@ -83,7 +88,7 @@ const Classes = () => {
 
   // Removed auto-loading useEffect - data now only loads when button is clicked
 
-  const userRole = (user?.role || 'Student') as UserRole;
+  const userRole = useInstituteRole();
   const isInstituteAdmin = userRole === 'InstituteAdmin';
   const canEdit = AccessControl.hasPermission(userRole, 'edit-class') && !isInstituteAdmin;
   const canDelete = AccessControl.hasPermission(userRole, 'delete-class') && !isInstituteAdmin;
@@ -208,6 +213,7 @@ const Classes = () => {
   };
 
   const handleLoadData = () => {
+    setHasAttemptedLoad(true);
     fetchClasses();
   };
 
@@ -215,6 +221,33 @@ const Classes = () => {
     setSearchTerm('');
     setSelectedGrade('');
     setPage(0);
+  };
+
+  const handleViewCode = async (classId: string) => {
+    setLoadingCode(true);
+    try {
+      const response = await fetch(
+        `${getBaseUrl()}/institute-classes/${classId}/enrollment-code`,
+        { headers: getApiHeaders() }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        setEnrollmentCodeData(data);
+        setIsViewCodeDialogOpen(true);
+      } else {
+        throw new Error('Failed to fetch enrollment code');
+      }
+    } catch (error) {
+      console.error('Error fetching enrollment code:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load enrollment code",
+        variant: "destructive"
+      });
+    } finally {
+      setLoadingCode(false);
+    }
   };
 
   // Frontend filtering
@@ -309,6 +342,15 @@ const Classes = () => {
           <Button
             variant="outline"
             size="sm"
+            onClick={() => handleViewCode(row.id)}
+            className="h-8 px-3"
+          >
+            <QrCode className="h-4 w-4 mr-1" />
+            View Code
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => handleEditClass(row)}
             className="h-8 w-8 p-0"
           >
@@ -319,11 +361,9 @@ const Classes = () => {
     }] : [])
   ];
 
-  const dataLoaded = classes.length > 0;
-
   return (
     <div className="container mx-auto p-6 space-y-6">
-      {!dataLoaded ? (
+      {!hasAttemptedLoad ? (
         <div className="text-center py-12">
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">Classes</h1>
           <p className="text-gray-600 dark:text-gray-400 mb-6">
@@ -352,44 +392,36 @@ const Classes = () => {
         </div>
       ) : (
         <>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Classes</h1>
-              <p className="text-gray-600 dark:text-gray-400 mt-1">
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white">Classes</h1>
+              <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-1">
                 Manage institute classes and their details
               </p>
             </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Button 
             onClick={() => setShowFilters(!showFilters)} 
             variant="outline" 
             size="sm"
             className={showFilters ? "bg-primary/10" : ""}
           >
-            <Filter className="h-4 w-4 mr-2" />
-            Filters
+            <Filter className="h-4 w-4 sm:mr-2" />
+            <span className="hidden sm:inline">Filters</span>
           </Button>
           
           <Button onClick={handleLoadData} disabled={loading} variant="outline" size="sm">
-            {loading ? (
-              <>
-                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                Loading...
-              </>
-            ) : (
-              <>
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Refresh
-              </>
-            )}
+            <RefreshCw className={`h-4 w-4 sm:mr-2 ${loading ? 'animate-spin' : ''}`} />
+            <span className="hidden sm:inline">{loading ? 'Loading...' : 'Refresh'}</span>
           </Button>
           
           {canCreate && (
             <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
               <DialogTrigger asChild>
-                <Button className="bg-blue-600 hover:bg-blue-700">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Class
+                <Button className="bg-blue-600 hover:bg-blue-700" size="sm">
+                  <Plus className="h-4 w-4 sm:mr-2" />
+                  <span className="hidden sm:inline">Create Class</span>
+                  <span className="sm:hidden">Create</span>
                 </Button>
               </DialogTrigger>
               <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
@@ -413,6 +445,51 @@ const Classes = () => {
                   onSubmit={handleUpdateClass} 
                   onCancel={handleCancelUpdate} 
                 />
+              )}
+            </DialogContent>
+          </Dialog>
+
+          {/* View Enrollment Code Dialog */}
+          <Dialog open={isViewCodeDialogOpen} onOpenChange={setIsViewCodeDialogOpen}>
+            <DialogContent className="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Enrollment Code</DialogTitle>
+              </DialogHeader>
+              {enrollmentCodeData && (
+                <div className="space-y-4">
+                  <div className="p-4 bg-muted rounded-lg text-center">
+                    <div className="text-sm text-muted-foreground mb-2">Class Enrollment Code</div>
+                    <div className="text-3xl font-bold font-mono tracking-wider">
+                      {enrollmentCodeData.enrollmentCode}
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between py-2 px-3 bg-muted/50 rounded">
+                      <span className="text-sm text-muted-foreground">Enrollment Enabled</span>
+                      <Badge variant={enrollmentCodeData.enrollmentEnabled ? "default" : "secondary"}>
+                        {enrollmentCodeData.enrollmentEnabled ? "Yes" : "No"}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center justify-between py-2 px-3 bg-muted/50 rounded">
+                      <span className="text-sm text-muted-foreground">Requires Verification</span>
+                      <Badge variant={enrollmentCodeData.requireTeacherVerification ? "default" : "secondary"}>
+                        {enrollmentCodeData.requireTeacherVerification ? "Yes" : "No"}
+                      </Badge>
+                    </div>
+                  </div>
+                  <Button 
+                    onClick={() => {
+                      navigator.clipboard.writeText(enrollmentCodeData.enrollmentCode);
+                      toast({
+                        title: "Copied!",
+                        description: "Enrollment code copied to clipboard"
+                      });
+                    }}
+                    className="w-full"
+                  >
+                    Copy Code
+                  </Button>
+                </div>
               )}
             </DialogContent>
           </Dialog>
