@@ -4,11 +4,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, Eye, CheckCircle, Clock, XCircle, User, Calendar, FileText, DollarSign, Shield, RefreshCw, School, Search } from 'lucide-react';
+import { ArrowLeft, Eye, CheckCircle, Clock, XCircle, User, Calendar, FileText, DollarSign, Shield, RefreshCw, School, Search, BookOpen } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { subjectPaymentsApi, SubjectPaymentSubmission } from '@/api/subjectPayments.api';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useInstituteRole } from '@/hooks/useInstituteRole';
 import VerifySubjectPaymentDialog from '@/components/forms/VerifySubjectPaymentDialog';
 import Paper from '@mui/material/Paper';
 import Table from '@mui/material/Table';
@@ -24,8 +25,12 @@ const PaymentSubmissionsPage: React.FC = () => {
     toast
   } = useToast();
   const {
-    user
+    user,
+    selectedInstitute,
+    selectedClass,
+    selectedSubject
   } = useAuth();
+  const role = useInstituteRole();
   const [searchParams] = useSearchParams();
   const paymentId = searchParams.get('paymentId');
   const paymentTitle = searchParams.get('paymentTitle');
@@ -39,7 +44,7 @@ const PaymentSubmissionsPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
 
   // Check if user can verify submissions (InstituteAdmin or Teacher only)
-  const canVerifySubmissions = user?.userType === 'INSTITUTE_ADMIN' || user?.userType === 'TEACHER';
+  const canVerifySubmissions = role === 'InstituteAdmin' || role === 'Teacher';
   const loadSubmissions = async (newPage?: number, newRowsPerPage?: number) => {
     if (loading || !paymentId) return;
     const currentPage = newPage !== undefined ? newPage + 1 : page + 1; // API uses 1-based indexing
@@ -159,57 +164,49 @@ const PaymentSubmissionsPage: React.FC = () => {
     minWidth: 150
   }];
   return <AppLayout>
-      <div className="space-y-6">
+      <div className="space-y-4 sm:space-y-6 p-3 sm:p-0">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <Button variant="ghost" onClick={() => navigate(-1)} className="flex items-center space-x-2">
-            <ArrowLeft className="h-4 w-4" />
-            <span>Back</span>
+          <Button variant="ghost" onClick={() => navigate(-1)} className="flex items-center gap-2" size="sm">
+            <ArrowLeft className="h-3 w-3 sm:h-4 sm:w-4" />
+            <span className="text-sm sm:text-base">Back</span>
           </Button>
         </div>
 
-        {/* Current Selection */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <School className="h-5 w-5" />
-              <span>Current Selection</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <div className="flex items-center space-x-2">
-                <span className="font-medium text-gray-600 dark:text-gray-400">Institute:</span>
-                <span className="font-semibold">Mahinda College</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <span className="font-medium text-gray-600 dark:text-gray-400">Class:</span>
-                <span className="font-semibold">Grade 10 - Maths</span>
-              </div>
-              <div className="flex items-center space-x-2">
-                <span className="font-medium text-gray-600 dark:text-gray-400">Subject:</span>
-                <span className="font-semibold">Grade 10 Maths</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Subject Info */}
+        {selectedSubject && (
+          <Card className="border-border">
+            <CardHeader className="pb-4">
+              <CardTitle className="flex items-center gap-2 text-foreground">
+                <BookOpen className="h-5 w-5 text-primary" />
+                {selectedSubject.name}
+              </CardTitle>
+              <p className="text-muted-foreground text-sm">
+                Class: {selectedClass?.name} | Institute: {selectedInstitute?.name}
+              </p>
+            </CardHeader>
+          </Card>
+        )}
+
 
         {/* Payment Submissions Section */}
         <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center space-x-2">
-                <FileText className="h-5 w-5" />
-                <span>Payment Submissions</span>
-              </CardTitle>
-              <Button onClick={handleRefresh} disabled={loading} variant="outline" size="sm" className="flex items-center space-x-2">
-                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-                <span>Refresh</span>
-              </Button>
+          <CardHeader className="p-4 sm:p-6">
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <CardTitle className="flex items-center gap-2 text-base sm:text-lg md:text-xl">
+                  <FileText className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0" />
+                  <span className="truncate">Payment Submissions</span>
+                </CardTitle>
+                <Button onClick={handleRefresh} disabled={loading} variant="outline" size="sm" className="flex items-center gap-2 w-full sm:w-auto">
+                  <RefreshCw className={`h-3 w-3 sm:h-4 sm:w-4 ${loading ? 'animate-spin' : ''}`} />
+                  <span className="text-sm">Refresh</span>
+                </Button>
+              </div>
+              {paymentId && <p className="text-xs sm:text-sm text-muted-foreground truncate">
+                  Payment ID: {paymentId}
+                </p>}
             </div>
-            {paymentId && <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
-                Payment ID: {paymentId}
-              </p>}
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -236,15 +233,15 @@ const PaymentSubmissionsPage: React.FC = () => {
               </div>
 
               {/* Load Button or Table */}
-              {!loaded ? <div className="text-center py-12">
-                  <Button onClick={() => loadSubmissions()} disabled={loading} className="flex items-center space-x-2">
-                    <Eye className="h-4 w-4" />
+              {!loaded ? <div className="text-center py-8 sm:py-12">
+                  <Button onClick={() => loadSubmissions()} disabled={loading} className="flex items-center gap-2 w-full sm:w-auto text-sm sm:text-base">
+                    <Eye className="h-3 w-3 sm:h-4 sm:w-4" />
                     <span>{loading ? 'Loading...' : 'Load Submissions'}</span>
                   </Button>
                 </div> : <Paper sx={{
               width: '100%',
               overflow: 'hidden',
-              height: 'calc(100vh - 280px)'
+              height: { xs: 'calc(100vh - 360px)', sm: 'calc(100vh - 320px)', md: 'calc(100vh - 280px)' }
             }}>
                   <TableContainer sx={{
                 height: 'calc(100% - 52px)'
@@ -297,25 +294,25 @@ const PaymentSubmissionsPage: React.FC = () => {
                                       variant="outline" 
                                       size="sm" 
                                       onClick={() => window.open(submission.receiptUrl, '_blank')} 
-                                      className="flex items-center space-x-1"
+                                      className="flex items-center gap-1"
                                     >
                                       <Eye className="h-3 w-3" />
-                                      <span>View</span>
+                                      <span className="hidden sm:inline">View</span>
                                     </Button>
                                   ) : (
-                                    <span className="text-gray-400 text-sm">No receipt</span>
+                                    <span className="text-muted-foreground text-sm">N/A</span>
                                   )}
                                 </TableCell>
                                 <TableCell>
-                                  <div className="flex items-center space-x-2">
+                                  <div className="flex items-center gap-2">
                                     {canVerifySubmissions && submission.status === 'PENDING' && (
                                       <Button 
                                         onClick={() => setVerifyingSubmission(submission)} 
-                                        className="flex items-center space-x-1" 
+                                        className="flex items-center gap-1" 
                                         size="sm"
                                       >
-                                        <Shield className="h-4 w-4" />
-                                        <span>Verify</span>
+                                        <Shield className="h-3 w-3 sm:h-4 sm:w-4" />
+                                        <span className="hidden sm:inline">Verify</span>
                                       </Button>
                                     )}
                                   </div>

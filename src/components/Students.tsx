@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Plus, RefreshCw, Users, Search, Filter, UserPlus, ChevronRight } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
+import { useInstituteRole } from '@/hooks/useInstituteRole';
 import { DataCardView } from '@/components/ui/data-card-view';
 import MUITable from '@/components/ui/mui-table';
 import { Input } from '@/components/ui/input';
@@ -14,7 +15,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import CreateStudentForm from '@/components/forms/CreateStudentForm';
 import AssignStudentsDialog from '@/components/forms/AssignStudentsDialog';
 import AssignSubjectStudentsDialog from '@/components/forms/AssignSubjectStudentsDialog';
-import CurrentSelection from '@/components/ui/current-selection';
 import { cachedApiClient } from '@/api/cachedClient';
 import { useApiRequest } from '@/hooks/useApiRequest';
 import { useTableData } from '@/hooks/useTableData';
@@ -91,6 +91,7 @@ interface StudentsResponse {
 const Students = () => {
   const { toast } = useToast();
   const { user, selectedInstitute, selectedClass, selectedSubject } = useAuth();
+  const userRole = useInstituteRole();
   
   // State for both types of student data
   const [students, setStudents] = useState<Student[]>([]);
@@ -125,7 +126,7 @@ const Students = () => {
 
   // Check if user should use new institute-based API
   const shouldUseInstituteApi = () => {
-    return user && (user.role === 'InstituteAdmin' || user.role === 'Teacher') && selectedInstitute;
+    return ['InstituteAdmin', 'Teacher'].includes(userRole) && !!selectedInstitute;
   };
 
   const getApiHeaders = () => {
@@ -525,38 +526,29 @@ const Students = () => {
     return (
       <div className="container mx-auto p-6 space-y-6">
         {/* Current Selection Display */}
-        {(selectedInstitute || selectedClass || selectedSubject) && (
-          <CurrentSelection 
-            institute={selectedInstitute}
-            class={selectedClass}
-            subject={selectedSubject}
-          />
-        )}
         
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex flex-col gap-3 sm:gap-4">
           <div>
-            <div className="flex items-center gap-2 mb-2">
-              <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Students</h1>
-            </div>
+            <h1 className="text-2xl sm:text-3xl font-bold">Students</h1>
             {/* Breadcrumb Display */}
             {(selectedInstitute || selectedClass) && (
-              <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 mb-1">
+              <div className="flex flex-wrap items-center gap-1 sm:gap-2 text-xs sm:text-sm text-muted-foreground mt-1">
                 {selectedInstitute && (
                   <>
                     <span>Institute: {selectedInstitute.name}</span>
-                    {selectedClass && <ChevronRight className="h-4 w-4" />}
+                    {selectedClass && <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4" />}
                   </>
                 )}
                 {selectedClass && (
                   <>
                     <span>Class: {selectedClass.name}</span>
-                    {selectedSubject && <ChevronRight className="h-4 w-4" />}
+                    {selectedSubject && <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4" />}
                   </>
                 )}
                 {selectedSubject && <span>Subject: {selectedSubject.name}</span>}
               </div>
             )}
-            <p className="text-gray-600 dark:text-gray-400">
+            <p className="text-sm sm:text-base text-muted-foreground mt-1">
               {getCurrentSelection() || 'Select institute and class to view students'}
             </p>
           </div>
@@ -614,66 +606,61 @@ const Students = () => {
   return (
     <div className="container mx-auto p-6 space-y-6">
       {/* Current Selection Display */}
-      {shouldUseInstituteApi() && (selectedInstitute || selectedClass || selectedSubject) && (
-        <CurrentSelection 
-          institute={selectedInstitute}
-          class={selectedClass}
-          subject={selectedSubject}
-        />
-      )}
       
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex flex-col gap-3 sm:gap-4">
         <div>
-          <div className="flex items-center gap-2 mb-2">
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">Students</h1>
-          </div>
+          <h1 className="text-2xl sm:text-3xl font-bold">Students</h1>
           {/* Breadcrumb Display */}
           {shouldUseInstituteApi() && (selectedInstitute || selectedClass) && (
-            <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400 mb-1">
+            <div className="flex flex-wrap items-center gap-1 sm:gap-2 text-xs sm:text-sm text-muted-foreground mt-1">
               {selectedInstitute && (
                 <>
                   <span>Institute: {selectedInstitute.name}</span>
-                  {selectedClass && <ChevronRight className="h-4 w-4" />}
+                  {selectedClass && <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4" />}
                 </>
               )}
               {selectedClass && (
                 <>
                   <span>Class: {selectedClass.name}</span>
-                  {selectedSubject && <ChevronRight className="h-4 w-4" />}
+                  {selectedSubject && <ChevronRight className="h-3 w-3 sm:h-4 sm:w-4" />}
                 </>
               )}
               {selectedSubject && <span>Subject: {selectedSubject.name}</span>}
             </div>
           )}
-          <p className="text-gray-600 dark:text-gray-400">
+          <p className="text-sm sm:text-base text-muted-foreground mt-1">
             {shouldUseInstituteApi() && getCurrentSelection() 
               ? 'Manage students for your selection' 
               : 'Manage student records and information'}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <Badge variant="outline" className="flex items-center gap-1">
             <Users className="h-4 w-4" />
             {pagination.totalCount} Students
           </Badge>
           {/* Assign User Buttons - Only for InstituteAdmin and Teacher */}
-          {shouldUseInstituteApi() && selectedClass && (user?.role === 'InstituteAdmin' || user?.role === 'Teacher') && (
+          {shouldUseInstituteApi() && selectedClass && (userRole === 'InstituteAdmin' || userRole === 'Teacher') && (
             <>
               {selectedSubject ? (
                 <Button
                   onClick={() => setShowSubjectAssignDialog(true)}
-                  className="flex items-center gap-2"
+                  className="flex items-center gap-2 flex-1 sm:flex-none"
+                  size="sm"
                 >
                   <UserPlus className="h-4 w-4" />
-                  Assign User
+                  <span className="hidden sm:inline">Assign User</span>
+                  <span className="sm:hidden">Assign</span>
                 </Button>
               ) : (
                 <Button
                   onClick={() => setShowAssignDialog(true)}
-                  className="flex items-center gap-2"
+                  className="flex items-center gap-2 flex-1 sm:flex-none"
+                  size="sm"
                 >
                   <UserPlus className="h-4 w-4" />
-                  Assign User
+                  <span className="hidden sm:inline">Assign User</span>
+                  <span className="sm:hidden">Assign</span>
                 </Button>
               )}
             </>
@@ -681,33 +668,36 @@ const Students = () => {
           <Button
             variant="outline"
             onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 flex-1 sm:flex-none"
+            size="sm"
           >
             <Filter className="h-4 w-4" />
-            Filters
+            <span className="hidden sm:inline">Filters</span>
           </Button>
           <Button 
             onClick={getLoadFunction()} 
             disabled={tableLoading || loading}
             variant="outline"
             size="sm"
+            className="flex-1 sm:flex-none"
           >
             {tableLoading || loading ? (
               <>
-                <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
-                Loading...
+                <RefreshCw className="h-4 w-4 sm:mr-2 animate-spin" />
+                <span className="hidden sm:inline">Loading...</span>
               </>
             ) : (
               <>
-                <RefreshCw className="h-4 w-4 mr-2" />
-                Refresh
+                <RefreshCw className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Refresh</span>
               </>
             )}
           </Button>
           {!shouldUseInstituteApi() && (
-            <Button onClick={() => setShowCreateForm(true)} className="bg-blue-600 hover:bg-blue-700">
-              <Plus className="h-4 w-4 mr-2" />
-              Add Student
+            <Button onClick={() => setShowCreateForm(true)} className="flex-1 sm:flex-none" size="sm">
+              <Plus className="h-4 w-4 sm:mr-2" />
+              <span className="hidden sm:inline">Add Student</span>
+              <span className="sm:hidden">Add</span>
             </Button>
           )}
         </div>

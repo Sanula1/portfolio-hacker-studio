@@ -26,7 +26,16 @@ export interface User {
 }
 
 // Export UserRole type for use in other components
-export type UserRole = 'InstituteAdmin' | 'Teacher' | 'Student' | 'AttendanceMarker' | 'Parent' | 'OrganizationManager';
+export type UserRole = 
+  | 'OrganizationManager'
+  | 'InstituteAdmin' 
+  | 'Student' 
+  | 'AttendanceMarker' 
+  | 'Teacher' 
+  | 'Parent'
+  | 'User'
+  | 'UserWithoutParent'
+  | 'UserWithoutStudent';
 
 export interface Institute {
   id: string;
@@ -35,6 +44,11 @@ export interface Institute {
   description: string;
   type?: string;
   isActive: boolean;
+  instituteUserType?: string; // Raw API value: STUDENT, INSTITUTE_ADMIN, TEACHER, etc.
+  userRole?: string; // Mapped role (kept for backward compatibility)
+  userIdByInstitute?: string; // User's ID within this institute
+  shortName?: string; // Institute's short name
+  logo?: string; // Institute's logo URL
 }
 
 export interface Class {
@@ -108,6 +122,7 @@ export interface AuthContextType {
   selectedSubject: Subject | null;
   selectedChild: Child | null;
   selectedOrganization: Organization | null;
+  selectedTransport: { id: string; vehicleNumber: string; bookhireId: string } | null;
   selectedInstituteType: string | null;
   selectedClassGrade: number | null;
   currentInstituteId: string | null;
@@ -115,6 +130,7 @@ export interface AuthContextType {
   currentSubjectId: string | null;
   currentChildId: string | null;
   currentOrganizationId: string | null;
+  currentTransportId: string | null;
   login: (credentials: LoginCredentials) => Promise<void>;
   logout: () => void;
   setSelectedInstitute: (institute: Institute | null) => void;
@@ -122,6 +138,7 @@ export interface AuthContextType {
   setSelectedSubject: (subject: Subject | null) => void;
   setSelectedChild: (child: Child | null) => void;
   setSelectedOrganization: (organization: Organization | null) => void;
+  setSelectedTransport: (transport: { id: string; vehicleNumber: string; bookhireId: string } | null) => void;
   loadUserInstitutes: () => Promise<Institute[]>;
   refreshUserData?: (forceRefresh?: boolean) => Promise<void>;
   validateUserToken?: () => Promise<void>;
