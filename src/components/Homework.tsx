@@ -529,7 +529,7 @@ const Homework = ({ apiLevel = 'institute' }: HomeworkProps) => {
               format: col.render
             }))}
             onAdd={canAdd ? () => setIsCreateDialogOpen(true) : undefined}
-            onEdit={canEdit && !isStudent ? handleEditHomework : undefined}
+            onEdit={isStudent ? handleSubmitHomework : (canEdit ? handleEditHomework : undefined)}
             onView={handleViewHomework}
             page={page}
             rowsPerPage={rowsPerPage}
