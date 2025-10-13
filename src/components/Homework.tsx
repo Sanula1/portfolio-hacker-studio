@@ -343,7 +343,8 @@ const Homework = ({ apiLevel = 'institute' }: HomeworkProps) => {
         label: 'Submit',
         action: (homework: any) => handleSubmitHomework(homework),
         icon: <Upload className="h-3 w-3" />,
-        variant: 'default' as const
+        variant: 'default' as const,
+        className: 'bg-primary hover:bg-primary/90 text-primary-foreground'
       }
     ] : [])
   ];
