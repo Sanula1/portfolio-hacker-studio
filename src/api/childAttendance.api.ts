@@ -41,6 +41,8 @@ export interface ChildAttendanceParams {
   endDate?: string;
   page?: number;
   limit?: number;
+  userId?: string;
+  role?: string;
 }
 
 export interface MarkAttendanceByCardRequest {

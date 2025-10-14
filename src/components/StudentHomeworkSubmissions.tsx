@@ -43,7 +43,9 @@ const StudentHomeworkSubmissions = () => {
         page: apiParams.page,
         limit: apiParams.limit,
         sortBy,
-        sortOrder
+        sortOrder,
+        userId: user.id,
+        role: 'Student'
       };
 
       const response = await homeworkSubmissionsApi.getStudentSubmissions(

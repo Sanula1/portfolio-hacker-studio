@@ -36,6 +36,11 @@ const HomeworkSubmissionsDialog = ({ homework, isOpen, onClose }: HomeworkSubmis
         homeworkId: homework.id,
         page: 1,
         limit: 50,
+        userId: user?.id,
+        role: userRole,
+        instituteId: homework.instituteId,
+        classId: homework.classId,
+        subjectId: homework.subjectId
       }, true);
 
       const submissionsList = Array.isArray(response) ? response : response.data || [];

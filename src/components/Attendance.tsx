@@ -14,6 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { RefreshCw, Users, MapPin, Calendar, Clock } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useInstituteRole } from '@/hooks/useInstituteRole';
+import { useRefreshWithCooldown } from '@/hooks/useRefreshWithCooldown';
 import { useToast } from '@/hooks/use-toast';
 import { instituteStudentsApi, StudentAttendanceRecord, StudentAttendanceResponse } from '@/api/instituteStudents.api';
 import { childAttendanceApi, ChildAttendanceRecord } from '@/api/childAttendance.api';
@@ -30,6 +31,7 @@ interface AttendanceColumn {
 const Attendance = () => {
   const { selectedInstitute, selectedClass, selectedSubject, currentInstituteId, currentClassId, currentSubjectId, user } = useAuth();
   const { toast } = useToast();
+  const { refresh, isRefreshing, canRefresh, cooldownRemaining } = useRefreshWithCooldown(10);
   
   const [studentAttendanceRecords, setStudentAttendanceRecords] = useState<StudentAttendanceRecord[]>([]);
   const [childAttendanceRecords, setChildAttendanceRecords] = useState<ChildAttendanceRecord[]>([]);
@@ -195,9 +197,11 @@ const Attendance = () => {
     setIsLoading(true);
     try {
       const apiParams = {
-        page: page + 1, // API expects 1-based pagination
+        page: page + 1,
         limit: rowsPerPage,
-        ...filters
+        ...filters,
+        userId: user?.id,
+        role: userRoleAuth
       };
 
       let response: StudentAttendanceResponse;

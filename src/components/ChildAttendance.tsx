@@ -14,11 +14,13 @@ import { Input } from '@/components/ui/input';
 import { Calendar, Clock, MapPin, User, RefreshCw, AlertTriangle, TrendingUp, UserCheck, UserX } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { useInstituteRole } from '@/hooks/useInstituteRole';
 import { childAttendanceApi, type ChildAttendanceRecord, type ChildAttendanceResponse } from '@/api/childAttendance.api';
 import { useApiRequest } from '@/hooks/useApiRequest';
 
 const ChildAttendance = () => {
   const { selectedChild, user } = useAuth();
+  const userRole = useInstituteRole();
   const { toast } = useToast();
   const [attendanceData, setAttendanceData] = useState<ChildAttendanceResponse | null>(null);
   const [startDate, setStartDate] = useState('2025-09-01');
@@ -46,7 +48,9 @@ const ChildAttendance = () => {
         startDate,
         endDate,
         page: currentPage + 1, // API expects 1-based pagination
-        limit
+        limit,
+        userId: user?.id,
+        role: userRole || 'User'
       });
       
       console.log('Child attendance API response:', response);
