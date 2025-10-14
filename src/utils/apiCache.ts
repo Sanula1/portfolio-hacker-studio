@@ -8,6 +8,11 @@ interface CacheEntry<T = any> {
 interface CacheOptions {
   ttl?: number; // Time to live in minutes
   forceRefresh?: boolean;
+  userId?: string;
+  role?: string;
+  instituteId?: string;
+  classId?: string;
+  subjectId?: string;
 }
 
 type StorageType = 'indexeddb' | 'localstorage' | 'memory';
@@ -102,9 +107,24 @@ class ApiCacheManager {
     });
   }
 
-  private generateCacheKey(endpoint: string, params?: Record<string, any>): string {
+  private generateCacheKey(endpoint: string, params?: Record<string, any>, options?: CacheOptions): string {
     const paramString = params ? JSON.stringify(params) : '';
-    return `${this.CACHE_PREFIX}${endpoint}_${paramString}`;
+    // Include user context for proper cache isolation
+    const contextString = options ? JSON.stringify({
+      userId: options.userId,
+      role: options.role,
+      instituteId: options.instituteId,
+      classId: options.classId,
+      subjectId: options.subjectId
+    }) : '';
+    const cacheKey = `${this.CACHE_PREFIX}${endpoint}_${paramString}_${contextString}`;
+    console.log('🔑 Generated cache key:', { 
+      endpoint, 
+      params, 
+      context: options, 
+      cacheKey 
+    });
+    return cacheKey;
   }
 
   private isExpired(entry: CacheEntry, ttlMinutes: number): boolean {
@@ -119,11 +139,11 @@ class ApiCacheManager {
     }
   }
 
-  async setCache<T>(endpoint: string, data: T, params?: Record<string, any>, ttlMinutes?: number): Promise<void> {
+  async setCache<T>(endpoint: string, data: T, params?: Record<string, any>, ttlMinutes?: number, options?: CacheOptions): Promise<void> {
     await this.waitForInit();
     
     try {
-      const cacheKey = this.generateCacheKey(endpoint, params);
+      const cacheKey = this.generateCacheKey(endpoint, params, options);
       const entry: CacheEntry<T> = {
         data,
         timestamp: Date.now(),
@@ -142,7 +162,12 @@ class ApiCacheManager {
           break;
       }
       
-      console.log(`Cache set for ${endpoint}:`, { cacheKey, dataLength: Array.isArray(data) ? data.length : 1, storageType: this.storageType });
+      console.log(`✅ Cache SET for ${endpoint}:`, { 
+        userId: options?.userId, 
+        role: options?.role,
+        dataLength: Array.isArray(data) ? data.length : 1, 
+        storageType: this.storageType 
+      });
     } catch (error) {
       console.warn('Failed to set cache:', error);
     }
@@ -155,11 +180,19 @@ class ApiCacheManager {
       const { ttl = this.DEFAULT_TTL, forceRefresh = false } = options;
       
       if (forceRefresh) {
-        console.log(`Force refresh requested for ${endpoint}`);
+        console.log(`⚠️ Force refresh requested for ${endpoint}`);
         return null;
       }
 
-      const cacheKey = this.generateCacheKey(endpoint, params);
+      const cacheKey = this.generateCacheKey(endpoint, params, options);
+      console.log(`🔍 ApiCache.getCache() called:`, { 
+        endpoint, 
+        cacheKey, 
+        storageType: this.storageType,
+        userId: options?.userId,
+        role: options?.role
+      });
+      
       let entry: CacheEntry<T> | null = null;
 
       switch (this.storageType) {
@@ -175,17 +208,30 @@ class ApiCacheManager {
       }
       
       if (!entry) {
-        console.log(`No cache found for ${endpoint}`);
+        console.log(`❌ ApiCache: No cache entry found for ${endpoint}`, {
+          cacheKey,
+          userId: options?.userId,
+          role: options?.role,
+          storageType: this.storageType
+        });
         return null;
       }
       
       if (this.isExpired(entry, ttl)) {
-        console.log(`Cache expired for ${endpoint}`);
+        console.log(`⏰ ApiCache: Cache expired for ${endpoint}`, {
+          age: (Date.now() - entry.timestamp) / 1000 / 60,
+          ttl
+        });
         await this.clearCache(endpoint, params);
         return null;
       }
 
-      console.log(`Cache hit for ${endpoint}:`, { cacheKey, dataLength: Array.isArray(entry.data) ? entry.data.length : 1, storageType: this.storageType });
+      console.log(`✅ ApiCache: Cache HIT for ${endpoint}:`, { 
+        cacheKey, 
+        dataLength: Array.isArray(entry.data) ? entry.data.length : 1, 
+        storageType: this.storageType,
+        age: (Date.now() - entry.timestamp) / 1000 / 60
+      });
       return entry.data;
     } catch (error) {
       console.warn('Failed to get cache:', error);
