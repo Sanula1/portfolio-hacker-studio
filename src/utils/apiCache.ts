@@ -1,3 +1,4 @@
+import { CACHE_TTL, getTTLForEndpoint } from '@/config/cacheTTL';
 
 interface CacheEntry<T = any> {
   data: T;
@@ -19,7 +20,7 @@ type StorageType = 'indexeddb' | 'localstorage' | 'memory';
 
 class ApiCacheManager {
   private static instance: ApiCacheManager;
-  private readonly DEFAULT_TTL = 30; // 30 minutes default cache
+  private readonly DEFAULT_TTL = CACHE_TTL.DEFAULT; // 60 minutes default cache (1 hour)
   private readonly CACHE_PREFIX = 'api_cache_';
   private readonly DB_NAME = 'ApiCacheDB';
   private readonly DB_VERSION = 1;
@@ -143,6 +144,10 @@ class ApiCacheManager {
     await this.waitForInit();
     
     try {
+      // Auto-detect TTL based on endpoint if not provided
+      const autoTTL = getTTLForEndpoint(endpoint);
+      const effectiveTTL = ttlMinutes || autoTTL;
+      
       const cacheKey = this.generateCacheKey(endpoint, params, options);
       const entry: CacheEntry<T> = {
         data,
@@ -166,7 +171,9 @@ class ApiCacheManager {
         userId: options?.userId, 
         role: options?.role,
         dataLength: Array.isArray(data) ? data.length : 1, 
-        storageType: this.storageType 
+        storageType: this.storageType,
+        ttl: `${effectiveTTL} minutes`,
+        expiresAt: new Date(Date.now() + effectiveTTL * 60 * 1000).toLocaleTimeString()
       });
     } catch (error) {
       console.warn('Failed to set cache:', error);
@@ -177,7 +184,9 @@ class ApiCacheManager {
     await this.waitForInit();
     
     try {
-      const { ttl = this.DEFAULT_TTL, forceRefresh = false } = options;
+      // Auto-detect TTL based on endpoint if not provided
+      const autoTTL = getTTLForEndpoint(endpoint);
+      const { ttl = autoTTL, forceRefresh = false } = options;
       
       if (forceRefresh) {
         console.log(`⚠️ Force refresh requested for ${endpoint}`);
@@ -190,7 +199,8 @@ class ApiCacheManager {
         cacheKey, 
         storageType: this.storageType,
         userId: options?.userId,
-        role: options?.role
+        role: options?.role,
+        ttl: `${ttl} minutes`
       });
       
       let entry: CacheEntry<T> | null = null;
@@ -230,7 +240,9 @@ class ApiCacheManager {
         cacheKey, 
         dataLength: Array.isArray(entry.data) ? entry.data.length : 1, 
         storageType: this.storageType,
-        age: (Date.now() - entry.timestamp) / 1000 / 60
+        age: `${((Date.now() - entry.timestamp) / 1000 / 60).toFixed(1)} minutes`,
+        ttl: `${ttl} minutes`,
+        expiresIn: `${(ttl - ((Date.now() - entry.timestamp) / 1000 / 60)).toFixed(1)} minutes`
       });
       return entry.data;
     } catch (error) {

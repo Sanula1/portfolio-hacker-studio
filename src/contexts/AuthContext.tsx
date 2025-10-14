@@ -152,26 +152,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     // Clear backend session and localStorage
     await logoutUser();
     
-    // Clear user-specific cache first (more secure than clearing all)
-    if (currentUserId) {
-      console.log(`🔒 Clearing cache for user: ${currentUserId}`);
-      await apiCache.clearUserCache(currentUserId);
-      
-      // Clear attendance duplicate records for this user
-      const { attendanceDuplicateChecker } = await import('@/utils/attendanceDuplicateCheck');
-      attendanceDuplicateChecker.clearForUser(currentUserId);
-    } else {
-      // Fallback: clear all cache if userId not available
-      console.log('🔒 Clearing all cache (no userId available)');
-      await apiCache.clearAllCache();
-      
-      // Clear all attendance duplicate records
-      const { attendanceDuplicateChecker } = await import('@/utils/attendanceDuplicateCheck');
-      attendanceDuplicateChecker.clearAll();
-    }
+    // 🧹 ALWAYS CLEAR ALL CACHE ON LOGOUT (Security & Fresh Start)
+    console.log('🧹 Clearing ALL cache on logout...');
+    await apiCache.clearAllCache();
     
-    // Clear pending API requests
+    // Clear attendance duplicate records
+    const { attendanceDuplicateChecker } = await import('@/utils/attendanceDuplicateCheck');
+    attendanceDuplicateChecker.clearAll();
+    
+    // Clear all pending API requests (regular + attendance + enhanced)
     cachedApiClient.clearPendingRequests();
+    const { attendanceApiClient } = await import('@/api/attendanceClient');
+    attendanceApiClient.clearPendingRequests();
+    const { enhancedCachedClient } = await import('@/api/enhancedCachedClient');
+    enhancedCachedClient.clearPendingRequests();
+    
+    console.log('✅ All cache, pending requests, and duplicate records cleared');
     
     // Clear all state
     setUser(null);
