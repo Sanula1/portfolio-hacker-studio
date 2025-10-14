@@ -16,6 +16,7 @@ import { AlertCircle, UserCheck, UserX, RefreshCw } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { toast } from '@/hooks/use-toast';
 import { getBaseUrl } from '@/contexts/utils/auth.api';
+import CurrentSelection from '@/components/ui/current-selection';
 
 interface UnverifiedStudent {
   id: string;
@@ -371,6 +372,12 @@ const UnverifiedStudents = () => {
 
   return (
     <div className="space-y-6">
+      <CurrentSelection 
+        institute={selectedInstitute}
+        class={selectedClass}
+        subject={selectedSubject}
+      />
+
       <div className="flex justify-between items-start">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">{getContextTitle()}</h1>
