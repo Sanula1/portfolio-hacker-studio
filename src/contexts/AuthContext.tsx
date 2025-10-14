@@ -156,10 +156,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     if (currentUserId) {
       console.log(`🔒 Clearing cache for user: ${currentUserId}`);
       await apiCache.clearUserCache(currentUserId);
+      
+      // Clear attendance duplicate records for this user
+      const { attendanceDuplicateChecker } = await import('@/utils/attendanceDuplicateCheck');
+      attendanceDuplicateChecker.clearForUser(currentUserId);
     } else {
       // Fallback: clear all cache if userId not available
       console.log('🔒 Clearing all cache (no userId available)');
       await apiCache.clearAllCache();
+      
+      // Clear all attendance duplicate records
+      const { attendanceDuplicateChecker } = await import('@/utils/attendanceDuplicateCheck');
+      attendanceDuplicateChecker.clearAll();
     }
     
     // Clear pending API requests
