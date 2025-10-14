@@ -34,8 +34,7 @@ const Homework = ({ apiLevel = 'institute' }: HomeworkProps) => {
     instituteRole,
     selectedInstitute,
     'selectedInstitute.userRole': selectedInstitute?.userRole,
-    'selectedInstitute.instituteUserType': (selectedInstitute as any)?.instituteUserType,
-    'user.role': user?.role
+    'selectedInstitute.instituteUserType': (selectedInstitute as any)?.instituteUserType
   });
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);

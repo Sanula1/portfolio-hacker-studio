@@ -538,7 +538,7 @@ const SubjectPayments = () => {
       )}
 
         {/* Verify Dialog for Institute Admins */}
-        {selectedInstitute && user?.role === 'InstituteAdmin' && <VerifySubmissionDialog open={verifyDialogOpen} onOpenChange={setVerifyDialogOpen} submission={selectedSubmission} instituteId={selectedInstitute.id} onSuccess={() => {
+        {selectedInstitute && instituteRole === 'InstituteAdmin' && <VerifySubmissionDialog open={verifyDialogOpen} onOpenChange={setVerifyDialogOpen} submission={selectedSubmission} instituteId={selectedInstitute.id} onSuccess={() => {
         setVerifyDialogOpen(false);
         setSelectedSubmission(null);
         loadSubjectPayments(); // Reload data after verification
@@ -560,7 +560,7 @@ const SubjectPayments = () => {
         )}
 
         {/* Submit Payment Dialog for Students */}
-        {user?.role === 'Student' && selectedPaymentForSubmission && <SubmitSubjectPaymentDialog open={submitPaymentDialogOpen} onOpenChange={setSubmitPaymentDialogOpen} payment={selectedPaymentForSubmission} onSuccess={() => {
+        {instituteRole === 'Student' && selectedPaymentForSubmission && <SubmitSubjectPaymentDialog open={submitPaymentDialogOpen} onOpenChange={setSubmitPaymentDialogOpen} payment={selectedPaymentForSubmission} onSuccess={() => {
         setSubmitPaymentDialogOpen(false);
         setSelectedPaymentForSubmission(null);
         loadSubjectPayments();

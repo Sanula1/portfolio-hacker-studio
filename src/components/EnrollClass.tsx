@@ -37,7 +37,6 @@ const EnrollClass = () => {
 
   console.log('EnrollClass component rendered', { 
     selectedInstitute, 
-    user: user?.role, 
     classes: classes?.length,
     hasData,
     classesArray: classes

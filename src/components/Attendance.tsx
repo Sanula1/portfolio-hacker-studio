@@ -52,7 +52,7 @@ const Attendance = () => {
     // Use institute-specific role
     const userRole = userRoleAuth;
     
-    console.log('🔍 Attendance Permission Check:', {
+    console.log('🔍 ATTENDANCE CONTEXT DEBUG:', {
       userRole,
       currentInstituteId,
       currentClassId,
@@ -60,8 +60,7 @@ const Attendance = () => {
       'selectedInstitute FULL': selectedInstitute,
       'selectedInstitute.userRole': selectedInstitute?.userRole,
       selectedClass: selectedClass?.name,
-      selectedSubject: selectedSubject?.name,
-      'user.role (login)': user?.role
+      selectedSubject: selectedSubject?.name
     });
     
     // Student - No permission to view attendance
