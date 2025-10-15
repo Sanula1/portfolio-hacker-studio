@@ -9,69 +9,15 @@ import { useToast } from '@/hooks/use-toast';
 import AppLayout from '@/components/layout/AppLayout';
 import PageContainer from '@/components/layout/PageContainer';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-
-interface AttendanceRecord {
-  id: string;
-  date: string;
-  status: 'present' | 'absent' | 'late';
-  checkIn?: string;
-  checkOut?: string;
-  location?: string;
-  markedBy?: string;
-}
+import { transportApi, type TransportAttendanceRecord } from '@/api/transport.api';
 
 const TransportAttendance: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { toast } = useToast();
-  const { selectedTransport, setSelectedTransport } = useAuth();
+  const { selectedTransport, setSelectedTransport, selectedChild } = useAuth();
   const [loading, setLoading] = useState(false);
-  const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[]>([
-    // Mock data for demonstration
-    {
-      id: '1',
-      date: '2025-10-11',
-      status: 'present',
-      checkIn: '07:30 AM',
-      checkOut: '03:45 PM',
-      location: 'Main Gate',
-      markedBy: 'System'
-    },
-    {
-      id: '2',
-      date: '2025-10-10',
-      status: 'present',
-      checkIn: '07:28 AM',
-      checkOut: '03:50 PM',
-      location: 'Main Gate',
-      markedBy: 'System'
-    },
-    {
-      id: '3',
-      date: '2025-10-09',
-      status: 'late',
-      checkIn: '08:15 AM',
-      checkOut: '03:45 PM',
-      location: 'Side Entrance',
-      markedBy: 'Guard'
-    },
-    {
-      id: '4',
-      date: '2025-10-08',
-      status: 'absent',
-      location: 'N/A',
-      markedBy: 'System'
-    },
-    {
-      id: '5',
-      date: '2025-10-07',
-      status: 'present',
-      checkIn: '07:35 AM',
-      checkOut: '03:40 PM',
-      location: 'Main Gate',
-      markedBy: 'System'
-    }
-  ]);
+  const [attendanceRecords, setAttendanceRecords] = useState<TransportAttendanceRecord[]>([]);
 
   useEffect(() => {
     // Set transport from location state if available
@@ -89,15 +35,30 @@ const TransportAttendance: React.FC = () => {
   };
 
   const loadAttendance = async () => {
+    if (!selectedChild?.id || !selectedTransport?.bookhireId) {
+      toast({
+        title: "Error",
+        description: "Missing student or transport information",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
     try {
-      // API call would go here
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const response = await transportApi.getStudentAttendance(
+        selectedChild.id,
+        selectedTransport.bookhireId,
+        { page: 1, limit: 10 }
+      );
+      
+      setAttendanceRecords(response.data.data);
       toast({
         title: "Success",
-        description: "Attendance records loaded successfully",
+        description: `Loaded ${response.data.data.length} attendance records`,
       });
     } catch (error) {
+      console.error('Error loading attendance:', error);
       toast({
         title: "Error",
         description: "Failed to load attendance records",
@@ -108,16 +69,22 @@ const TransportAttendance: React.FC = () => {
     }
   };
 
+  useEffect(() => {
+    if (selectedChild?.id && selectedTransport?.bookhireId) {
+      loadAttendance();
+    }
+  }, [selectedChild?.id, selectedTransport?.bookhireId]);
+
   const getStatusColor = (status: string) => {
-    switch (status.toLowerCase()) {
+    switch (status?.toLowerCase()) {
       case 'present':
-        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
+        return 'bg-success/10 text-success border-success/20';
       case 'absent':
-        return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
+        return 'bg-destructive/10 text-destructive border-destructive/20';
       case 'late':
-        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
+        return 'bg-warning/10 text-warning border-warning/20';
       default:
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200';
+        return 'bg-muted text-muted-foreground';
     }
   };
 
@@ -201,40 +168,59 @@ const TransportAttendance: React.FC = () => {
                       <TableRow>
                         <TableHead>Date</TableHead>
                         <TableHead>Status</TableHead>
-                        <TableHead>Check In</TableHead>
-                        <TableHead>Check Out</TableHead>
-                        <TableHead>Location</TableHead>
-                        <TableHead>Marked By</TableHead>
+                        <TableHead>Pickup Time</TableHead>
+                        <TableHead>Dropoff Time</TableHead>
+                        <TableHead>Locations</TableHead>
+                        <TableHead>Notes</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {attendanceRecords.map((record) => (
-                        <TableRow key={record.id}>
+                      {attendanceRecords.map((record, index) => (
+                        <TableRow key={`${record.timestamp}-${index}`}>
                           <TableCell className="font-medium">
-                            {formatDate(record.date)}
+                            {formatDate(record.attendanceDate)}
                           </TableCell>
                           <TableCell>
-                            <Badge className={getStatusColor(record.status)}>
-                              <div className="flex items-center gap-1">
-                                {getStatusIcon(record.status)}
-                                {record.status.charAt(0).toUpperCase() + record.status.slice(1)}
-                              </div>
-                            </Badge>
+                            <div className="space-y-1">
+                              <Badge className={getStatusColor(record.pickupStatus)}>
+                                <div className="flex items-center gap-1">
+                                  {getStatusIcon(record.pickupStatus)}
+                                  Pickup: {record.pickupStatus}
+                                </div>
+                              </Badge>
+                              <Badge className={getStatusColor(record.dropoffStatus)}>
+                                <div className="flex items-center gap-1">
+                                  {getStatusIcon(record.dropoffStatus)}
+                                  Dropoff: {record.dropoffStatus}
+                                </div>
+                              </Badge>
+                            </div>
                           </TableCell>
                           <TableCell>
-                            {record.checkIn || '-'}
+                            {record.pickupTime || '-'}
                           </TableCell>
                           <TableCell>
-                            {record.checkOut || '-'}
+                            {record.dropoffTime || '-'}
                           </TableCell>
                           <TableCell>
-                            <div className="flex items-center gap-1">
-                              <MapPin className="h-3 w-3 text-muted-foreground" />
-                              {record.location || '-'}
+                            <div className="space-y-1">
+                              {record.pickupLocation && (
+                                <div className="flex items-center gap-1 text-xs">
+                                  <MapPin className="h-3 w-3 text-muted-foreground" />
+                                  {record.pickupLocation}
+                                </div>
+                              )}
+                              {record.dropoffLocation && (
+                                <div className="flex items-center gap-1 text-xs">
+                                  <MapPin className="h-3 w-3 text-muted-foreground" />
+                                  {record.dropoffLocation}
+                                </div>
+                              )}
+                              {!record.pickupLocation && !record.dropoffLocation && '-'}
                             </div>
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground">
-                            {record.markedBy || 'System'}
+                            {record.notes || '-'}
                           </TableCell>
                         </TableRow>
                       ))}
