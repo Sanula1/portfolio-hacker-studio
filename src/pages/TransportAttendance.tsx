@@ -152,6 +152,32 @@ const TransportAttendance: React.FC = () => {
             </div>
           </div>
 
+          <Card className="border shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-xl md:text-2xl">Transport Information</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Transport ID</p>
+                  <p className="text-lg font-medium">{selectedTransport?.id || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Vehicle Number</p>
+                  <p className="text-lg font-medium">{selectedTransport?.vehicleNumber || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Bookhire ID</p>
+                  <p className="text-lg font-medium">{selectedTransport?.bookhireId || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Student ID</p>
+                  <p className="text-lg font-medium">{selectedChild?.id || '-'}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
           <div className="flex items-center justify-between">
             <h2 className="text-2xl font-semibold flex items-center gap-2">
               <Calendar className="h-6 w-6" />
