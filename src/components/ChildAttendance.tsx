@@ -134,7 +134,7 @@ const ChildAttendance = () => {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="container mx-auto p-6 min-h-screen flex flex-col space-y-6">
       {/* Header */}
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
         <div>
@@ -275,7 +275,7 @@ const ChildAttendance = () => {
       )}
 
       {/* Attendance Records MUI Table */}
-      <Card>
+      <Card className="flex-1 min-h-0 flex flex-col">
         <CardHeader>
           <CardTitle>Attendance Records</CardTitle>
           {attendanceData?.pagination && (
@@ -285,15 +285,15 @@ const ChildAttendance = () => {
             </p>
           )}
         </CardHeader>
-        <CardContent className="p-0">
+        <CardContent className="p-0 flex-1 min-h-0">
           {loading ? (
             <div className="flex justify-center items-center py-8">
               <RefreshCw className="h-6 w-6 animate-spin mr-2" />
               <span>Loading attendance...</span>
             </div>
           ) : attendanceData?.data && attendanceData.data.length > 0 ? (
-            <Paper sx={{ width: '100%', overflow: 'hidden' }}>
-              <TableContainer sx={{ height: 'calc(100vh - 400px)' }}>
+            <Paper sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
+              <TableContainer sx={{ flex: 1, overflow: 'auto', minHeight: 0 }}>
                 <Table stickyHeader aria-label="attendance table">
                   <TableHead>
                     <TableRow>

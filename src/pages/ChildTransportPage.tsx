@@ -74,12 +74,12 @@ const ChildTransportPage = () => {
   };
 
   return (
-    <div className="space-y-4">
+    <div className="min-h-screen space-y-6">
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2">
-              <Bus className="h-5 w-5" />
+            <CardTitle className="flex items-center gap-2 text-xl md:text-2xl">
+              <Bus className="h-6 w-6" />
               Transport Information
             </CardTitle>
             <Button onClick={loadEnrollments} disabled={loading} size="sm">
@@ -94,10 +94,10 @@ const ChildTransportPage = () => {
         </CardHeader>
         <CardContent>
           {enrollments.length > 0 ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
               {enrollments.map((enrollment) => (
                 <div key={enrollment.id} className="relative flex flex-col rounded-xl bg-card shadow-md">
-                  <div className="relative mx-3 -mt-4 h-24 overflow-hidden rounded-xl bg-gradient-to-r from-primary to-primary/80 shadow-md">
+                  <div className="relative mx-3 -mt-4 h-32 overflow-hidden rounded-xl bg-gradient-to-r from-primary to-primary/80 shadow-md">
                     {enrollment.imageUrl ? (
                       <img
                         src={enrollment.imageUrl}
@@ -112,7 +112,7 @@ const ChildTransportPage = () => {
                   </div>
                   <div className="p-4 flex-1 flex flex-col">
                     <div className="mb-3">
-                      <h5 className="mb-1 text-sm font-semibold text-foreground line-clamp-1">
+                      <h5 className="mb-1 text-base font-semibold text-foreground line-clamp-1">
                         {enrollment.bookhireTitle}
                       </h5>
                       <div className="flex items-center gap-1 mb-1 flex-wrap">
@@ -142,7 +142,7 @@ const ChildTransportPage = () => {
                     </div>
                     
                     <Button 
-                      className="w-full text-xs h-8" 
+                      className="w-full text-sm h-10" 
                       onClick={() => handleSelectTransport(enrollment)}
                     >
                       Select
