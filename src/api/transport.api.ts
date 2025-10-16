@@ -65,12 +65,14 @@ export interface EnrollTransportResponse {
 
 export interface TransportAttendanceRecord {
   attendanceDate: string;
-  pickupStatus: 'present' | 'absent' | 'late';
-  dropoffStatus: 'present' | 'absent' | 'late';
+  status: 'pickup' | 'dropoff';
+  pickupStatus?: 'present' | 'absent' | 'late';
+  dropoffStatus?: 'present' | 'absent' | 'late';
   pickupTime?: string;
   dropoffTime?: string;
   pickupLocation?: string;
   dropoffLocation?: string;
+  location?: string;
   notes?: string;
   vehicleNumber: string;
   bookhireName: string;

@@ -52,9 +52,11 @@ const ChildTransportPage = () => {
   const getStatusColor = (status: string) => {
     switch (status.toLowerCase()) {
       case 'approved':
-        return 'bg-success/10 text-success border-success/20';
+        return 'bg-green-500 text-white';
       case 'pending':
-        return 'bg-warning/10 text-warning border-warning/20';
+        return 'bg-yellow-500 text-white';
+      case 'rejected':
+        return 'bg-red-500 text-white';
       case 'inactive':
         return 'bg-muted text-muted-foreground';
       default:
@@ -92,65 +94,61 @@ const ChildTransportPage = () => {
         </CardHeader>
         <CardContent>
           {enrollments.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {enrollments.map((enrollment) => (
-                <Card key={enrollment.id} className="overflow-hidden">
-                  {enrollment.imageUrl && (
-                    <div className="h-48 overflow-hidden bg-muted">
+                <div key={enrollment.id} className="relative flex flex-col rounded-xl bg-card shadow-md">
+                  <div className="relative mx-3 -mt-4 h-24 overflow-hidden rounded-xl bg-gradient-to-r from-primary to-primary/80 shadow-md">
+                    {enrollment.imageUrl ? (
                       <img
                         src={enrollment.imageUrl}
                         alt={enrollment.bookhireTitle}
                         className="w-full h-full object-cover"
                       />
-                    </div>
-                  )}
-                  <CardHeader>
-                    <CardTitle className="text-lg">{enrollment.bookhireTitle}</CardTitle>
-                    <div className="flex items-center gap-2">
-                      <Badge className="text-xs">{enrollment.vehicleNumber}</Badge>
-                      <Badge variant="outline" className={getStatusColor(enrollment.status)}>
-                        {enrollment.status}
-                      </Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-2">
-                    <div className="flex items-start gap-2 text-sm">
-                      <MapPin className="h-4 w-4 mt-0.5 text-muted-foreground" />
-                      <div>
-                        <div className="font-medium">Pickup</div>
-                        <div className="text-muted-foreground">{enrollment.pickupLocation || 'Not specified'}</div>
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Bus className="h-8 w-8 text-white/80" />
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-4 flex-1 flex flex-col">
+                    <div className="mb-3">
+                      <h5 className="mb-1 text-sm font-semibold text-foreground line-clamp-1">
+                        {enrollment.bookhireTitle}
+                      </h5>
+                      <div className="flex items-center gap-1 mb-1 flex-wrap">
+                        <Badge className="text-xs bg-primary/10 text-primary border-primary/20">
+                          {enrollment.vehicleNumber}
+                        </Badge>
+                        <Badge className={`text-xs ${getStatusColor(enrollment.status)}`}>
+                          {enrollment.status}
+                        </Badge>
                       </div>
                     </div>
-                    <div className="flex items-start gap-2 text-sm">
-                      <MapPin className="h-4 w-4 mt-0.5 text-muted-foreground" />
-                      <div>
-                        <div className="font-medium">Dropoff</div>
-                        <div className="text-muted-foreground">{enrollment.dropoffLocation || 'Not specified'}</div>
+                    
+                    <div className="space-y-2 mb-3 flex-1 text-xs">
+                      <div className="flex items-start gap-1">
+                        <MapPin className="h-3 w-3 mt-0.5 text-muted-foreground flex-shrink-0" />
+                        <div className="line-clamp-2">
+                          <span className="font-medium">Pickup: </span>
+                          <span className="text-muted-foreground">{enrollment.pickupLocation || 'Not specified'}</span>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm">
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
-                      <div>
-                        <span className="font-medium">Enrolled: </span>
-                        {enrollment.enrollmentDate ? new Date(enrollment.enrollmentDate).toLocaleDateString() : 'N/A'}
-                      </div>
-                    </div>
-                    <div className="pt-2 border-t">
-                      <div className="flex items-center justify-between mb-3">
-                        <span className="text-sm font-medium">Monthly Fee</span>
-                        <span className="text-lg font-bold text-primary">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium">Fee:</span>
+                        <span className="font-bold text-primary">
                           Rs. {enrollment.monthlyFee.toLocaleString()}
                         </span>
                       </div>
-                      <Button 
-                        className="w-full" 
-                        onClick={() => handleSelectTransport(enrollment)}
-                      >
-                        Select Transport
-                      </Button>
                     </div>
-                  </CardContent>
-                </Card>
+                    
+                    <Button 
+                      className="w-full text-xs h-8" 
+                      onClick={() => handleSelectTransport(enrollment)}
+                    >
+                      Select
+                    </Button>
+                  </div>
+                </div>
               ))}
             </div>
           ) : (
