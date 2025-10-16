@@ -140,8 +140,8 @@ const TransportAttendance: React.FC = () => {
 
   return (
     <AppLayout currentPage="transport-attendance">
-      <div className="w-full min-h-screen flex flex-col">
-        <div className="p-6 space-y-4">
+      <div className="w-full h-full min-h-0 flex flex-col">
+        <div className="p-4 md:p-6 space-y-4 shrink-0">
           <div className="flex items-center gap-4">
             <Button variant="ghost" size="icon" onClick={handleBack}>
               <ArrowLeft className="h-5 w-5" />
@@ -194,15 +194,15 @@ const TransportAttendance: React.FC = () => {
           </div>
         </div>
 
-        <div className="flex-1 px-2 md:px-6 pb-2 md:pb-6">
+        <div className="flex-1 min-h-0 px-0 md:px-6 pb-0 md:pb-6">
           {loading ? (
             <div className="flex justify-center items-center py-8">
               <RefreshCw className="h-6 w-6 animate-spin mr-2" />
               <span>Loading attendance...</span>
             </div>
           ) : attendanceRecords.length > 0 ? (
-            <Paper sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
-              <TableContainer sx={{ flex: 1, overflow: 'auto' }}>
+            <Paper sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+              <TableContainer sx={{ flex: 1, overflow: 'auto', minHeight: 0 }}>
                 <Table stickyHeader aria-label="transport attendance table">
                   <TableHead>
                     <TableRow>
