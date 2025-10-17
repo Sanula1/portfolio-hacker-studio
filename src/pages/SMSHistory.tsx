@@ -339,25 +339,25 @@ export default function SMSHistory() {
               )}
 
               <div className="grid grid-cols-2 gap-4">
-                {selectedMessage.scheduledAt && (
+                {selectedMessage.scheduledAt && new Date(selectedMessage.scheduledAt).toString() !== 'Invalid Date' && (
                   <div>
                     <label className="text-sm font-medium text-gray-500">Scheduled At</label>
                     <p className="text-base">{format(new Date(selectedMessage.scheduledAt), 'PPpp')}</p>
                   </div>
                 )}
-                {selectedMessage.sentAt && (
+                {selectedMessage.sentAt && new Date(selectedMessage.sentAt).toString() !== 'Invalid Date' && (
                   <div>
                     <label className="text-sm font-medium text-gray-500">Sent At</label>
                     <p className="text-base">{format(new Date(selectedMessage.sentAt), 'PPpp')}</p>
                   </div>
                 )}
-                {selectedMessage.approvedAt && (
+                {selectedMessage.approvedAt && new Date(selectedMessage.approvedAt).toString() !== 'Invalid Date' && (
                   <div>
                     <label className="text-sm font-medium text-gray-500">Approved At</label>
                     <p className="text-base">{format(new Date(selectedMessage.approvedAt), 'PPpp')}</p>
                   </div>
                 )}
-                {selectedMessage.completedAt && (
+                {selectedMessage.completedAt && new Date(selectedMessage.completedAt).toString() !== 'Invalid Date' && (
                   <div>
                     <label className="text-sm font-medium text-gray-500">Completed At</label>
                     <p className="text-base">{format(new Date(selectedMessage.completedAt), 'PPpp')}</p>
@@ -382,11 +382,11 @@ export default function SMSHistory() {
               <div className="grid grid-cols-2 gap-4 text-sm text-gray-500">
                 <div>
                   <label className="font-medium">Created At</label>
-                  <p>{format(new Date(selectedMessage.createdAt), 'PPpp')}</p>
+                  <p>{selectedMessage.createdAt ? format(new Date(selectedMessage.createdAt), 'PPpp') : 'N/A'}</p>
                 </div>
                 <div>
                   <label className="font-medium">Updated At</label>
-                  <p>{format(new Date(selectedMessage.updatedAt), 'PPpp')}</p>
+                  <p>{selectedMessage.updatedAt ? format(new Date(selectedMessage.updatedAt), 'PPpp') : 'N/A'}</p>
                 </div>
               </div>
             </div>
