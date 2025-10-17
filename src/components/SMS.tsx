@@ -8,7 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { MessageSquare, Send, Users, DollarSign, RefreshCw } from 'lucide-react';
+import { MessageSquare, Send, Users, DollarSign, RefreshCw, Eye } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useTableData } from '@/hooks/useTableData';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format } from 'date-fns';
@@ -83,6 +84,8 @@ const SMS = () => {
   const [paymentsPage, setPaymentsPage] = useState(1);
   const [paymentsTotal, setPaymentsTotal] = useState(0);
   const paymentsLimit = 10;
+  const [selectedPayment, setSelectedPayment] = useState<PaymentSubmission | null>(null);
+  const [viewPaymentDialogOpen, setViewPaymentDialogOpen] = useState(false);
 
   // Custom SMS state
   const [customMessage, setCustomMessage] = useState('');
@@ -124,7 +127,7 @@ const SMS = () => {
     setLoadingPayments(true);
     try {
       const response: any = await apiClient.get(
-        `/sms/payment-submissions?instituteId=${currentInstituteId}&page=${paymentsPage}&limit=${paymentsLimit}`
+        `/sms/payment-submissions/${currentInstituteId}?page=${paymentsPage}&limit=${paymentsLimit}`
       );
       
       // Handle both single object and array responses
@@ -753,6 +756,7 @@ const SMS = () => {
                     <Table>
                       <TableHeader>
                         <TableRow>
+                          <TableHead>ID</TableHead>
                           <TableHead>Payment Ref</TableHead>
                           <TableHead>Amount</TableHead>
                           <TableHead>Method</TableHead>
@@ -760,19 +764,21 @@ const SMS = () => {
                           <TableHead>Credits Granted</TableHead>
                           <TableHead>Status</TableHead>
                           <TableHead>Submitted At</TableHead>
+                          <TableHead>Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         {paymentSubmissions.length === 0 ? (
                           <TableRow>
-                            <TableCell colSpan={7} className="text-center text-muted-foreground">
+                            <TableCell colSpan={9} className="text-center text-muted-foreground">
                               No payment submissions found
                             </TableCell>
                           </TableRow>
                         ) : (
                           paymentSubmissions.map((payment) => (
                             <TableRow key={payment.id}>
-                              <TableCell className="font-medium">{payment.paymentReference}</TableCell>
+                              <TableCell className="font-medium">#{payment.id}</TableCell>
+                              <TableCell>{payment.paymentReference}</TableCell>
                               <TableCell>Rs. {payment.paymentAmount}</TableCell>
                               <TableCell>{payment.paymentMethod}</TableCell>
                               <TableCell>{payment.requestedCredits}</TableCell>
@@ -789,7 +795,21 @@ const SMS = () => {
                                 </Badge>
                               </TableCell>
                               <TableCell>
-                                {format(new Date(payment.submittedAt), 'MMM dd, yyyy HH:mm')}
+                                {payment.submittedAt && new Date(payment.submittedAt).toString() !== 'Invalid Date' 
+                                  ? format(new Date(payment.submittedAt), 'MMM dd, yyyy HH:mm')
+                                  : 'N/A'}
+                              </TableCell>
+                              <TableCell>
+                                <Button 
+                                  variant="ghost" 
+                                  size="sm"
+                                  onClick={() => {
+                                    setSelectedPayment(payment);
+                                    setViewPaymentDialogOpen(true);
+                                  }}
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
                               </TableCell>
                             </TableRow>
                           ))
@@ -833,6 +853,150 @@ const SMS = () => {
           </Tabs>
         </CardContent>
       </Card>
+
+      {/* View Payment Details Dialog */}
+      <Dialog open={viewPaymentDialogOpen} onOpenChange={setViewPaymentDialogOpen}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Payment Submission Details</DialogTitle>
+          </DialogHeader>
+          
+          {selectedPayment && (
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Payment ID</label>
+                  <p className="text-base">#{selectedPayment.id}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Institute ID</label>
+                  <p className="text-base">{selectedPayment.instituteId}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Submitted By</label>
+                  <p className="text-base">{selectedPayment.submittedBy}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Status</label>
+                  <div className="mt-1">
+                    <Badge 
+                      variant={
+                        selectedPayment.status === 'VERIFIED' ? 'default' : 
+                        selectedPayment.status === 'PENDING' ? 'secondary' : 
+                        'destructive'
+                      }
+                    >
+                      {selectedPayment.status}
+                    </Badge>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Payment Amount</label>
+                  <p className="text-base font-semibold">Rs. {selectedPayment.paymentAmount}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Payment Method</label>
+                  <p className="text-base">{selectedPayment.paymentMethod}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Payment Reference</label>
+                  <p className="text-base">{selectedPayment.paymentReference}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Cost Per Credit</label>
+                  <p className="text-base">{selectedPayment.costPerCredit || 'N/A'}</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Requested Credits</label>
+                  <p className="text-base">{selectedPayment.requestedCredits}</p>
+                </div>
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Credits Granted</label>
+                  <p className="text-base font-semibold text-green-600">{selectedPayment.creditsGranted}</p>
+                </div>
+              </div>
+
+              {selectedPayment.paymentSlipFilename && (
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Payment Slip</label>
+                  <p className="text-base">{selectedPayment.paymentSlipFilename}</p>
+                  {selectedPayment.paymentSlipUrl && (
+                    <a 
+                      href={selectedPayment.paymentSlipUrl} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-sm text-blue-600 hover:underline"
+                    >
+                      View Payment Slip
+                    </a>
+                  )}
+                </div>
+              )}
+
+              {selectedPayment.submissionNotes && (
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Submission Notes</label>
+                  <p className="text-base bg-gray-50 dark:bg-gray-800 p-3 rounded mt-1">
+                    {selectedPayment.submissionNotes}
+                  </p>
+                </div>
+              )}
+
+              {selectedPayment.adminNotes && (
+                <div>
+                  <label className="text-sm font-medium text-gray-500">Admin Notes</label>
+                  <p className="text-base bg-gray-50 dark:bg-gray-800 p-3 rounded mt-1">
+                    {selectedPayment.adminNotes}
+                  </p>
+                </div>
+              )}
+
+              {selectedPayment.rejectionReason && (
+                <div>
+                  <label className="text-sm font-medium text-red-500">Rejection Reason</label>
+                  <p className="text-base text-red-600">{selectedPayment.rejectionReason}</p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-2 gap-4">
+                {selectedPayment.verifiedBy && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Verified By</label>
+                    <p className="text-base">{selectedPayment.verifiedBy}</p>
+                  </div>
+                )}
+                {selectedPayment.verifiedAt && new Date(selectedPayment.verifiedAt).toString() !== 'Invalid Date' && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">Verified At</label>
+                    <p className="text-base">{format(new Date(selectedPayment.verifiedAt), 'PPpp')}</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 text-sm text-gray-500">
+                <div>
+                  <label className="font-medium">Submitted At</label>
+                  <p>{selectedPayment.submittedAt && new Date(selectedPayment.submittedAt).toString() !== 'Invalid Date' ? format(new Date(selectedPayment.submittedAt), 'PPpp') : 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="font-medium">Created At</label>
+                  <p>{selectedPayment.createdAt && new Date(selectedPayment.createdAt).toString() !== 'Invalid Date' ? format(new Date(selectedPayment.createdAt), 'PPpp') : 'N/A'}</p>
+                </div>
+                <div>
+                  <label className="font-medium">Updated At</label>
+                  <p>{selectedPayment.updatedAt && new Date(selectedPayment.updatedAt).toString() !== 'Invalid Date' ? format(new Date(selectedPayment.updatedAt), 'PPpp') : 'N/A'}</p>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
