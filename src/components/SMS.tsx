@@ -69,6 +69,7 @@ const SMS = () => {
 
   // Bulk SMS state
   const [bulkMessage, setBulkMessage] = useState('');
+  const [recipientType, setRecipientType] = useState<string>('STUDENTS');
   const [selectedClasses, setSelectedClasses] = useState<string[]>([]);
   const [selectedSubjects, setSelectedSubjects] = useState<string[]>([]);
   const [selectedUserTypes, setSelectedUserTypes] = useState<string[]>([]);
@@ -238,7 +239,7 @@ const SMS = () => {
         `/sms/send-bulk?instituteId=${currentInstituteId}`,
         {
           messageTemplate: bulkMessage,
-          recipientType: selectedUserTypes.length === 1 ? selectedUserTypes[0] === 'STUDENT' ? 'STUDENTS' : selectedUserTypes[0] === 'TEACHER' ? 'TEACHERS' : selectedUserTypes[0] === 'PARENT' ? 'PARENTS' : selectedUserTypes[0] : 'STUDENTS',
+          recipientType: recipientType,
           classIds: selectedClasses,
           subjectIds: selectedSubjects,
           userTypes: selectedUserTypes,
@@ -250,11 +251,12 @@ const SMS = () => {
 
       toast({
         title: 'Success',
-        description: `${response.message || 'SMS scheduled successfully'}. Recipients: ${response.totalRecipients}. Status: ${response.status}`,
+        description: `${response.message || 'SMS scheduled successfully'}. Recipients: ${response.totalRecipients || 0}. Estimated Credits: ${response.estimatedCredits || 0}`,
       });
 
       // Reset form
       setBulkMessage('');
+      setRecipientType('STUDENTS');
       setSelectedClasses([]);
       setSelectedSubjects([]);
       setSelectedUserTypes([]);
@@ -512,6 +514,23 @@ const SMS = () => {
                   <p className="text-sm text-muted-foreground mt-1">
                     Use {`{{firstName}}`} and {`{{lastName}}`} as placeholders
                   </p>
+                </div>
+
+                <div>
+                  <Label htmlFor="recipient-type">Recipient Type</Label>
+                  <Select value={recipientType} onValueChange={setRecipientType}>
+                    <SelectTrigger id="recipient-type" className="mt-2">
+                      <SelectValue placeholder="Select recipient type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="CUSTOM">Custom</SelectItem>
+                      <SelectItem value="STUDENTS">Students</SelectItem>
+                      <SelectItem value="TEACHERS">Teachers</SelectItem>
+                      <SelectItem value="PARENTS">Parents</SelectItem>
+                      <SelectItem value="ADMIN">Admin</SelectItem>
+                      <SelectItem value="ALL">All</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div>

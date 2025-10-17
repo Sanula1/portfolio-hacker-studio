@@ -112,11 +112,6 @@ export default function SMSHistory() {
       format: (value: string) => `#${value}`
     },
     {
-      id: 'sentBy',
-      label: 'Sent By',
-      minWidth: 100
-    },
-    {
       id: 'messageType',
       label: 'Message Type',
       minWidth: 150,
@@ -135,10 +130,9 @@ export default function SMSHistory() {
       format: (value: string) => getStatusBadge(value)
     },
     {
-      id: 'scheduledAt',
-      label: 'Scheduled At',
-      minWidth: 180,
-      format: (value: string) => (value ? format(new Date(value), 'PPpp') : '-')
+      id: 'maskIdUsed',
+      label: 'Mask ID',
+      minWidth: 150
     }
   ];
 
