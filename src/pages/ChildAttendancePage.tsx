@@ -99,7 +99,7 @@ const ChildAttendancePage = () => {
   };
 
   return (
-    <div className="min-h-screen flex flex-col space-y-4">
+    <div className="h-screen flex flex-col space-y-4 p-4 overflow-hidden">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -191,14 +191,14 @@ const ChildAttendancePage = () => {
       )}
 
       {attendanceData && (
-          <Card className="flex-1 min-h-0 flex flex-col">
-          <CardHeader>
+          <Card className="flex-1 overflow-hidden flex flex-col">
+          <CardHeader className="flex-shrink-0">
             <CardTitle>Records ({attendanceData.pagination.totalRecords})</CardTitle>
           </CardHeader>
-          <CardContent className="p-0 flex-1 min-h-0">
+          <CardContent className="p-0 flex-1 overflow-hidden flex flex-col">
             {attendanceData.data && attendanceData.data.length > 0 ? (
-                <Paper sx={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column' }}>
-                  <TableContainer sx={{ flex: 1, overflow: 'auto', minHeight: 0 }}>
+                <Paper sx={{ width: '100%', flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+                  <TableContainer sx={{ flex: 1, overflow: 'auto' }}>
                     <Table stickyHeader aria-label="attendance records table">
                     <TableHead>
                       <TableRow>

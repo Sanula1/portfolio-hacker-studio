@@ -94,6 +94,10 @@ export const useTableData = <T = any>(config: TableDataConfig): UseTableDataRetu
         // Institute payments API format
         data = result.data.payments;
         total = result.data.pagination?.totalItems || data.length;
+      } else if ((result as any)?.items) {
+        // SMS history API format {items, total, page, limit, totalPages}
+        data = (result as any).items;
+        total = (result as any).total || data.length;
       } else if ((result as any)?.messages) {
         // Enhanced SMS history API format
         data = (result as any).messages;

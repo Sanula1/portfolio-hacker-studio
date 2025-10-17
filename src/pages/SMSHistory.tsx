@@ -55,7 +55,7 @@ export default function SMSHistory() {
     pagination: { page, limit, totalCount },
     actions: { setPage, setLimit, refresh, updateFilters }
   } = useTableData<SMSMessage>({
-    endpoint: selectedInstitute ? `/enhanced-sms/message-history/${selectedInstitute.id}` : '',
+    endpoint: selectedInstitute ? `/sms/message-history/${selectedInstitute.id}` : '',
     autoLoad: !!selectedInstitute,
     defaultParams: {
       recipientFilterType: recipientFilter || undefined,

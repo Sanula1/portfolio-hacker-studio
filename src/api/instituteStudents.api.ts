@@ -1,5 +1,4 @@
-import { getBaseUrl, getAttendanceUrl, getApiHeaders } from '@/contexts/utils/auth.api';
-import { enhancedCachedClient } from './enhancedCachedClient';
+import { getAttendanceUrl, getApiHeaders } from '@/contexts/utils/auth.api';
 
 export interface StudentAttendanceRecord {
   studentId: string;
@@ -57,16 +56,15 @@ class InstituteStudentsApi {
 
     console.log('Fetching institute student attendance for institute:', instituteId, 'with params:', queryParams);
 
-    const endpoint = `/api/students/by-institute/${instituteId}/?page=${queryParams.page}&limit=${queryParams.limit}`;
+    const attendanceUrl = getAttendanceUrl();
+    const endpoint = `${attendanceUrl}/api/students/by-institute/${instituteId}/?page=${queryParams.page}&limit=${queryParams.limit}`;
+    const headers = await getApiHeaders();
     
-    return enhancedCachedClient.get<StudentAttendanceResponse>(endpoint, undefined, {
-      forceRefresh,
-      ttl: 10,
-      useStaleWhileRevalidate: true,
-      userId: params.userId,
-      instituteId,
-      role: params.role
-    });
+    const response = await fetch(endpoint, { headers });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    return response.json();
   }
 
   // 2. Class-level attendance (InstituteAdmin, Teacher)
@@ -83,17 +81,15 @@ class InstituteStudentsApi {
 
     console.log('Fetching class student attendance for institute:', instituteId, 'class:', classId, 'with params:', queryParams);
 
-    const endpoint = `/api/students/by-institute/${instituteId}/class/${classId}?page=${queryParams.page}&limit=${queryParams.limit}`;
+    const attendanceUrl = getAttendanceUrl();
+    const endpoint = `${attendanceUrl}/api/students/by-institute/${instituteId}/class/${classId}?page=${queryParams.page}&limit=${queryParams.limit}`;
+    const headers = await getApiHeaders();
     
-    return enhancedCachedClient.get<StudentAttendanceResponse>(endpoint, undefined, {
-      forceRefresh,
-      ttl: 10,
-      useStaleWhileRevalidate: true,
-      userId: params.userId,
-      instituteId,
-      classId,
-      role: params.role
-    });
+    const response = await fetch(endpoint, { headers });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    return response.json();
   }
 
   // 3. Subject-level attendance (InstituteAdmin, Teacher)
@@ -111,18 +107,15 @@ class InstituteStudentsApi {
 
     console.log('Fetching subject student attendance for institute:', instituteId, 'class:', classId, 'subject:', subjectId, 'with params:', queryParams);
 
-    const endpoint = `/api/students/by-institute/${instituteId}/class/${classId}/subject/${subjectId}?page=${queryParams.page}&limit=${queryParams.limit}`;
+    const attendanceUrl = getAttendanceUrl();
+    const endpoint = `${attendanceUrl}/api/students/by-institute/${instituteId}/class/${classId}/subject/${subjectId}?page=${queryParams.page}&limit=${queryParams.limit}`;
+    const headers = await getApiHeaders();
     
-    return enhancedCachedClient.get<StudentAttendanceResponse>(endpoint, undefined, {
-      forceRefresh,
-      ttl: 10,
-      useStaleWhileRevalidate: true,
-      userId: params.userId,
-      instituteId,
-      classId,
-      subjectId,
-      role: params.role
-    });
+    const response = await fetch(endpoint, { headers });
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+    return response.json();
   }
 }
 

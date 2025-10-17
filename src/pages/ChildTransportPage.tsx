@@ -94,10 +94,10 @@ const ChildTransportPage = () => {
         </CardHeader>
         <CardContent>
           {enrollments.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-8">
               {enrollments.map((enrollment) => (
-                <div key={enrollment.id} className="relative flex flex-col rounded-xl bg-card shadow-md">
-                  <div className="relative mx-3 -mt-4 h-32 overflow-hidden rounded-xl bg-gradient-to-r from-primary to-primary/80 shadow-md">
+                <div key={enrollment.id} className="relative flex flex-col rounded-xl bg-card shadow-lg">
+                  <div className="relative mx-4 -mt-6 h-48 overflow-hidden rounded-xl bg-gradient-to-r from-primary to-primary/80 shadow-lg">
                     {enrollment.imageUrl ? (
                       <img
                         src={enrollment.imageUrl}
@@ -110,42 +110,42 @@ const ChildTransportPage = () => {
                       </div>
                     )}
                   </div>
-                  <div className="p-4 flex-1 flex flex-col">
-                    <div className="mb-3">
-                      <h5 className="mb-1 text-base font-semibold text-foreground line-clamp-1">
+                  <div className="p-6 flex-1 flex flex-col">
+                    <div className="mb-4">
+                      <h5 className="mb-2 text-xl font-bold text-foreground line-clamp-2">
                         {enrollment.bookhireTitle}
                       </h5>
-                      <div className="flex items-center gap-1 mb-1 flex-wrap">
-                        <Badge className="text-xs bg-primary/10 text-primary border-primary/20">
+                      <div className="flex items-center gap-2 mb-2 flex-wrap">
+                        <Badge className="text-sm bg-primary/10 text-primary border-primary/20 px-3 py-1">
                           {enrollment.vehicleNumber}
                         </Badge>
-                        <Badge className={`text-xs ${getStatusColor(enrollment.status)}`}>
+                        <Badge className={`text-sm px-3 py-1 ${getStatusColor(enrollment.status)}`}>
                           {enrollment.status}
                         </Badge>
                       </div>
                     </div>
                     
-                    <div className="space-y-2 mb-3 flex-1 text-xs">
-                      <div className="flex items-start gap-1">
-                        <MapPin className="h-3 w-3 mt-0.5 text-muted-foreground flex-shrink-0" />
-                        <div className="line-clamp-2">
-                          <span className="font-medium">Pickup: </span>
+                    <div className="space-y-3 mb-4 flex-1 text-sm">
+                      <div className="flex items-start gap-2">
+                        <MapPin className="h-4 w-4 mt-0.5 text-muted-foreground flex-shrink-0" />
+                        <div className="line-clamp-3">
+                          <span className="font-semibold">Pickup: </span>
                           <span className="text-muted-foreground">{enrollment.pickupLocation || 'Not specified'}</span>
                         </div>
                       </div>
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium">Fee:</span>
-                        <span className="font-bold text-primary">
+                      <div className="flex items-center justify-between pt-2 border-t">
+                        <span className="font-semibold">Monthly Fee:</span>
+                        <span className="font-bold text-primary text-lg">
                           Rs. {enrollment.monthlyFee.toLocaleString()}
                         </span>
                       </div>
                     </div>
                     
                     <Button 
-                      className="w-full text-sm h-10" 
+                      className="w-full text-base h-12 font-semibold" 
                       onClick={() => handleSelectTransport(enrollment)}
                     >
-                      Select
+                      Select Transport
                     </Button>
                   </div>
                 </div>
